@@ -1,0 +1,27 @@
+# 記錄檔
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# 依賴套件 (若後續使用 npm 或 yarn)
+node_modules/
+
+# 輸出目錄 (若後續建立 React/前端編譯)
+build/
+dist/
+.next/
+
+# 作業系統產生的檔案
+.DS_Store
+Thumbs.db
+
+# 環境變數
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 臨時解析檔案
+pdf_text*
+__pycache__/
