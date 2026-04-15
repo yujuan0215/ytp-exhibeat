@@ -5,6 +5,7 @@ from google.adk.agents.llm_agent import Agent
 # 1. 載入工具 (從 tools/ 內直接填入要使用的名稱)
 from .tools.event_tools import get_event_detail
 from .tools.event_tools import get_nearby_events
+from .tools.event_tools import get_transit_access
 from .tools.event_tools import plan_itinerary
 from .tools.event_tools import search_events
 from .tools.event_tools import search_events_near_place
@@ -35,6 +36,7 @@ root_agent = Agent(
         search_events_near_place,
         get_event_detail,
         get_nearby_events,
+        get_transit_access,
         plan_itinerary,
     ]
 )

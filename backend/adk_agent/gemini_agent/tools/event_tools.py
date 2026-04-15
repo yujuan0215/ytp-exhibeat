@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import math
+import os
 import re
 import sqlite3
 from datetime import date, datetime, time, timedelta
@@ -18,8 +19,11 @@ import urllib3
 CULTURE_API_URL = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do"
 CULTURE_API_HOST = "cloud.culture.tw"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
+TDX_AUTH_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+TDX_API_BASE_URL = "https://tdx.transportdata.tw/api/basic/v2"
 REQUEST_TIMEOUT_SECONDS = 30
 SYNC_TTL = timedelta(hours=6)
+TDX_TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
 
 CATEGORY_CODE_TO_LABEL = {
     "1": "音樂",
@@ -103,6 +107,10 @@ CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parent.parent
 DATA_DIR = REPO_ROOT / ".adk"
 DB_PATH = DATA_DIR / "exhibeat.sqlite3"
+_TDX_TOKEN_CACHE: dict[str, datetime | str | None] = {
+    "access_token": None,
+    "expires_at": None,
+}
 
 
 def _request_json(url: str, params: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
@@ -126,6 +134,87 @@ def _request_json(url: str, params: dict[str, Any], headers: dict[str, str] | No
         )
         response.raise_for_status()
         return response.json()
+
+
+def _localized_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        for key in ("Zh_tw", "ZhTw", "zh_tw", "Name", "name", "En"):
+            text = value.get(key)
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+    return ""
+
+
+def _position_from_item(item: dict[str, Any]) -> tuple[float | None, float | None]:
+    for key in ("StationPosition", "StopPosition", "Position"):
+        position = item.get(key)
+        if isinstance(position, dict):
+            lat = _parse_float(position.get("PositionLat"))
+            lon = _parse_float(position.get("PositionLon"))
+            if lat is not None and lon is not None:
+                return (lat, lon)
+
+    lat = _parse_float(item.get("PositionLat") or item.get("lat"))
+    lon = _parse_float(item.get("PositionLon") or item.get("lon"))
+    return (lat, lon)
+
+
+def _tdx_credentials() -> tuple[str | None, str | None]:
+    return (os.getenv("TDX_CLIENT_ID"), os.getenv("TDX_CLIENT_SECRET"))
+
+
+def _tdx_enabled() -> bool:
+    client_id, client_secret = _tdx_credentials()
+    return bool(client_id and client_secret)
+
+
+def _get_tdx_access_token() -> str:
+    client_id, client_secret = _tdx_credentials()
+    if not client_id or not client_secret:
+        raise RuntimeError("尚未設定 TDX_CLIENT_ID / TDX_CLIENT_SECRET。")
+
+    cached_token = _TDX_TOKEN_CACHE.get("access_token")
+    expires_at = _TDX_TOKEN_CACHE.get("expires_at")
+    if isinstance(cached_token, str) and isinstance(expires_at, datetime):
+        if datetime.utcnow() + TDX_TOKEN_REFRESH_BUFFER < expires_at:
+            return cached_token
+
+    response = requests.post(
+        TDX_AUTH_URL,
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    access_token = payload.get("access_token")
+    expires_in = int(payload.get("expires_in") or 0)
+    if not access_token:
+        raise RuntimeError("TDX token 回應缺少 access_token。")
+
+    _TDX_TOKEN_CACHE["access_token"] = access_token
+    _TDX_TOKEN_CACHE["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in)
+    return access_token
+
+
+def _tdx_request_json(path: str, params: dict[str, Any]) -> Any:
+    access_token = _get_tdx_access_token()
+    response = requests.get(
+        f"{TDX_API_BASE_URL}/{path.lstrip('/')}",
+        params=params,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+        },
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def _strip_html(value: str | None) -> str:
@@ -717,6 +806,7 @@ def _ensure_occurrence_coords(row: sqlite3.Row) -> tuple[float | None, float | N
 
 def _normalize_show_info_from_row(row: sqlite3.Row) -> dict[str, Any]:
     latitude, longitude = _ensure_occurrence_coords(row)
+    transit_access = _get_transit_access(latitude, longitude, row["address"] or row["venue_name"] or "")
     return {
         "time": row["event_time"],
         "end_time": row["event_end_time"],
@@ -730,6 +820,7 @@ def _normalize_show_info_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "longitude": longitude,
         "looks_indoor": bool(row["looks_indoor"]),
         "map_url": _maps_link(row["address"] or row["venue_name"] or "", latitude, longitude),
+        "transit_access": transit_access,
     }
 
 
@@ -777,16 +868,177 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return radius * c
 
 
+def _station_result_from_item(
+    item: dict[str, Any],
+    origin_coords: tuple[float, float],
+    item_type: str,
+) -> dict[str, Any] | None:
+    lat, lon = _position_from_item(item)
+    if lat is None or lon is None:
+        return None
+
+    distance_km = round(_haversine_km(origin_coords[0], origin_coords[1], lat, lon), 2)
+    distance_m = int(round(distance_km * 1000))
+    if item_type == "metro":
+        name = _localized_text(item.get("StationName")) or item.get("StationID") or "未命名捷運站"
+        identifier = item.get("StationID") or item.get("StationUID") or ""
+        line_name = _localized_text(item.get("LineName"))
+    else:
+        name = _localized_text(item.get("StopName")) or item.get("StopID") or "未命名公車站"
+        identifier = item.get("StopID") or item.get("StopUID") or ""
+        route_names = [
+            _localized_text(route.get("RouteName"))
+            for route in (item.get("Routes") or [])
+            if isinstance(route, dict)
+        ]
+        line_name = "、".join(name for name in route_names if name)[:120]
+
+    return {
+        "type": item_type,
+        "name": name,
+        "id": identifier,
+        "line": line_name,
+        "latitude": lat,
+        "longitude": lon,
+        "distance_km": distance_km,
+        "distance_m": distance_m,
+        "map_url": _maps_link(name, lat, lon),
+    }
+
+
+@lru_cache(maxsize=256)
+def _nearby_metro_stations(lat: float, lon: float, radius_m: int = 600, limit: int = 3) -> tuple[dict[str, Any], ...]:
+    if not _tdx_enabled():
+        return tuple()
+
+    data = _tdx_request_json(
+        "Rail/Metro/Station/TRTC",
+        {
+            "$spatialFilter": f"nearby({lat},{lon},{radius_m})",
+            "$top": max(limit, 1),
+            "$format": "JSON",
+        },
+    )
+    results: list[dict[str, Any]] = []
+    for item in data or []:
+        normalized = _station_result_from_item(item, (lat, lon), "metro")
+        if normalized:
+            results.append(normalized)
+
+    results.sort(key=lambda item: item["distance_m"])
+    return tuple(results[:limit])
+
+
+@lru_cache(maxsize=256)
+def _nearby_bus_stops(lat: float, lon: float, radius_m: int = 400, limit: int = 3) -> tuple[dict[str, Any], ...]:
+    if not _tdx_enabled():
+        return tuple()
+
+    data = _tdx_request_json(
+        "Bus/Stop/NearBy",
+        {
+            "$spatialFilter": f"nearby({lat},{lon},{radius_m})",
+            "$top": max(limit, 1),
+            "$format": "JSON",
+        },
+    )
+    results: list[dict[str, Any]] = []
+    for item in data or []:
+        normalized = _station_result_from_item(item, (lat, lon), "bus")
+        if normalized:
+            results.append(normalized)
+
+    results.sort(key=lambda item: item["distance_m"])
+    return tuple(results[:limit])
+
+
+def _transit_summary(metro_stations: list[dict[str, Any]], bus_stops: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    if metro_stations:
+        nearest_metro = metro_stations[0]
+        line_text = f"（{nearest_metro['line']}）" if nearest_metro.get("line") else ""
+        parts.append(
+            f"最近捷運站是 {nearest_metro['name']}{line_text}，約 {nearest_metro['distance_m']} 公尺。"
+        )
+    if bus_stops:
+        nearest_bus = bus_stops[0]
+        route_text = f"，可留意 {nearest_bus['line']}" if nearest_bus.get("line") else ""
+        parts.append(
+            f"最近公車站是 {nearest_bus['name']}，約 {nearest_bus['distance_m']} 公尺{route_text}。"
+        )
+    return " ".join(parts)
+
+
+def _get_transit_access(
+    lat: float | None,
+    lon: float | None,
+    address: str,
+    radius_m: int = 600,
+    limit: int = 3,
+) -> dict[str, Any]:
+    if lat is None or lon is None:
+        return {
+            "tdx_enabled": _tdx_enabled(),
+            "summary": "缺少活動座標，無法查詢附近捷運與公車站。",
+            "metro_stations": [],
+            "bus_stops": [],
+        }
+
+    if not _tdx_enabled():
+        return {
+            "tdx_enabled": False,
+            "summary": "尚未設定 TDX 憑證，暫時只能提供 Google Maps 導航連結。",
+            "metro_stations": [],
+            "bus_stops": [],
+        }
+
+    try:
+        metro_stations = list(_nearby_metro_stations(lat, lon, radius_m=radius_m, limit=limit))
+        bus_stops = list(_nearby_bus_stops(lat, lon, radius_m=max(250, min(radius_m, 400)), limit=limit))
+    except requests.RequestException as exc:
+        return {
+            "tdx_enabled": True,
+            "summary": f"TDX 查詢失敗：{exc}",
+            "metro_stations": [],
+            "bus_stops": [],
+            "warning": str(exc),
+        }
+    except Exception as exc:
+        return {
+            "tdx_enabled": True,
+            "summary": f"TDX 查詢失敗：{exc}",
+            "metro_stations": [],
+            "bus_stops": [],
+            "warning": str(exc),
+        }
+
+    summary = _transit_summary(metro_stations, bus_stops)
+    if not summary:
+        summary = "查不到附近的捷運站或公車站，建議直接用地圖導航確認路線。"
+
+    return {
+        "tdx_enabled": True,
+        "address": address,
+        "summary": summary,
+        "metro_stations": metro_stations,
+        "bus_stops": bus_stops,
+    }
+
+
 def _travel_estimate(
     origin_coords: tuple[float, float] | None,
     dest_coords: tuple[float, float] | None,
+    dest_transit: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not origin_coords or not dest_coords:
+        summary = "缺少完整座標，先以台北市區一般轉乘時間估 20 分鐘。"
+        if dest_transit and dest_transit.get("summary"):
+            summary = f"{summary} {dest_transit['summary']}"
         return {
             "distance_km": None,
             "estimated_minutes": 20,
             "mode": "city_transit",
-            "summary": "缺少完整座標，先以台北市區一般轉乘時間估 20 分鐘。",
+            "summary": summary,
         }
 
     distance_km = round(_haversine_km(origin_coords[0], origin_coords[1], dest_coords[0], dest_coords[1]), 2)
@@ -806,6 +1058,9 @@ def _travel_estimate(
         minutes = max(35, int(round(distance_km * 4 + 16)))
         mode = "transit"
         summary = f"兩點直線距離約 {distance_km} 公里，屬較長移動，建議使用大眾運輸。"
+
+    if dest_transit and dest_transit.get("summary"):
+        summary = f"{summary} {dest_transit['summary']}"
 
     return {
         "distance_km": distance_km,
@@ -978,6 +1233,76 @@ def search_events_near_place(
     }
 
 
+def get_transit_access(
+    place: str = "",
+    event_uid: str = "",
+    radius_m: int = 600,
+    limit: int = 3,
+) -> dict[str, Any]:
+    """
+    查詢指定地點或活動附近的捷運站與公車站。
+
+    Args:
+        place: 自然語言地點，例如「台大醫院」、「華山1914文創園區」。
+        event_uid: 文化部活動 UID。若提供，優先使用活動場館位置。
+        radius_m: 搜尋半徑（公尺）。
+        limit: 每種交通設施回傳筆數上限。
+
+    Returns:
+        dict: 附近捷運、公車站與交通摘要。
+    """
+    bounded_limit = min(max(limit, 1), 5)
+    bounded_radius = min(max(radius_m, 200), 1200)
+
+    if event_uid:
+        _ensure_event_exists(event_uid)
+        occurrence_rows = _find_occurrence_rows(event_uid)
+        if not occurrence_rows:
+            return {"error": f"找不到 UID 為 `{event_uid}` 的活動。"}
+
+        row = occurrence_rows[0]
+        lat, lon = _ensure_occurrence_coords(row)
+        transit_access = _get_transit_access(lat, lon, row["address"] or row["venue_name"] or "", bounded_radius, bounded_limit)
+        transit_access.update(
+            {
+                "source": "TDX",
+                "event_uid": event_uid,
+                "place": {
+                    "name": row["venue_name"] or row["title"],
+                    "address": row["address"] or "",
+                    "latitude": lat,
+                    "longitude": lon,
+                    "map_url": _maps_link(row["address"] or row["venue_name"] or "", lat, lon),
+                },
+                "radius_m": bounded_radius,
+            }
+        )
+        return transit_access
+
+    if not place:
+        return {"error": "請提供 `place` 或 `event_uid`。"}
+
+    lat, lon = _geocode_address(place)
+    if lat is None or lon is None:
+        return {"error": f"找不到地點 `{place}`，請改用更完整的名稱。"}
+
+    transit_access = _get_transit_access(lat, lon, place, bounded_radius, bounded_limit)
+    transit_access.update(
+        {
+            "source": "TDX",
+            "place": {
+                "name": place,
+                "address": place,
+                "latitude": lat,
+                "longitude": lon,
+                "map_url": _maps_link(place, lat, lon),
+            },
+            "radius_m": bounded_radius,
+        }
+    )
+    return transit_access
+
+
 def get_event_detail(event_uid: str) -> dict[str, Any]:
     """
     取得單一藝文活動的完整資訊。
@@ -997,6 +1322,7 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
     return {
         "source": "文化部藝文活動 OpenAPI",
         "database_path": str(DB_PATH),
+        "transport_source": "TDX" if _tdx_enabled() else "",
         "event": {
             "uid": event.get("UID"),
             "title": event.get("title"),
@@ -1063,12 +1389,14 @@ def get_nearby_events(event_uid: str, radius_km: float = 2.0, limit: int = 5) ->
     return {
         "source": "文化部藝文活動 OpenAPI",
         "database_path": str(DB_PATH),
+        "transport_source": "TDX" if _tdx_enabled() else "",
         "base_event": {
             "uid": detail["event"]["uid"],
             "title": detail["event"]["title"],
             "venue_name": base.get("location_name"),
             "address": base.get("address"),
             "map_url": base.get("map_url"),
+            "transit_access": base.get("transit_access"),
         },
         "radius_km": radius_km,
         "count": min(len(nearby), bounded_limit),
@@ -1138,13 +1466,18 @@ def plan_itinerary(
             window_start, window_end = _time_window_from_row(row, target_date)
             duration = _duration_for_category(row["category_code"])
             dest_coords = (row["latitude"], row["longitude"]) if row["latitude"] is not None and row["longitude"] is not None else None
-            travel = _travel_estimate(current_coords, dest_coords)
+            dest_transit = _get_transit_access(
+                row["latitude"],
+                row["longitude"],
+                row["address"] or row["venue_name"] or "",
+            )
+            travel = _travel_estimate(current_coords, dest_coords, dest_transit=dest_transit)
             suggested_start = max(current_time + timedelta(minutes=travel["estimated_minutes"]), window_start)
             suggested_end = suggested_start + duration
             if suggested_end > window_end or suggested_end > day_end:
                 continue
             utility = float(score) - float(travel["estimated_minutes"]) / 3
-            feasible.append((utility, row, score, suggested_start, suggested_end, travel))
+            feasible.append((utility, row, score, suggested_start, suggested_end, travel | {"transit_access": dest_transit}))
 
         if not feasible:
             break
@@ -1170,6 +1503,7 @@ def plan_itinerary(
                 "travel_summary": travel["summary"],
                 "directions_url": _directions_link(current_coords, dest_coords, row["address"] or row["venue_name"] or ""),
                 "map_url": row["map_url"] or _maps_link(row["address"] or row["venue_name"] or "", row["latitude"], row["longitude"]),
+                "transit_access": travel.get("transit_access"),
                 "is_free": bool(row["is_free"]),
                 "price": row["price"] or "",
                 "source_web_name": row["source_web_name"] or "",
@@ -1206,8 +1540,8 @@ def plan_itinerary(
         },
         "notes": [
             "活動資料已先同步進本地 SQLite，減少每次直接打官方 API 的延遲與不穩定。",
-            "移動時間使用台北市區簡化的大眾運輸／步行估算，不是即時路線規劃結果。",
-            "若後續接入 TDX，可再將 travel estimate 升級成站點級或路線級規劃。",
+            "移動時間仍是簡化估算，不是即時路線規劃結果。",
+            "若已設定 TDX 憑證，會補上附近捷運站與公車站資訊，讓每站更接近真實交通情境。",
         ],
         "count": len(selected),
         "itinerary": selected,
