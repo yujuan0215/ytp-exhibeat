@@ -10,6 +10,22 @@
 2. **視覺化地圖 (Map)**：將展演活動空間化呈現，支援自選願望清單標記與地圖範圍推薦。讓使用者一目瞭然城市裡的藝文脈動。
 3. **AI Agent (自然語言助手)**：AI Agent 不僅能幫你查詢相關資料、安排行程，更能直接連動操作地圖標記及收藏清單。背後依賴向量檢索庫 (ChromaDB) 輔助減少幻覺。
 
+## ✅ 目前已落地的後端模組
+
+目前 repo 內已加入一個可直接執行的 ADK Agent prototype，路徑在 `backend/adk_agent/`。這個模組不是空架構，而是已經接上真實資料來源與可部署流程的後端原型，包含：
+
+- 使用 Google ADK / Gemini 建立展演探索與行程規劃 Agent
+- 串接文化部藝文活動 OpenAPI，支援同步、搜尋、活動詳情與附近活動
+- 串接 Open-Meteo 天氣 API，支援情境式推薦
+- 以 SQLite 建立本地活動資料表，降低每次查詢都打外部 API 的不穩定性
+- 支援 `make run` 本地啟動與 `make deploy` 部署到 Cloud Run
+
+若要直接看這個模組的說明與啟動方式，請先進入：
+
+```bash
+cd backend/adk_agent
+```
+
 ## 🗂️ 專案目錄與系統架構圖 (前後端分離架構)
 
 ```text
@@ -52,21 +68,23 @@ ytp-exhibeat/
 │   └── package.json               # (與原架構相同，略)
 │
 ├── backend/                   
-│   ├── app/
-│   │   ├── api/               
-│   │   ├── agent/             
-│   │   │   ├── agent_core.py  # AI 總機，負責調度 RAG 與對話記憶
-│   │   │   └── memory.py      # 管理多輪對話上下文
-│   │   ├── rag/               # 🆕 RAG 專屬模組
-│   │   │   ├── embedder.py    # 將文字轉換為向量 (呼叫 OpenAI/Gemini Embedding API)
-│   │   │   ├── retriever.py   # 向量檢索邏輯 (負責跟 ChromaDB 溝通，找出 Top-K 展覽)
-│   │   │   └── prompt_builder.py # 將檢索到的展演文本與用戶問題組合成最終 Prompt
-│   │   ├── recommender/       # 可結合向量相似度做混合推薦 (Hybrid Search)
-│   │   ├── db/
-│   │   │   ├── models.py      # 儲存用戶結構化資料 (帳號、密碼、收藏清單)
-│   │   │   └── session.py     
-│   │   └── main.py
-│   └── requirements.txt
+│   ├── adk_agent/             # 已落地的 Google ADK Agent backend prototype
+│   │   ├── gemini_agent/
+│   │   │   ├── agent.py
+│   │   │   ├── instruction/system.md
+│   │   │   └── tools/
+│   │   │       ├── event_tools.py
+│   │   │       ├── weather.py
+│   │   │       └── sample_tool.py
+│   │   ├── Makefile
+│   │   ├── requirements.txt
+│   │   └── WORKSHOP.md
+│   └── app/                   # 後續可持續擴充的正式 API 層
+│       ├── api/               
+│       ├── agent/             
+│       ├── rag/
+│       ├── recommender/
+│       └── db/
 │
 ├── crawler/                   
 │   ├── spiders/               
