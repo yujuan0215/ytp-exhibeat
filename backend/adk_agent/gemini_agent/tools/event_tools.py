@@ -6,7 +6,7 @@ import math
 import os
 import re
 import sqlite3
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -21,9 +21,12 @@ CULTURE_API_HOST = "cloud.culture.tw"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 TDX_AUTH_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
 TDX_API_BASE_URL = "https://tdx.transportdata.tw/api/basic/v2"
+GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+GOOGLE_PLACES_PLACE_URL = "https://places.googleapis.com/v1/places"
 REQUEST_TIMEOUT_SECONDS = 30
 SYNC_TTL = timedelta(hours=6)
 TDX_TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+PAGE_FETCH_TIMEOUT_SECONDS = 8
 
 CATEGORY_CODE_TO_LABEL = {
     "1": "音樂",
@@ -102,6 +105,10 @@ NOMINATIM_HEADERS = {
     "User-Agent": "ExhiBeat-Hackathon-Prototype/1.0",
     "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
 }
+WEB_FETCH_HEADERS = {
+    "User-Agent": "ExhiBeat-Hackathon-Prototype/1.0",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+}
 
 CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parent.parent
@@ -170,6 +177,14 @@ def _tdx_enabled() -> bool:
     return bool(client_id and client_secret)
 
 
+def _places_api_key() -> str | None:
+    return os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("GOOGLE_PLACES_API_KEY")
+
+
+def _places_enabled() -> bool:
+    return bool(_places_api_key())
+
+
 def _get_tdx_access_token() -> str:
     client_id, client_secret = _tdx_credentials()
     if not client_id or not client_secret:
@@ -223,6 +238,131 @@ def _strip_html(value: str | None) -> str:
     text = re.sub(r"<[^>]+>", " ", value)
     text = html.unescape(text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _truncate_text(value: str, limit: int = 220) -> str:
+    cleaned = re.sub(r"\s+", " ", value).strip()
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "…"
+
+
+def _fetch_webpage_excerpt(url: str) -> str:
+    if not url or not url.startswith(("http://", "https://")):
+        return ""
+    try:
+        response = requests.get(
+            url,
+            headers=WEB_FETCH_HEADERS,
+            timeout=PAGE_FETCH_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        return ""
+
+    text = _strip_html(response.text)
+    return _truncate_text(text, limit=260) if text else ""
+
+
+def _places_text_search(query: str) -> dict[str, Any] | None:
+    api_key = _places_api_key()
+    if not api_key or not query:
+        return None
+
+    try:
+        response = requests.post(
+            GOOGLE_PLACES_TEXT_SEARCH_URL,
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": api_key,
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress",
+            },
+            json={
+                "textQuery": query,
+                "languageCode": "zh-TW",
+                "regionCode": "TW",
+                "maxResultCount": 1,
+            },
+            timeout=PAGE_FETCH_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        return None
+
+    places = payload.get("places") or []
+    return places[0] if places else None
+
+
+def _fetch_place_reviews(place_query: str) -> dict[str, Any]:
+    if not _places_enabled():
+        return {
+            "enabled": False,
+            "summary": "",
+            "rating": None,
+            "user_rating_count": None,
+            "reviews": [],
+        }
+
+    place = _places_text_search(place_query)
+    place_id = place.get("id") if isinstance(place, dict) else None
+    if not place_id:
+        return {
+            "enabled": True,
+            "summary": "",
+            "rating": None,
+            "user_rating_count": None,
+            "reviews": [],
+        }
+
+    try:
+        response = requests.get(
+            f"{GOOGLE_PLACES_PLACE_URL}/{place_id}",
+            headers={
+                "X-Goog-Api-Key": _places_api_key() or "",
+                "X-Goog-FieldMask": (
+                    "id,displayName,formattedAddress,rating,userRatingCount,"
+                    "reviews.text,reviews.rating,reviews.originalText"
+                ),
+            },
+            timeout=PAGE_FETCH_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        return {
+            "enabled": True,
+            "summary": f"Places reviews 查詢失敗：{exc}",
+            "rating": None,
+            "user_rating_count": None,
+            "reviews": [],
+        }
+
+    reviews: list[dict[str, Any]] = []
+    for review in payload.get("reviews") or []:
+        text_value = _localized_text(review.get("text")) or _localized_text(review.get("originalText"))
+        if not text_value:
+            continue
+        reviews.append(
+            {
+                "rating": review.get("rating"),
+                "text": _truncate_text(text_value, limit=160),
+            }
+        )
+
+    rating = payload.get("rating")
+    user_rating_count = payload.get("userRatingCount")
+    summary = ""
+    if rating is not None and user_rating_count:
+        summary = f"場館 Google Maps 評分約 {rating}，共 {user_rating_count} 則評價。"
+
+    return {
+        "enabled": True,
+        "summary": summary,
+        "rating": rating,
+        "user_rating_count": user_rating_count,
+        "reviews": reviews[:3],
+    }
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -717,9 +857,128 @@ def _score_row(row: sqlite3.Row, query: str, district: str, target_date: date | 
     return score
 
 
-def _row_to_result(row: sqlite3.Row, score: int) -> dict[str, Any]:
-    description = row["summary"] or "官方目前未提供簡短介紹。"
+def _copy_seed_from_row(row: sqlite3.Row, include_reviews: bool = False) -> dict[str, Any]:
+    summary = _truncate_text(row["summary"] or "", limit=220)
+    official_page_excerpt = _fetch_webpage_excerpt(row["promote_url"] or "")
+    seed_text = summary or official_page_excerpt
+
+    if not seed_text:
+        title = row["title"] or "這個展覽"
+        venue_name = row["venue_name"] or "台北場館"
+        category = row["category_label"] or "藝文活動"
+        seed_text = (
+            f"{title} 目前缺少完整官方摘要，可先從展名與場館脈絡理解為一檔適合在 {venue_name} 體驗的 {category}。"
+        )
+
+    context_hints: list[str] = []
+    if row["is_free"]:
+        context_hints.append("免費活動，適合順路安排")
+    if row["looks_indoor"]:
+        context_hints.append("室內場館，雨天較友善")
+    if row["end_date"]:
+        end_dt = _parse_date(row["end_date"])
+        if end_dt and 0 <= (end_dt - _today()).days <= 21:
+            context_hints.append("展期接近尾聲，可優先安排")
+
+    review_context = {
+        "enabled": False,
+        "summary": "",
+        "rating": None,
+        "user_rating_count": None,
+        "reviews": [],
+    }
+    if include_reviews:
+        review_query = " ".join(
+            part
+            for part in [row["venue_name"] or "", row["address"] or "", "台北"]
+            if part
+        )
+        review_context = _fetch_place_reviews(review_query)
+
     return {
+        "source_text": seed_text,
+        "source_priority": "official_summary" if summary else ("official_promote_page" if official_page_excerpt else "title_inference"),
+        "official_summary": summary,
+        "official_page_excerpt": official_page_excerpt,
+        "context_hints": context_hints,
+        "review_context": review_context,
+    }
+
+
+def _recommendation_profile(
+    query: str,
+    district: str,
+    interests: str,
+    weather_context: str,
+    free_only: bool,
+    indoor_only: bool,
+) -> dict[str, Any]:
+    interest_tokens = [
+        token
+        for token in re.split(r"[\s,，、/]+", f"{query} {interests}".lower().strip())
+        if token
+    ]
+    return {
+        "query": query,
+        "district": district,
+        "interest_tokens": interest_tokens,
+        "weather_context": weather_context.lower().strip(),
+        "free_only": free_only,
+        "indoor_only": indoor_only,
+    }
+
+
+def _recommendation_score(
+    row: sqlite3.Row,
+    profile: dict[str, Any],
+    target_date: date | None,
+) -> tuple[float, list[str]]:
+    base_score = float(_score_row(row, profile["query"], profile["district"], target_date))
+    reasons: list[str] = []
+    haystack = (row["search_text"] or "").lower()
+
+    matched_interest_tokens = list(
+        dict.fromkeys(
+            token for token in profile["interest_tokens"] if len(token) > 1 and token in haystack
+        )
+    )
+    if matched_interest_tokens:
+        base_score += min(18.0, float(len(matched_interest_tokens) * 5))
+        reasons.append(f"符合興趣關鍵字：{', '.join(matched_interest_tokens[:3])}")
+
+    if row["is_free"]:
+        base_score += 4.0
+        reasons.append("免費活動，適合降低決策門檻")
+
+    if row["looks_indoor"]:
+        base_score += 3.0
+        if profile["weather_context"] in {"rain", "rainy", "下雨", "雨天"}:
+            base_score += 10.0
+            reasons.append("室內場館，雨天情境更適合")
+        elif profile["indoor_only"]:
+            reasons.append("符合室內偏好")
+
+    if row["district"] and profile["district"] and row["district"] == profile["district"].replace("台", "臺"):
+        base_score += 8.0
+        reasons.append(f"符合偏好區域：{row['district']}")
+
+    end_dt = _parse_date(row["end_date"])
+    if end_dt and 0 <= (end_dt - _today()).days <= 14:
+        base_score += 4.0
+        reasons.append("展期接近尾聲，值得優先安排")
+
+    if (row["hit_rate"] or 0) >= 500:
+        reasons.append("近期熱度較高")
+
+    if not reasons:
+        reasons.append("綜合主題、時間與場館條件排序靠前")
+
+    return (base_score, reasons[:3])
+
+
+def _row_to_result(row: sqlite3.Row, score: int, include_copy_seed: bool = False, include_reviews: bool = False) -> dict[str, Any]:
+    description = row["summary"] or "官方目前未提供簡短介紹。"
+    result = {
         "uid": row["event_uid"],
         "occurrence_id": row["occurrence_id"],
         "title": row["title"],
@@ -746,6 +1005,9 @@ def _row_to_result(row: sqlite3.Row, score: int) -> dict[str, Any]:
         "score": score,
         "map_url": row["map_url"] or _maps_link(row["address"] or row["venue_name"] or "", row["latitude"], row["longitude"]),
     }
+    if include_copy_seed:
+        result["copy_seed"] = _copy_seed_from_row(row, include_reviews=include_reviews)
+    return result
 
 
 def _find_event_row(event_uid: str) -> sqlite3.Row | None:
@@ -1149,6 +1411,83 @@ def search_events(
     }
 
 
+def recommend_events(
+    query: str = "",
+    date: str = "",
+    district: str = "",
+    category: str = "展覽",
+    interests: str = "",
+    weather_context: str = "",
+    free_only: bool = False,
+    indoor_only: bool = False,
+    limit: int = 6,
+    include_reviews: bool = False,
+) -> dict[str, Any]:
+    """
+    根據使用者當下需求，對台北展覽做情境式推薦排序。
+    """
+    bounded_limit = min(max(limit, 1), 12)
+    target_date = _parse_date(date) if date else None
+    rows = _load_occurrence_rows(
+        query=query,
+        date_str=date,
+        district=district,
+        category=category,
+        free_only=free_only,
+        indoor_only=indoor_only,
+        city="臺北市",
+    )
+    profile = _recommendation_profile(
+        query=query,
+        district=district,
+        interests=interests,
+        weather_context=weather_context,
+        free_only=free_only,
+        indoor_only=indoor_only,
+    )
+
+    ranked: list[tuple[float, sqlite3.Row, list[str]]] = []
+    seen_event_uids: set[str] = set()
+    for row in rows:
+        if row["event_uid"] in seen_event_uids:
+            continue
+        score, reasons = _recommendation_score(row, profile, target_date)
+        ranked.append((score, row, reasons))
+        seen_event_uids.add(row["event_uid"])
+
+    ranked.sort(key=lambda item: (-item[0], item[1]["start_date"] or "9999-12-31", item[1]["title"]))
+
+    events: list[dict[str, Any]] = []
+    for score, row, reasons in ranked[:bounded_limit]:
+        result = _row_to_result(row, int(round(score)), include_copy_seed=True, include_reviews=include_reviews)
+        result["recommendation_reasons"] = reasons
+        result["scoring_context"] = {
+            "weather_context": weather_context,
+            "interests": interests,
+        }
+        events.append(result)
+
+    return {
+        "source": "文化部藝文活動 OpenAPI",
+        "database_path": str(DB_PATH),
+        "city": "臺北市",
+        "query": {
+            "query": query,
+            "date": date,
+            "district": district,
+            "category": category,
+            "interests": interests,
+            "weather_context": weather_context,
+            "free_only": free_only,
+            "indoor_only": indoor_only,
+            "limit": bounded_limit,
+            "include_reviews": include_reviews and _places_enabled(),
+        },
+        "count": len(events),
+        "events": events,
+    }
+
+
 def search_events_near_place(
     place: str,
     radius_km: float = 1.5,
@@ -1318,6 +1657,8 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
     taipei_show_infos = [
         item for item in show_infos if _is_taipei(item.get("address") or "", item.get("latitude"), item.get("longitude"))
     ]
+    primary_row = occurrence_rows[0] if occurrence_rows else None
+    copy_seed = _copy_seed_from_row(primary_row, include_reviews=True) if primary_row else {}
 
     return {
         "source": "文化部藝文活動 OpenAPI",
@@ -1343,6 +1684,7 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
             "start_date": event.get("startDate"),
             "end_date": event.get("endDate"),
             "hit_rate": event.get("hitRate") or 0,
+            "copy_seed": copy_seed,
             "taipei_show_info": taipei_show_infos,
             "all_show_info": show_infos,
         },
@@ -1466,18 +1808,13 @@ def plan_itinerary(
             window_start, window_end = _time_window_from_row(row, target_date)
             duration = _duration_for_category(row["category_code"])
             dest_coords = (row["latitude"], row["longitude"]) if row["latitude"] is not None and row["longitude"] is not None else None
-            dest_transit = _get_transit_access(
-                row["latitude"],
-                row["longitude"],
-                row["address"] or row["venue_name"] or "",
-            )
-            travel = _travel_estimate(current_coords, dest_coords, dest_transit=dest_transit)
+            travel = _travel_estimate(current_coords, dest_coords)
             suggested_start = max(current_time + timedelta(minutes=travel["estimated_minutes"]), window_start)
             suggested_end = suggested_start + duration
             if suggested_end > window_end or suggested_end > day_end:
                 continue
             utility = float(score) - float(travel["estimated_minutes"]) / 3
-            feasible.append((utility, row, score, suggested_start, suggested_end, travel | {"transit_access": dest_transit}))
+            feasible.append((utility, row, score, suggested_start, suggested_end, travel))
 
         if not feasible:
             break
@@ -1485,6 +1822,12 @@ def plan_itinerary(
         feasible.sort(key=lambda item: (-item[0], item[3], -item[2]))
         _, row, score, suggested_start, suggested_end, travel = feasible[0]
         dest_coords = (row["latitude"], row["longitude"]) if row["latitude"] is not None and row["longitude"] is not None else None
+        dest_transit = _get_transit_access(
+            row["latitude"],
+            row["longitude"],
+            row["address"] or row["venue_name"] or "",
+        )
+        travel = _travel_estimate(current_coords, dest_coords, dest_transit=dest_transit)
         selected.append(
             {
                 "uid": row["event_uid"],
@@ -1503,7 +1846,7 @@ def plan_itinerary(
                 "travel_summary": travel["summary"],
                 "directions_url": _directions_link(current_coords, dest_coords, row["address"] or row["venue_name"] or ""),
                 "map_url": row["map_url"] or _maps_link(row["address"] or row["venue_name"] or "", row["latitude"], row["longitude"]),
-                "transit_access": travel.get("transit_access"),
+                "transit_access": dest_transit,
                 "is_free": bool(row["is_free"]),
                 "price": row["price"] or "",
                 "source_web_name": row["source_web_name"] or "",

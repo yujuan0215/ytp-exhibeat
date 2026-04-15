@@ -20,10 +20,23 @@
 - 以 SQLite 建立本地活動資料表，降低每次查詢都打外部 API 的不穩定性
 - 支援 `make run` 本地啟動與 `make deploy` 部署到 Cloud Run
 
-若要直接看這個模組的說明與啟動方式，請先進入：
+另外，repo 內也新增了一個推薦原型 `backend/app/recommender/`，把 `LightFM` 的 hybrid recommender 思路改造成適合 hackathon demo 的版本：
+
+- 直接讀取根目錄的 `exhibitions.json`
+- 從展覽文字、地點、票價、熱門度抽 item features
+- 用 synthetic personas 建立冷啟動階段的互動資料
+- 將 LightFM 分數與 heuristic score 混合，輸出可解釋的推薦結果
+
+若要直接看模組說明與啟動方式：
 
 ```bash
 cd backend/adk_agent
+```
+
+若要看推薦原型：
+
+```bash
+cd backend/app/recommender
 ```
 
 ## 🗂️ 專案目錄與系統架構圖 (前後端分離架構)

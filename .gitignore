@@ -36,3 +36,6 @@ env/
 *.sqlite3
 backend/adk_agent/.adk/
 backend/adk_agent/.venv/
+
+# 本地參考用上游 repo
+third_party/

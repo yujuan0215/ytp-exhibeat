@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import requests
@@ -72,7 +73,31 @@ def _format_location(result: dict[str, Any]) -> str:
     return ", ".join(part for part in parts if part)
 
 
-def get_weather(city: str) -> str:
+def _resolve_target_date(target_date: str) -> date | None:
+    normalized = (target_date or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized in {"today", "今天"}:
+        return datetime.now().date()
+    if normalized in {"tomorrow", "明天"}:
+        return datetime.now().date() + timedelta(days=1)
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(target_date, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _daily_snapshot_index(times: list[str], target: date) -> int | None:
+    target_iso = target.isoformat()
+    for index, value in enumerate(times):
+        if value == target_iso:
+            return index
+    return None
+
+
+def get_weather(city: str, target_date: str = "") -> str:
     """
     查詢指定城市的目前天氣。
 
@@ -102,7 +127,16 @@ def get_weather(city: str) -> str:
                         "wind_direction_10m",
                     ]
                 ),
+                "daily": ",".join(
+                    [
+                        "weather_code",
+                        "temperature_2m_max",
+                        "temperature_2m_min",
+                        "precipitation_probability_max",
+                    ]
+                ),
                 "timezone": "auto",
+                "forecast_days": 7,
             },
         )
     except requests.RequestException as exc:
@@ -121,6 +155,32 @@ def get_weather(city: str) -> str:
     condition = WEATHER_CODE_LABELS.get(weather_code, f"未知天氣代碼 {weather_code}")
     location_name = _format_location(location)
     observed_time = current.get("time", "未知時間")
+    daily = weather.get("daily") or {}
+    resolved_target_date = _resolve_target_date(target_date)
+
+    daily_text = ""
+    if resolved_target_date:
+        daily_times = daily.get("time") or []
+        snapshot_index = _daily_snapshot_index(daily_times, resolved_target_date)
+        if snapshot_index is None:
+            return f"{location_name} 找不到 {resolved_target_date.isoformat()} 的預報資料。"
+
+        daily_weather_code = (daily.get("weather_code") or [None])[snapshot_index]
+        daily_condition = WEATHER_CODE_LABELS.get(daily_weather_code, f"未知天氣代碼 {daily_weather_code}")
+        temp_max = (daily.get("temperature_2m_max") or [None])[snapshot_index]
+        temp_min = (daily.get("temperature_2m_min") or [None])[snapshot_index]
+        rain_prob = (daily.get("precipitation_probability_max") or [None])[snapshot_index]
+        daily_units = weather.get("daily_units", {})
+        daily_text = (
+            f"{location_name} 在 {resolved_target_date.isoformat()} 的天氣預報：{daily_condition}。\n"
+            f"最高溫：{temp_max} {daily_units.get('temperature_2m_max', '°C')}\n"
+            f"最低溫：{temp_min} {daily_units.get('temperature_2m_min', '°C')}\n"
+            f"降雨機率：{rain_prob} {daily_units.get('precipitation_probability_max', '%')}\n"
+            "資料來源：Open-Meteo"
+        )
+
+    if daily_text:
+        return daily_text
 
     return (
         f"{location_name} 目前天氣：{condition}。\n"
@@ -130,5 +190,7 @@ def get_weather(city: str) -> str:
         f"相對濕度：{current.get('relative_humidity_2m')} {units.get('relative_humidity_2m', '%')}\n"
         f"風速：{current.get('wind_speed_10m')} {units.get('wind_speed_10m', 'km/h')}\n"
         f"風向：{current.get('wind_direction_10m')} {units.get('wind_direction_10m', '°')}\n"
+        f"今日最高溫：{(daily.get('temperature_2m_max') or [None])[0]} {(weather.get('daily_units', {}).get('temperature_2m_max', '°C'))}\n"
+        f"今日降雨機率：{(daily.get('precipitation_probability_max') or [None])[0]} {(weather.get('daily_units', {}).get('precipitation_probability_max', '%'))}\n"
         f"資料來源：Open-Meteo"
     )

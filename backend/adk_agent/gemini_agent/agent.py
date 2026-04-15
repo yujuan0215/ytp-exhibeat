@@ -7,6 +7,7 @@ from .tools.event_tools import get_event_detail
 from .tools.event_tools import get_nearby_events
 from .tools.event_tools import get_transit_access
 from .tools.event_tools import plan_itinerary
+from .tools.event_tools import recommend_events
 from .tools.event_tools import search_events
 from .tools.event_tools import search_events_near_place
 from .tools.event_tools import sync_event_catalog
@@ -32,6 +33,7 @@ root_agent = Agent(
         get_current_time,
         get_weather,
         sync_event_catalog,
+        recommend_events,
         search_events,
         search_events_near_place,
         get_event_detail,
