@@ -25,3 +25,13 @@ Thumbs.db
 # 臨時解析檔案
 pdf_text*
 __pycache__/
+
+# Python / ADK backend 產物
+.venv/
+venv/
+env/
+*.py[cod]
+.adk/
+*.sqlite3
+backend/adk_agent/.adk/
+backend/adk_agent/.venv/
