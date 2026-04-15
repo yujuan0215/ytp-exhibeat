@@ -5,6 +5,7 @@ import json
 import math
 import random
 import re
+import sys
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -23,56 +24,23 @@ else:
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from backend.shared.recommendation_core import (
+    POPULARITY_THRESHOLDS,
+    RecommendableEvent,
+    UserPreference,
+    build_reasons as shared_build_reasons,
+    infer_city as shared_infer_city,
+    infer_tags as shared_infer_tags,
+    infer_venues as shared_infer_venues,
+    normalize_city as shared_normalize_city,
+    parse_csv_values,
+    score_event,
+)
+
 DEFAULT_EXHIBITIONS_PATH = ROOT_DIR / "exhibitions.json"
-
-CITY_KEYWORDS = [
-    "台北市",
-    "臺北市",
-    "新北市",
-    "基隆市",
-    "桃園市",
-    "新竹市",
-    "新竹縣",
-    "苗栗縣",
-    "台中市",
-    "臺中市",
-    "彰化縣",
-    "南投縣",
-    "雲林縣",
-    "嘉義市",
-    "嘉義縣",
-    "台南市",
-    "臺南市",
-    "高雄市",
-    "屏東縣",
-    "宜蘭縣",
-    "花蓮縣",
-    "台東縣",
-    "臺東縣",
-    "澎湖縣",
-    "金門縣",
-    "連江縣",
-]
-
-TAG_KEYWORDS = {
-    "history": ["歷史", "考古", "文物", "遺址", "佛塔", "典藏", "百年"],
-    "science": ["自然", "科學", "生命", "科技", "宇宙", "標本"],
-    "music": ["音樂", "樂器", "演奏", "聲音"],
-    "indigenous": ["原住民", "原民", "排灣", "族語"],
-    "art": ["藝術", "美術", "典藏", "策展", "館藏", "裝置"],
-    "family": ["親子", "互動", "遊戲", "桌遊", "孩子", "兒童"],
-    "photogenic": ["攝影", "拍照", "視覺", "沉浸", "奇幻"],
-    "women": ["女性", "女力", "性別"],
-    "culture": ["文化", "故事", "地方", "博物館"],
-}
-
-VENUE_KEYWORDS = {
-    "museum": ["博物館", "科博館", "史博", "故事館"],
-    "art_museum": ["美術館", "藝廊", "藝術館"],
-    "cultural_center": ["文化中心", "文化園區", "傳藝中心"],
-}
-
-POPULARITY_THRESHOLDS = {"high": 600, "medium": 120}
 
 
 @dataclass(frozen=True)
@@ -82,7 +50,7 @@ class Persona:
     preferred_cities: tuple[str, ...]
     preferred_tags: tuple[str, ...]
     wants_free: bool = False
-    wants_popular: bool = False
+    wants_popular: bool | None = None
     venue_focus: tuple[str, ...] = ()
 
 
@@ -132,7 +100,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def normalize_city(raw: str) -> str:
-    return raw.replace("臺", "台")
+    return shared_normalize_city(raw)
 
 
 def clean_text(raw: str) -> str:
@@ -142,12 +110,7 @@ def clean_text(raw: str) -> str:
 
 
 def infer_city(location: str) -> str:
-    normalized = normalize_city(location or "")
-    for city in CITY_KEYWORDS:
-        city_normalized = normalize_city(city)
-        if city_normalized in normalized:
-            return city_normalized
-    return "未知"
+    return shared_infer_city(location)
 
 
 def parse_date(raw: str) -> date:
@@ -166,27 +129,11 @@ def parse_reference_date(raw: str) -> date:
 
 
 def infer_tags(title: str, description: str) -> tuple[str, ...]:
-    haystack = f"{title} {description}"
-    tags = {
-        tag
-        for tag, keywords in TAG_KEYWORDS.items()
-        if any(keyword in haystack for keyword in keywords)
-    }
-    if not tags:
-        tags.add("general")
-    return tuple(sorted(tags))
+    return shared_infer_tags(title, description)
 
 
 def infer_venues(location_name: str, title: str, description: str) -> tuple[str, ...]:
-    haystack = f"{location_name} {title} {description}"
-    venues = {
-        venue
-        for venue, keywords in VENUE_KEYWORDS.items()
-        if any(keyword in haystack for keyword in keywords)
-    }
-    if not venues:
-        venues.add("general")
-    return tuple(sorted(venues))
+    return shared_infer_venues(location_name, title, description)
 
 
 def infer_price_bucket(price_text: str) -> tuple[bool, str]:
@@ -307,12 +254,6 @@ def build_personas() -> list[Persona]:
             venue_focus=("museum", "cultural_center", "general"),
         ),
     ]
-
-
-def parse_csv_values(raw: str) -> tuple[str, ...]:
-    return tuple(value.strip() for value in raw.split(",") if value.strip())
-
-
 def build_runtime_persona(args: argparse.Namespace) -> Persona | None:
     preferred_cities = parse_csv_values(args.cities)
     preferred_tags = parse_csv_values(args.tags)
@@ -325,7 +266,7 @@ def build_runtime_persona(args: argparse.Namespace) -> Persona | None:
         preferred_cities=preferred_cities or ("台北市",),
         preferred_tags=preferred_tags or ("general",),
         wants_free=args.free_only,
-        wants_popular=args.popular,
+        wants_popular=True if args.popular else None,
         venue_focus=venue_focus or ("general",),
     )
 
@@ -338,25 +279,40 @@ def candidate_events_for_persona(persona: Persona, exhibitions: list[Exhibition]
     return exhibitions
 
 
+def to_shared_preference(persona: Persona) -> UserPreference:
+    popularity_preference = "neutral"
+    if persona.wants_popular is True:
+        popularity_preference = "popular"
+    elif persona.wants_popular is False:
+        popularity_preference = "niche"
+    return UserPreference(
+        preferred_cities=persona.preferred_cities,
+        preferred_tags=persona.preferred_tags,
+        venue_focus=persona.venue_focus,
+        wants_free=persona.wants_free,
+        popularity_preference=popularity_preference,
+    )
+
+
+def to_recommendable_event(event: Exhibition) -> RecommendableEvent:
+    return RecommendableEvent(
+        uid=event.uid,
+        title=event.title,
+        city=event.city,
+        location_name=event.location_name,
+        location=event.location,
+        start_date=event.start_date,
+        end_date=event.end_date,
+        hit_rate=event.hit_rate,
+        is_free=event.is_free,
+        tags=event.tags,
+        venues=event.venues,
+        description=event.description,
+    )
+
+
 def heuristic_score(persona: Persona, event: Exhibition, reference_date: date) -> float:
-    score = 0.1
-    if event.city in persona.preferred_cities:
-        score += 2.5
-    elif persona.preferred_cities:
-        score -= 1.8
-    score += len(set(persona.preferred_tags) & set(event.tags)) * 1.8
-    score += len(set(persona.venue_focus) & set(event.venues)) * 0.9
-    if persona.wants_free:
-        score += 1.3 if event.is_free else -0.8
-    if persona.wants_popular:
-        score += min(math.log1p(event.hit_rate) / 3.0, 1.8)
-    else:
-        score += 0.4 if event.hit_rate < POPULARITY_THRESHOLDS["high"] else -0.2
-    if event.start_date <= reference_date <= event.end_date:
-        score += 0.5
-    if (event.end_date - reference_date).days <= 30:
-        score += 0.4
-    return score
+    return score_event(to_shared_preference(persona), to_recommendable_event(event), reference_date)
 
 
 def build_user_feature_tokens(persona: Persona) -> tuple[str, ...]:
@@ -364,7 +320,12 @@ def build_user_feature_tokens(persona: Persona) -> tuple[str, ...]:
     features.update(f"user_tag:{tag}" for tag in persona.preferred_tags)
     features.update(f"user_venue:{venue}" for venue in persona.venue_focus)
     features.add("user_budget:free" if persona.wants_free else "user_budget:flexible")
-    features.add("user_popularity:high" if persona.wants_popular else "user_popularity:balanced")
+    if persona.wants_popular is True:
+        features.add("user_popularity:high")
+    elif persona.wants_popular is False:
+        features.add("user_popularity:niche")
+    else:
+        features.add("user_popularity:balanced")
     return tuple(sorted(features))
 
 
@@ -404,24 +365,7 @@ def scale_scores(values: np.ndarray) -> np.ndarray:
 
 
 def build_reasons(persona: Persona, event: Exhibition, reference_date: date) -> list[str]:
-    reasons = []
-    matched_tags = sorted(set(persona.preferred_tags) & set(event.tags))
-    if event.city in persona.preferred_cities:
-        reasons.append(f"符合偏好區域：{event.city}")
-    if matched_tags:
-        reasons.append(f"符合主題偏好：{', '.join(matched_tags)}")
-    matched_venues = sorted(set(persona.venue_focus) & set(event.venues))
-    if matched_venues:
-        reasons.append(f"場館型態符合：{', '.join(matched_venues)}")
-    if persona.wants_free and event.is_free:
-        reasons.append("符合免費偏好")
-    if persona.wants_popular and event.hit_rate >= POPULARITY_THRESHOLDS["high"]:
-        reasons.append("近期熱門展覽")
-    if 0 <= (event.end_date - reference_date).days <= 30:
-        reasons.append("即將結束，值得優先安排")
-    if not reasons:
-        reasons.append("綜合內容與互動特徵排序靠前")
-    return reasons[:3]
+    return shared_build_reasons(to_shared_preference(persona), to_recommendable_event(event), reference_date)
 
 
 def resolve_backend(preferred_backend: str) -> str:

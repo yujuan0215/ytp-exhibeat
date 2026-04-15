@@ -6,6 +6,7 @@ import math
 import os
 import re
 import sqlite3
+import sys
 from datetime import UTC, date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -14,6 +15,21 @@ from urllib.parse import quote_plus, urlparse
 
 import requests
 import urllib3
+
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.shared.recommendation_core import (
+    RecommendableEvent,
+    UserPreference,
+    build_interest_tokens,
+    build_reasons as shared_build_reasons,
+    infer_city as shared_infer_city,
+    infer_tags as shared_infer_tags,
+    infer_venues as shared_infer_venues,
+    score_event,
+)
 
 
 CULTURE_API_URL = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do"
@@ -905,75 +921,53 @@ def _copy_seed_from_row(row: sqlite3.Row, include_reviews: bool = False) -> dict
     }
 
 
-def _recommendation_profile(
+def _row_to_recommendable_event(row: sqlite3.Row) -> RecommendableEvent:
+    city = shared_infer_city(row["address"] or "")
+    description = row["summary"] or row["title"] or ""
+    title = row["title"] or "未命名展覽"
+    location_name = row["venue_name"] or ""
+    address = row["address"] or ""
+    start_date = _parse_date(row["start_date"]) or _today()
+    end_date = _parse_date(row["end_date"]) or start_date
+    return RecommendableEvent(
+        uid=row["event_uid"],
+        title=title,
+        city=city,
+        location_name=location_name,
+        location=address,
+        start_date=start_date,
+        end_date=end_date,
+        hit_rate=int(row["hit_rate"] or 0),
+        is_free=bool(row["is_free"]),
+        tags=shared_infer_tags(title, description, extra_text=row["category_label"] or ""),
+        venues=shared_infer_venues(location_name, title, description),
+        description=description,
+        looks_indoor=bool(row["looks_indoor"]),
+    )
+
+
+def _build_user_preference(
     query: str,
     district: str,
     interests: str,
     weather_context: str,
     free_only: bool,
     indoor_only: bool,
-) -> dict[str, Any]:
-    interest_tokens = [
-        token
-        for token in re.split(r"[\s,，、/]+", f"{query} {interests}".lower().strip())
-        if token
-    ]
-    return {
-        "query": query,
-        "district": district,
-        "interest_tokens": interest_tokens,
-        "weather_context": weather_context.lower().strip(),
-        "free_only": free_only,
-        "indoor_only": indoor_only,
-    }
-
-
-def _recommendation_score(
-    row: sqlite3.Row,
-    profile: dict[str, Any],
-    target_date: date | None,
-) -> tuple[float, list[str]]:
-    base_score = float(_score_row(row, profile["query"], profile["district"], target_date))
-    reasons: list[str] = []
-    haystack = (row["search_text"] or "").lower()
-
-    matched_interest_tokens = list(
-        dict.fromkeys(
-            token for token in profile["interest_tokens"] if len(token) > 1 and token in haystack
-        )
+) -> UserPreference:
+    preferred_cities = ("台北市",)
+    inferred_interest_tags = shared_infer_tags(interests or query, query or interests)
+    preferred_tags = () if inferred_interest_tags == ("general",) else inferred_interest_tags
+    venue_focus = ("museum", "art_museum", "cultural_center") if indoor_only else ()
+    return UserPreference(
+        preferred_cities=preferred_cities,
+        preferred_tags=preferred_tags,
+        venue_focus=venue_focus,
+        interest_tokens=build_interest_tokens(query, interests),
+        wants_free=free_only,
+        popularity_preference="popular",
+        indoor_only=indoor_only,
+        weather_context=weather_context,
     )
-    if matched_interest_tokens:
-        base_score += min(18.0, float(len(matched_interest_tokens) * 5))
-        reasons.append(f"符合興趣關鍵字：{', '.join(matched_interest_tokens[:3])}")
-
-    if row["is_free"]:
-        base_score += 4.0
-        reasons.append("免費活動，適合降低決策門檻")
-
-    if row["looks_indoor"]:
-        base_score += 3.0
-        if profile["weather_context"] in {"rain", "rainy", "下雨", "雨天"}:
-            base_score += 10.0
-            reasons.append("室內場館，雨天情境更適合")
-        elif profile["indoor_only"]:
-            reasons.append("符合室內偏好")
-
-    if row["district"] and profile["district"] and row["district"] == profile["district"].replace("台", "臺"):
-        base_score += 8.0
-        reasons.append(f"符合偏好區域：{row['district']}")
-
-    end_dt = _parse_date(row["end_date"])
-    if end_dt and 0 <= (end_dt - _today()).days <= 14:
-        base_score += 4.0
-        reasons.append("展期接近尾聲，值得優先安排")
-
-    if (row["hit_rate"] or 0) >= 500:
-        reasons.append("近期熱度較高")
-
-    if not reasons:
-        reasons.append("綜合主題、時間與場館條件排序靠前")
-
-    return (base_score, reasons[:3])
 
 
 def _row_to_result(row: sqlite3.Row, score: int, include_copy_seed: bool = False, include_reviews: bool = False) -> dict[str, Any]:
@@ -1437,7 +1431,7 @@ def recommend_events(
         indoor_only=indoor_only,
         city="臺北市",
     )
-    profile = _recommendation_profile(
+    preference = _build_user_preference(
         query=query,
         district=district,
         interests=interests,
@@ -1451,7 +1445,9 @@ def recommend_events(
     for row in rows:
         if row["event_uid"] in seen_event_uids:
             continue
-        score, reasons = _recommendation_score(row, profile, target_date)
+        event = _row_to_recommendable_event(row)
+        score = score_event(preference, event, target_date or _today())
+        reasons = shared_build_reasons(preference, event, target_date or _today())
         ranked.append((score, row, reasons))
         seen_event_uids.add(row["event_uid"])
 
