@@ -51,4 +51,4 @@ make deploy PROJECT=your-project-id
 
 - `gemini_agent/.env` 不應提交到版本庫
 - `.adk/` 與 `*.sqlite3` 屬於執行期產物，已由 repo `.gitignore` 排除
-- 目前行程規劃使用簡化交通估算，尚未接入 TDX 真實路線資料
+- 目前行程規劃已優先串接 TDX MaaS 路徑規劃；若 TDX 憑證缺失或查詢失敗，會自動回退為簡化交通估算

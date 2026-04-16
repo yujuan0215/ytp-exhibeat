@@ -69,6 +69,10 @@ GOOGLE_CLOUD_LOCATION=us-central1
 
 # Gemini Model Name
 GEMINI_MODEL=gemini-2.5-flash
+
+# TDX Transport Data (optional, for nearby transit lookup and MaaS routing)
+TDX_CLIENT_ID=your-client-id
+TDX_CLIENT_SECRET=your-client-secret
 ```
 
 確認 gcloud 已登入並設定好預設專案：

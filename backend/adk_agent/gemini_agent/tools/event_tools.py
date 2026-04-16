@@ -12,6 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus, urlparse
+from zoneinfo import ZoneInfo
 
 import requests
 import urllib3
@@ -37,12 +38,15 @@ CULTURE_API_HOST = "cloud.culture.tw"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 TDX_AUTH_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
 TDX_API_BASE_URL = "https://tdx.transportdata.tw/api/basic/v2"
+TDX_MAAS_API_BASE_URL = "https://tdx.transportdata.tw/api/maas"
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 GOOGLE_PLACES_PLACE_URL = "https://places.googleapis.com/v1/places"
 REQUEST_TIMEOUT_SECONDS = 30
 SYNC_TTL = timedelta(hours=6)
 TDX_TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
 PAGE_FETCH_TIMEOUT_SECONDS = 8
+TAIPEI_TIMEZONE = ZoneInfo("Asia/Taipei")
+TDX_MAAS_TRANSIT_MODES = "5,6,7"
 
 CATEGORY_CODE_TO_LABEL = {
     "1": "音樂",
@@ -209,7 +213,7 @@ def _get_tdx_access_token() -> str:
     cached_token = _TDX_TOKEN_CACHE.get("access_token")
     expires_at = _TDX_TOKEN_CACHE.get("expires_at")
     if isinstance(cached_token, str) and isinstance(expires_at, datetime):
-        if datetime.utcnow() + TDX_TOKEN_REFRESH_BUFFER < expires_at:
+        if datetime.now(UTC) + TDX_TOKEN_REFRESH_BUFFER < expires_at:
             return cached_token
 
     response = requests.post(
@@ -221,7 +225,19 @@ def _get_tdx_access_token() -> str:
         },
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        message = str(exc)
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        if isinstance(payload, dict):
+            error_description = payload.get("error_description") or payload.get("error")
+            if error_description:
+                message = f"TDX token 取得失敗：{error_description}"
+        raise RuntimeError(message) from exc
     payload = response.json()
     access_token = payload.get("access_token")
     expires_in = int(payload.get("expires_in") or 0)
@@ -229,7 +245,7 @@ def _get_tdx_access_token() -> str:
         raise RuntimeError("TDX token 回應缺少 access_token。")
 
     _TDX_TOKEN_CACHE["access_token"] = access_token
-    _TDX_TOKEN_CACHE["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in)
+    _TDX_TOKEN_CACHE["expires_at"] = datetime.now(UTC) + timedelta(seconds=expires_in)
     return access_token
 
 
@@ -246,6 +262,114 @@ def _tdx_request_json(path: str, params: dict[str, Any]) -> Any:
     )
     response.raise_for_status()
     return response.json()
+
+
+def _tdx_maas_request_json(path: str, params: dict[str, Any]) -> Any:
+    access_token = _get_tdx_access_token()
+    response = requests.get(
+        f"{TDX_MAAS_API_BASE_URL}/{path.lstrip('/')}",
+        params=params,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+        },
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if isinstance(payload, dict) and payload.get("result") == "fail":
+        error = payload.get("error") or {}
+        message = error.get("msg") or "未知錯誤"
+        code = error.get("code")
+        if code is not None:
+            raise RuntimeError(f"TDX MaaS API 錯誤 {code}: {message}")
+        raise RuntimeError(f"TDX MaaS API 錯誤: {message}")
+    return payload
+
+
+def _format_tdx_coordinates(coords: tuple[float, float]) -> str:
+    return f"{coords[0]:.6f},{coords[1]:.6f}"
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+
+def _format_depart_time_for_tdx(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    localized = value if value.tzinfo else value.replace(tzinfo=TAIPEI_TIMEZONE)
+    return localized.astimezone(TAIPEI_TIMEZONE).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _get_tdx_route_plan(
+    origin_coords: tuple[float, float] | None,
+    dest_coords: tuple[float, float] | None,
+    depart_at: datetime | None = None,
+) -> dict[str, Any] | None:
+    if not _tdx_enabled() or not origin_coords or not dest_coords:
+        return None
+
+    payload = _tdx_maas_request_json(
+        "routing",
+        {
+            "origin": _format_tdx_coordinates(origin_coords),
+            "destination": _format_tdx_coordinates(dest_coords),
+            "gc": 1.0,
+            "top": 1,
+            "transit": TDX_MAAS_TRANSIT_MODES,
+            "transfer_time": "0,30",
+            "first_mile_mode": "0",
+            "first_mile_time": "15",
+            "last_mile_mode": "0",
+            "last_mile_time": "15",
+            **({"depart": formatted_depart} if (formatted_depart := _format_depart_time_for_tdx(depart_at)) else {}),
+        },
+    )
+    routes = ((payload or {}).get("data") or {}).get("routes") or []
+    if not routes:
+        return None
+
+    valid_routes = [item for item in routes if (_parse_int(item.get("travel_time")) or 0) > 0]
+    if not valid_routes:
+        return None
+
+    route = min(
+        valid_routes,
+        key=lambda item: (
+            _parse_int(item.get("travel_time")) or float("inf"),
+            _parse_int(item.get("transfers")) or 0,
+        ),
+    )
+
+    travel_time_seconds = _parse_int(route.get("travel_time")) or 0
+    estimated_minutes = max(1, math.ceil(travel_time_seconds / 60))
+    start_time = _parse_iso_datetime(route.get("start_time"))
+    end_time = _parse_iso_datetime(route.get("end_time"))
+    transfers = _parse_int(route.get("transfers"))
+    summary_parts = [f"TDX MaaS 估計約 {estimated_minutes} 分鐘"]
+    if transfers is not None:
+        summary_parts.append(f"轉乘 {transfers} 次")
+    if start_time and end_time:
+        summary_parts.append(
+            f"建議 {start_time.astimezone(TAIPEI_TIMEZONE).strftime('%H:%M')} 出發，約 {end_time.astimezone(TAIPEI_TIMEZONE).strftime('%H:%M')} 抵達"
+        )
+
+    return {
+        "estimated_minutes": estimated_minutes,
+        "travel_time_seconds": travel_time_seconds,
+        "transfers": transfers,
+        "start_time": start_time.isoformat() if start_time else "",
+        "end_time": end_time.isoformat() if end_time else "",
+        "summary": "，".join(summary_parts) + "。",
+        "raw_route": route,
+    }
 
 
 def _strip_html(value: str | None) -> str:
@@ -409,6 +533,15 @@ def _parse_float(value: str | None) -> float | None:
         if value in (None, ""):
             return None
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_int(value: Any) -> int | None:
+    try:
+        if value in (None, ""):
+            return None
+        return int(value)
     except (TypeError, ValueError):
         return None
 
@@ -1285,6 +1418,7 @@ def _travel_estimate(
     origin_coords: tuple[float, float] | None,
     dest_coords: tuple[float, float] | None,
     dest_transit: dict[str, Any] | None = None,
+    depart_at: datetime | None = None,
 ) -> dict[str, Any]:
     if not origin_coords or not dest_coords:
         summary = "缺少完整座標，先以台北市區一般轉乘時間估 20 分鐘。"
@@ -1294,10 +1428,36 @@ def _travel_estimate(
             "distance_km": None,
             "estimated_minutes": 20,
             "mode": "city_transit",
+            "source": "heuristic",
             "summary": summary,
         }
 
     distance_km = round(_haversine_km(origin_coords[0], origin_coords[1], dest_coords[0], dest_coords[1]), 2)
+    tdx_warning = ""
+    try:
+        tdx_route = _get_tdx_route_plan(origin_coords, dest_coords, depart_at=depart_at)
+    except (requests.RequestException, RuntimeError) as exc:
+        tdx_route = None
+        tdx_warning = f" TDX 路線規劃暫時不可用，改以距離估算（{exc}）。"
+    except Exception as exc:
+        tdx_route = None
+        tdx_warning = f" TDX 路線規劃暫時不可用，改以距離估算（{exc}）。"
+
+    if tdx_route:
+        summary = tdx_route["summary"]
+        if dest_transit and dest_transit.get("summary"):
+            summary = f"{summary} {dest_transit['summary']}"
+        return {
+            "distance_km": distance_km,
+            "estimated_minutes": tdx_route["estimated_minutes"],
+            "mode": "tdx_transit",
+            "source": "TDX MaaS",
+            "transfers": tdx_route.get("transfers"),
+            "route_start_time": tdx_route.get("start_time"),
+            "route_end_time": tdx_route.get("end_time"),
+            "summary": summary,
+        }
+
     if distance_km <= 1.2:
         minutes = max(8, int(round(distance_km * 14 + 4)))
         mode = "walk"
@@ -1315,6 +1475,8 @@ def _travel_estimate(
         mode = "transit"
         summary = f"兩點直線距離約 {distance_km} 公里，屬較長移動，建議使用大眾運輸。"
 
+    if tdx_warning:
+        summary = f"{summary}{tdx_warning}"
     if dest_transit and dest_transit.get("summary"):
         summary = f"{summary} {dest_transit['summary']}"
 
@@ -1322,6 +1484,7 @@ def _travel_estimate(
         "distance_km": distance_km,
         "estimated_minutes": minutes,
         "mode": mode,
+        "source": "heuristic",
         "summary": summary,
     }
 
@@ -1804,7 +1967,7 @@ def plan_itinerary(
             window_start, window_end = _time_window_from_row(row, target_date)
             duration = _duration_for_category(row["category_code"])
             dest_coords = (row["latitude"], row["longitude"]) if row["latitude"] is not None and row["longitude"] is not None else None
-            travel = _travel_estimate(current_coords, dest_coords)
+            travel = _travel_estimate(current_coords, dest_coords, depart_at=current_time)
             suggested_start = max(current_time + timedelta(minutes=travel["estimated_minutes"]), window_start)
             suggested_end = suggested_start + duration
             if suggested_end > window_end or suggested_end > day_end:
@@ -1823,7 +1986,7 @@ def plan_itinerary(
             row["longitude"],
             row["address"] or row["venue_name"] or "",
         )
-        travel = _travel_estimate(current_coords, dest_coords, dest_transit=dest_transit)
+        travel = _travel_estimate(current_coords, dest_coords, dest_transit=dest_transit, depart_at=current_time)
         selected.append(
             {
                 "uid": row["event_uid"],
@@ -1837,8 +2000,10 @@ def plan_itinerary(
                 "end_at": suggested_end.isoformat(timespec="minutes"),
                 "estimated_stay_minutes": int((suggested_end - suggested_start).total_seconds() / 60),
                 "travel_mode": travel["mode"],
+                "travel_source": travel.get("source", ""),
                 "estimated_travel_minutes": travel["estimated_minutes"],
                 "estimated_travel_distance_km": travel["distance_km"],
+                "estimated_transfers": travel.get("transfers"),
                 "travel_summary": travel["summary"],
                 "directions_url": _directions_link(current_coords, dest_coords, row["address"] or row["venue_name"] or ""),
                 "map_url": row["map_url"] or _maps_link(row["address"] or row["venue_name"] or "", row["latitude"], row["longitude"]),
@@ -1879,7 +2044,7 @@ def plan_itinerary(
         },
         "notes": [
             "活動資料已先同步進本地 SQLite，減少每次直接打官方 API 的延遲與不穩定。",
-            "移動時間仍是簡化估算，不是即時路線規劃結果。",
+            "若已設定可用的 TDX 憑證，移動時間會優先使用 TDX MaaS 旅運規劃；查詢失敗時才回退成距離估算。",
             "若已設定 TDX 憑證，會補上附近捷運站與公車站資訊，讓每站更接近真實交通情境。",
         ],
         "count": len(selected),
