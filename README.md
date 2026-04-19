@@ -10,34 +10,69 @@
 2. **視覺化地圖 (Map)**：將展演活動空間化呈現，支援自選願望清單標記與地圖範圍推薦。讓使用者一目瞭然城市裡的藝文脈動。
 3. **AI Agent (自然語言助手)**：AI Agent 不僅能幫你查詢相關資料、安排行程，更能直接連動操作地圖標記及收藏清單。背後依賴向量檢索庫 (ChromaDB) 輔助減少幻覺。
 
-## ✅ 目前已落地的後端模組
+## ✅ Backend 模組總覽
 
-目前 repo 內已加入一個可直接執行的 ADK Agent prototype，路徑在 `backend/adk_agent/`。這個模組不是空架構，而是已經接上真實資料來源與可部署流程的後端原型，包含：
+後端程式集中在 `backend/`，目前由三塊組成：**ADK Agent 服務**、**推薦原型腳本**，以及兩者共用的**推薦啟發式核心**。
 
-- 使用 Google ADK / Gemini 建立展演探索與行程規劃 Agent
-- 串接文化部藝文活動 OpenAPI，支援同步、搜尋、活動詳情與附近活動
-- 串接 Open-Meteo 天氣 API，支援情境式推薦
-- 以 SQLite 建立本地活動資料表，降低每次查詢都打外部 API 的不穩定性
-- 支援 `make run` 本地啟動與 `make deploy` 部署到 Cloud Run
+### `backend/adk_agent/`（Google ADK + Gemini）
 
-另外，repo 內也新增了一個推薦原型 `backend/app/recommender/`，把 `LightFM` 的 hybrid recommender 思路改造成適合 hackathon demo 的版本：
+可直接執行、可查真實展演資料、可部署到 Cloud Run 的 Agent 原型，能力包含：
 
-- 直接讀取根目錄的 `exhibitions.json`
-- 從展覽文字、地點、票價、熱門度抽 item features
-- 用 synthetic personas 建立冷啟動階段的互動資料
-- 將 LightFM 分數與 heuristic score 混合，輸出可解釋的推薦結果
+- 使用 Google ADK 與 Gemini（Vertex AI）做展演探索與簡化行程規劃
+- 串接文化部藝文活動 OpenAPI：同步、搜尋、活動詳情、附近活動
+- 串接 Open-Meteo 天氣 API，做情境式回覆
+- 透過 Nominatim / OpenStreetMap Search 做地理相關查詢
+- 本地 SQLite 快取活動資料，降低重複打外部 API 的不穩定性
+- `Makefile`：`make setup` / `make run` 本地啟動；`make deploy PROJECT=...` 部署 Cloud Run
 
-若要直接看模組說明與啟動方式：
+**快速開始**（需 Python 3.11+、GCP 專案與 Vertex AI 權限）：
 
 ```bash
 cd backend/adk_agent
+make setup
+source .venv/bin/activate
+# 編輯 gemini_agent/.env（可由 .env.template 複製），填入 GOOGLE_CLOUD_PROJECT 等
+make run
 ```
 
-若要看推薦原型：
+`adk web` 預設監聽 `0.0.0.0:8000`。部署與 `gcloud` 認證流程請見 `backend/adk_agent/Makefile`；模組細節見 `backend/adk_agent/README.md`。
+
+**環境變數重點**（`gemini_agent/.env`）：`GOOGLE_GENAI_USE_VERTEXAI`、`GOOGLE_CLOUD_PROJECT`、`GOOGLE_CLOUD_LOCATION`、`GEMINI_MODEL`；選填 `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`、`GOOGLE_MAPS_API_KEY`（詳見 `.env.template`）。請勿將 `.env` 提交版本庫。
+
+### `backend/app/recommender/`（LightFM 推薦原型）
+
+將 LightFM hybrid 思路收斂成可 demo 的腳本，適合冷啟動與黑客松展示：
+
+- 讀取 repo 根目錄的 `exhibitions.json`
+- 從展覽文字、地點、票價、熱門度抽取 item features
+- 以 synthetic personas 模擬互動，再與 heuristic 分數混合
+- 輸出可解釋的推薦排序（之後可改接真實 click / 收藏 / 地圖互動）
+
+**安裝與執行**（建議 Python 3.11 或 3.12；LightFM 在 3.13 上可能較不穩定）：
 
 ```bash
 cd backend/app/recommender
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
+
+執行 demo（腳本會自動把 repo 根目錄加入 `sys.path`，一般從根目錄用相對路徑即可）：
+
+```bash
+python3 backend/app/recommender/exhibeat_lightfm_demo.py --top-k 5
+python3 backend/app/recommender/exhibeat_lightfm_demo.py --persona taipei_after_work --top-k 5
+```
+
+`--backend auto` 會在已安裝 LightFM 時走 hybrid，否則自動退回 heuristic。更多參數與 JSON 輸出見 `backend/app/recommender/README.md`。
+
+### `backend/shared/`（共用邏輯）
+
+`recommendation_core.py` 提供縣市關鍵字、標籤／場館關鍵字規則、`UserPreference` / `RecommendableEvent` 等資料結構，以及城市與標籤推斷、heuristic 評分與推薦理由建構。**ADK Agent 的 `event_tools`** 與 **推薦原型腳本** 皆 import 此模組，避免兩套規則漂移。
+
+---
+
+正式 REST `api/`、`rag/`、`db/` 等目錄可作為後續擴充；目前 repo 內已實作的部分以上述三路徑為主。
 
 ## 🗂️ 專案目錄與系統架構圖 (前後端分離架構)
 
@@ -80,24 +115,28 @@ ytp-exhibeat/
 │   │   └── App.jsx
 │   └── package.json               # (與原架構相同，略)
 │
-├── backend/                   
-│   ├── adk_agent/             # 已落地的 Google ADK Agent backend prototype
+├── backend/
+│   ├── shared/                # 推薦啟發式與特徵推斷（ADK tools + recommender 共用）
+│   │   └── recommendation_core.py
+│   ├── adk_agent/             # Google ADK Agent 原型（可本地 / Cloud Run）
 │   │   ├── gemini_agent/
 │   │   │   ├── agent.py
+│   │   │   ├── models/
 │   │   │   ├── instruction/system.md
 │   │   │   └── tools/
 │   │   │       ├── event_tools.py
 │   │   │       ├── weather.py
 │   │   │       └── sample_tool.py
+│   │   ├── Dockerfile
 │   │   ├── Makefile
 │   │   ├── requirements.txt
-│   │   └── WORKSHOP.md
-│   └── app/                   # 後續可持續擴充的正式 API 層
-│       ├── api/               
-│       ├── agent/             
-│       ├── rag/
-│       ├── recommender/
-│       └── db/
+│   │   ├── README.md
+│   │   └── .env.template
+│   └── app/
+│       └── recommender/       # LightFM + heuristic 推薦原型
+│           ├── exhibeat_lightfm_demo.py
+│           ├── requirements.txt
+│           └── README.md
 │
 ├── crawler/                   
 │   ├── spiders/               
@@ -111,6 +150,8 @@ ytp-exhibeat/
 
 ## 🛠️ 資料流動概念
 
-1. **資料獲取 (Scraper)** 定期從外部抓回來的資料，進入關聯式資料庫及進行 Embeddings 後存入向量庫。
-2. **後端 (Backend)** 裡面的 `core/` 負責處理所有的「推薦模型預測」、「向量檢索」以及「背景摘要生成」演算法，然後透過 `api/v1` 將結果發佈出來。
-3. **前端 (Frontend)** 為輕量級設計，專注於地圖視覺化與即時與 API 的互動展示。
+1. **資料獲取 (Scraper / 外部 OpenAPI)**：`crawler/` 或文化部等公開 API 提供展演資料；結構化資料可進 DB，長文可再切塊向量化（產品規劃中的 RAG 路徑）。
+2. **後端 (Backend)**（目前實作）：
+   - **ADK Agent**：工具層呼叫文化部 API、天氣與地理服務，並將活動寫入本地 SQLite；對話層由 Gemini 編排。推薦相關的規則與理由說明與 `backend/shared/recommendation_core.py` 對齊。
+   - **推薦原型**：離線／腳本讀取 `exhibitions.json`，以 LightFM 與同一套 heuristic 產生排序，供 demo 或日後接到正式 API。
+3. **前端 (Frontend)**：地圖與列表等 UI；正式上線時可改呼叫統一 REST / BFF，目前 Agent 側以 ADK Web UI 或部署後的服務 URL 驗證。

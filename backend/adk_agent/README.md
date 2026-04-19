@@ -19,10 +19,8 @@
   - 本地啟動、GCP 認證、Cloud Run 部署
 - `requirements.txt`
   - Python 依賴
-- `WORKSHOP.md`
-  - 詳細 setup / deploy 手冊
-- `EXHIBEAT_AGENT_PLAN.md`
-  - 產品定位、tool 設計與 demo flow 規劃
+- `Dockerfile`
+  - Cloud Run / Docker 部署用映像檔設定
 
 ## 目前串接的外部 API
 
