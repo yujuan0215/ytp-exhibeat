@@ -31,13 +31,13 @@
 cd backend/adk_agent
 make setup
 source .venv/bin/activate
-# 編輯 gemini_agent/.env（可由 .env.template 複製），填入 GOOGLE_CLOUD_PROJECT 等
+# 編輯 gemini_agent/.env（可由 .env.sample 複製），填入 GOOGLE_CLOUD_PROJECT 等
 make run
 ```
 
 `adk web` 預設監聽 `0.0.0.0:8000`。部署與 `gcloud` 認證流程請見 `backend/adk_agent/Makefile`；模組細節見 `backend/adk_agent/README.md`。
 
-**環境變數重點**（`gemini_agent/.env`）：`GOOGLE_GENAI_USE_VERTEXAI`、`GOOGLE_CLOUD_PROJECT`、`GOOGLE_CLOUD_LOCATION`、`GEMINI_MODEL`；選填 `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`、`GOOGLE_MAPS_API_KEY`（詳見 `.env.template`）。請勿將 `.env` 提交版本庫。
+**環境變數重點**（`gemini_agent/.env`）：`GOOGLE_GENAI_USE_VERTEXAI`、`GOOGLE_CLOUD_PROJECT`、`GOOGLE_CLOUD_LOCATION`、`GEMINI_MODEL`；選填 `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`、`GOOGLE_MAPS_API_KEY`（詳見 `.env.sample`）。請勿將 `.env` 提交版本庫。
 
 ### `backend/app/recommender/`（LightFM 推薦原型）
 
@@ -131,7 +131,7 @@ ytp-exhibeat/
 │   │   ├── Makefile
 │   │   ├── requirements.txt
 │   │   ├── README.md
-│   │   └── .env.template
+│   │   └── .env.sample
 │   └── app/
 │       └── recommender/       # LightFM + heuristic 推薦原型
 │           ├── exhibeat_lightfm_demo.py

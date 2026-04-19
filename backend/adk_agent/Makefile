@@ -18,7 +18,7 @@ install:
 # 初始化環境變數 (.env)
 init-env:
 	@if [ ! -f gemini_agent/.env ]; then \
-		cp gemini_agent/.env.template gemini_agent/.env; \
+		cp gemini_agent/.env.sample gemini_agent/.env; \
 		echo "已建立 gemini_agent/.env"; \
 	fi
 
