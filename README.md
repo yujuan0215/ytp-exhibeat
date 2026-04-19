@@ -41,12 +41,19 @@ make run
 
 ### `backend/app/recommender/`（LightFM 推薦原型）
 
-將 LightFM hybrid 思路收斂成可 demo 的腳本，適合冷啟動與黑客松展示：
-
 - 讀取 repo 根目錄的 `exhibitions.json`
 - 從展覽文字、地點、票價、熱門度抽取 item features
 - 以 synthetic personas 模擬互動，再與 heuristic 分數混合
 - 輸出可解釋的推薦排序（之後可改接真實 click / 收藏 / 地圖互動）
+
+**設計重點**（冷啟動可 demo、上線可演進）：
+
+- **共用特徵與規則**：城市/標籤/場館關鍵字、室內外與熱門度門檻、`UserPreference` / `RecommendableEvent` 等，集中在 `backend/shared/recommendation_core.py`，讓 recommender 與 ADK tools 用同一套推斷與理由生成。
+- **兩段式排序**：
+  - **Heuristic baseline**：可在沒有模型/環境不完整時跑出穩定排序（也能解釋「為什麼推你」）。
+  - **Hybrid LightFM**：用內容特徵 + synthetic interactions 做 ranking，最後再與 heuristic 分數混合，降低 demo 抖動。
+- **Persona → 互動資料**：用 persona 規則合成冷啟動互動，驗證整個 pipeline；之後可直接替換成真實事件 `click / save / map_view / agent_query`。
+- **可解釋輸出**：除了排序分數，也會產生推薦理由（reasons），方便接到首頁 feed、地圖與 Agent 回覆。
 
 **安裝與執行**（建議 Python 3.11 或 3.12；LightFM 在 3.13 上可能較不穩定）：
 
