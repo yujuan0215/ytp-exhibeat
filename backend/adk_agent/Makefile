@@ -45,7 +45,7 @@ enable-apis:
 
 # 啟動 Agent
 run:
-	adk web --host 0.0.0.0 --port 8000 --allow_origins "regex:https://.*\.cloudshell\.dev"
+	adk web --host 0.0.0.0 --port 8000 --allow_origins "*"
 
 # Docker 相關指令
 docker-build: init-env

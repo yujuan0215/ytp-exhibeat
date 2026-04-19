@@ -2,6 +2,7 @@ import { collectionExhibitions, recommendations } from "@/data/mock";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Sparkles, Zap } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function Collection() {
@@ -23,8 +24,8 @@ export function Collection() {
                 <TabsTrigger value="distance" className="rounded-full data-[state=active]:bg-transparent data-[state=active]:text-white/60">按距離</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button variant="outline" size="sm" className="rounded-full bg-[#1a1625] border-white/5 text-white hover:bg-white/10">
-              <span className="mr-2">⚡</span> 篩選
+            <Button variant="outline" size="sm" className="rounded-full bg-[#1a1625] border-white/5 text-white hover:bg-white/10 flex items-center gap-2">
+              <Zap className="w-4 h-4" /> 篩選
             </Button>
           </div>
         </header>
@@ -43,7 +44,7 @@ export function Collection() {
         <div className="bg-[#1a1625]/50 rounded-3xl p-6 border border-white/5">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-white">推薦給您</h3>
-            <span className="text-purple-500 text-2xl">✨</span>
+            <Sparkles className="w-6 h-6 text-purple-500" />
           </div>
           
           <div className="space-y-4">

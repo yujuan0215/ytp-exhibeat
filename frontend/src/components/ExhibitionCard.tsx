@@ -1,5 +1,5 @@
 import type { Exhibition } from "@/data/mock";
-import { Heart } from "lucide-react";
+import { Heart, Calendar, MapPin, BookmarkPlus, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 
@@ -36,11 +36,11 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
         
         <div className="space-y-2 text-sm text-muted-foreground mb-6">
           <div className="flex items-center gap-2">
-            <span className="opacity-70">📅</span>
+            <Calendar className="w-4 h-4 opacity-70" />
             <span>{exhibition.dateStr}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="opacity-70">📍</span>
+            <MapPin className="w-4 h-4 opacity-70" />
             <span>{exhibition.location}</span>
           </div>
         </div>
@@ -54,12 +54,12 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           </div>
         )}
 
-        <button className={`w-full py-2.5 rounded-full text-sm font-medium transition-colors ${
+        <button className={`w-full py-2.5 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
           exhibition.price === 'FREE' && !isCollectionVariant
             ? 'bg-white/5 hover:bg-white/10'
             : 'bg-white/5 hover:bg-purple-500 hover:text-white'
         }`}>
-          {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? '加入收藏 📌' : '立即預約 →')}
+          {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? <><BookmarkPlus className="w-4 h-4" /> 加入收藏</> : <>立即預約 <ArrowRight className="w-4 h-4" /></>)}
         </button>
       </CardContent>
     </Card>
