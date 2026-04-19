@@ -21,7 +21,6 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
-!backend/adk_agent/gemini_agent/.env
 
 # 臨時解析檔案
 pdf_text*
