@@ -43,10 +43,6 @@ enable-apis:
 		artifactregistry.googleapis.com \
 		aiplatform.googleapis.com
 
-# 啟動 Agent
-run:
-	adk web --host 0.0.0.0 --port 8000 --allow_origins "*"
-
 # Docker 相關指令
 docker-build: init-env
 	docker build -t $(IMAGE_NAME) .
@@ -84,3 +80,16 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	rm -rf .adk/
+
+# 清清理通訊埠 (8000, 8001)
+clean-ports:
+	@echo "正在清理 8000 與 8001 通訊埠..."
+	-fuser -k 8000/tcp 8001/tcp 2>/dev/null || true
+	-pkill -9 -f uvicorn 2>/dev/null || true
+	-pkill -9 -f adk 2>/dev/null || true
+
+# 啟動 Agent 與 推薦系統 (單一門戶 port 8000)
+run: clean-ports
+	@echo "正在啟動 ExhiBeat 系統..."
+	adk web --host 0.0.0.0 --port 8001 --allow_origins "*" > adk_server.log 2>&1 & \
+	ADK_PORT=8001 uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000

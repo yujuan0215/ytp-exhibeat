@@ -3,3 +3,7 @@ litellm
 python-dotenv
 pydantic
 tzdata
+fastapi
+uvicorn
+httpx
+numpy

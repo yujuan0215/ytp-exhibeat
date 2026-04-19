@@ -70,6 +70,8 @@ class Exhibition:
     venues: tuple[str, ...]
     features: tuple[str, ...]
     description: str
+    image_url: str = ""
+    edit_modify_date: str = ""
 
 
 def parse_args() -> argparse.Namespace:
@@ -201,6 +203,8 @@ def build_exhibition(record: dict) -> Exhibition:
         venues=venues,
         features=tuple(sorted(features)),
         description=description,
+        image_url=record.get("imageUrl", "") or "",
+        edit_modify_date=record.get("editModifyDate", "") or "",
     )
 
 
@@ -428,6 +432,11 @@ def run_fallback_demo(
                 "date_range": f"{event.start_date.isoformat()} -> {event.end_date.isoformat()}",
                 "score": round(float(heuristic_score(persona, event, reference_date)), 4),
                 "reasons": build_reasons(persona, event, reference_date),
+                "description": event.description,
+                "image_url": event.image_url,
+                "is_free": event.is_free,
+                "price_text": event.price_text,
+                "edit_modify_date": event.edit_modify_date,
             }
             for event in ranked_events
         ]
@@ -548,6 +557,11 @@ def run_lightfm_demo(
                     "date_range": f"{event.start_date.isoformat()} -> {event.end_date.isoformat()}",
                     "score": round(float(blended_scores[int(position)]), 4),
                     "reasons": build_reasons(persona, event, reference_date),
+                    "description": event.description,
+                    "image_url": event.image_url,
+                    "is_free": event.is_free,
+                    "price_text": event.price_text,
+                    "edit_modify_date": event.edit_modify_date,
                 }
             )
 

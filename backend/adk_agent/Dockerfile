@@ -25,4 +25,4 @@ ENV PYTHONUNBUFFERED=1
 
 # 啟動 Agent (預設監聽 0.0.0.0 以便容器外存取)
 # 備註：啟動時可透過環境變數指定不同 Agent 入口
-CMD ["adk", "web", "--host", "0.0.0.0", "--port", "8000"]
+CMD adk web --host 0.0.0.0 --port 8001 & ADK_PORT=8001 uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000

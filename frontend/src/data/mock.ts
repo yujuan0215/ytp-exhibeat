@@ -8,6 +8,12 @@ export interface Exhibition {
   tags: string[];
   imageUrl: string;
   isFavorite: boolean;
+  _meta?: {
+    isFree: boolean;
+    endDate: string;
+    editModifyDate: string;
+    score: number;
+  };
 }
 
 export interface Recommendation {

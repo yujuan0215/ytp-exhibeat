@@ -6,9 +6,13 @@ export function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="flex items-center justify-between px-8 py-4 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-8">
-        <Link to="/" className="inline-block text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600 py-1">
+        <Link 
+          to="/" 
+          className="inline-block text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent py-1"
+          style={{ WebkitBackgroundClip: 'text' }}
+        >
           ExhiBeat
         </Link>
         <div className="hidden md:flex gap-6">

@@ -1,15 +1,78 @@
-import { collectionExhibitions, recommendations } from "@/data/mock";
+import { useEffect, useState } from "react";
+import type { Exhibition, Recommendation } from "@/data/mock";
+import { getCollectionRecommendations, getMoreCollectionRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap } from "lucide-react";
+import { Sparkles, Zap, Loader2, ChevronDown } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getFavorites } from "@/lib/favorites";
+
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
 export function Collection() {
+  const [collectionExhibitions, setCollectionExhibitions] = useState<Exhibition[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allRecs, setAllRecs] = useState<Recommendation[]>([]);
+  const [recsVisible, setRecsVisible] = useState(3);
+  const [hasMoreRecs, setHasMoreRecs] = useState(true);
+
+  useEffect(() => {
+    // Load favorites from localStorage instantly
+    setCollectionExhibitions(getFavorites());
+    
+    // Load recommendations from backend
+    getCollectionRecommendations()
+      .then(data => {
+        setRecommendations(data.recommendations);
+        setAllRecs(data.recommendations);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch collection recommendations", err);
+        setLoading(false);
+      });
+
+    // Sync with favorites changes
+    const handleSync = () => setCollectionExhibitions(getFavorites());
+    window.addEventListener("favorites-changed", handleSync);
+    return () => window.removeEventListener("favorites-changed", handleSync);
+  }, []);
+
+  const handleLoadMoreRecs = async () => {
+    if (recsVisible < allRecs.length) {
+      // Show pre-loaded recs first
+      setRecsVisible(v => Math.min(v + 3, allRecs.length));
+      return;
+    }
+    // Fetch a new batch from the API
+    setLoadingMore(true);
+    try {
+      const newRecs = await getMoreCollectionRecommendations();
+      const combined = [...allRecs, ...newRecs.filter(r => !allRecs.find(e => e.id === r.id))];
+      setAllRecs(combined);
+      setRecsVisible(v => v + 3);
+      if (combined.length <= recsVisible + 3) setHasMoreRecs(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const visibleRecs = allRecs.slice(0, recsVisible);
+  const endingSoon = collectionExhibitions.filter(e => {
+    const end = new Date(e.dateStr.replace(/.*-> /, "").trim());
+    const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 30;
+  }).length;
+
   return (
     <div className="px-8 py-10 w-full flex flex-col lg:flex-row gap-10">
       
-      {/* Main Content Area */}
+      {/* ── Main Content Area ── */}
       <div className="flex-1">
         <header className="flex flex-col md:flex-row items-baseline justify-between mb-8 gap-4">
           <div>
@@ -30,14 +93,24 @@ export function Collection() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {collectionExhibitions.map(exhibition => (
-            <ExhibitionCard key={exhibition.id} exhibition={exhibition} isCollectionVariant={true} />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[300px]">
+          {loading ? (
+            <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
+              <Loader2 className="w-5 h-5 animate-spin" /> 載入收藏中…
+            </div>
+          ) : collectionExhibitions.length > 0 ? (
+            collectionExhibitions.map(exhibition => (
+              <ExhibitionCard key={exhibition.id} exhibition={exhibition} isCollectionVariant={true} />
+            ))
+          ) : (
+            <div className="col-span-full flex justify-center items-center h-60 text-white/50">
+               無收藏資料
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Sidebar Area */}
+      {/* ── Sidebar Area ── */}
       <aside className="w-full lg:w-80 flex flex-col gap-8">
         
         {/* Recommendations */}
@@ -48,25 +121,51 @@ export function Collection() {
           </div>
           
           <div className="space-y-4">
-            {recommendations.map(rec => (
-              <div key={rec.id} className="flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors">
-                <img src={rec.imageUrl} alt={rec.title} className="w-16 h-16 rounded-lg object-cover" />
-                <div>
-                  <span className="text-[10px] text-[#0cf] font-medium tracking-wider mb-1 block">
-                    {rec.tag}
-                  </span>
-                  <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-purple-400 transition-colors w-40 truncate">
-                    {rec.title}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">{rec.location}</p>
-                </div>
+            {loading ? (
+              <div className="text-white/50 text-sm text-center py-4 flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> 載入推薦…
               </div>
-            ))}
+            ) : visibleRecs.length > 0 ? (
+              visibleRecs.map(rec => (
+                <div key={rec.id} className="flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors">
+                  <img
+                    src={rec.imageUrl}
+                    alt={rec.title}
+                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
+                  />
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-[#0cf] font-medium tracking-wider mb-1 block truncate">
+                      {rec.tag}
+                    </span>
+                    <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-purple-400 transition-colors w-40 truncate">
+                      {rec.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground truncate">{rec.location}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-white/50 text-sm py-4">目前沒有推薦</div>
+            )}
           </div>
           
-          <Button variant="outline" className="w-full mt-6 rounded-full border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 bg-transparent transition-colors">
-            探索更多推薦
-          </Button>
+          {hasMoreRecs && (
+            <Button
+              variant="outline"
+              className="w-full mt-6 rounded-full border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 bg-transparent transition-colors gap-2"
+              onClick={handleLoadMoreRecs}
+              disabled={loadingMore}
+            >
+              {loadingMore
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> 載入中…</>
+                : <><ChevronDown className="w-4 h-4" /> 探索更多推薦</>
+              }
+            </Button>
+          )}
+          {!hasMoreRecs && (
+            <p className="text-center text-white/30 text-xs mt-4">已顯示全部推薦</p>
+          )}
         </div>
 
         {/* Stats */}
@@ -75,11 +174,11 @@ export function Collection() {
             <h3 className="text-lg font-bold text-white mb-6">收藏統計</h3>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-4xl font-light text-purple-400 mb-1">12</p>
+                <p className="text-4xl font-light text-purple-400 mb-1">{collectionExhibitions.length}</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">收藏活動</p>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-light text-[#0cf] mb-1">3</p>
+                <p className="text-4xl font-light text-[#0cf] mb-1">{endingSoon}</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">即將結束</p>
               </div>
             </div>

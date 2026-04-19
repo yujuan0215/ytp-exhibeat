@@ -71,3 +71,27 @@ export const sendMessageToAgent = async (message: string) => {
   
   return { reply };
 };
+
+export const getHomeRecommendations = async () => {
+  const response = await fetch('/api/recommendations/home');
+  if (!response.ok) throw new Error("Failed to fetch home recommendations");
+  const data = await response.json();
+  return data.exhibitions;
+};
+
+export const getCollectionRecommendations = async () => {
+  const response = await fetch('/api/recommendations/collection');
+  if (!response.ok) throw new Error("Failed to fetch collection recommendations");
+  const data = await response.json();
+  return {
+    collectionExhibitions: data.collectionExhibitions,
+    recommendations: data.recommendations
+  };
+};
+
+export const getMoreCollectionRecommendations = async () => {
+  const response = await fetch('/api/recommendations/collection/more');
+  if (!response.ok) throw new Error("Failed to fetch more recommendations");
+  const data = await response.json();
+  return data.recommendations as { id: string; title: string; tag: string; location: string; imageUrl: string }[];
+};

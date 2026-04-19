@@ -1,19 +1,49 @@
+import { useState, useEffect } from "react";
 import type { Exhibition } from "@/data/mock";
 import { Heart, Calendar, MapPin, BookmarkPlus, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { isFavorited, toggleFavorite } from "@/lib/favorites";
 
 export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { exhibition: Exhibition; isCollectionVariant?: boolean }) {
+  const [favorited, setFavorited] = useState(false);
+
+  useEffect(() => {
+    setFavorited(isFavorited(exhibition.id));
+    
+    const handleSync = () => setFavorited(isFavorited(exhibition.id));
+    window.addEventListener("favorites-changed", handleSync);
+    return () => window.removeEventListener("favorites-changed", handleSync);
+  }, [exhibition.id]);
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newState = toggleFavorite(exhibition);
+    setFavorited(newState);
+  };
+
   return (
-    <Card className="bg-[#1a1625] border-transparent overflow-hidden group hover:ring-2 hover:ring-purple-500/50 transition-all duration-300">
+    <Card className="bg-[#1a1625] border-transparent overflow-hidden group hover:ring-2 hover:ring-purple-500/50 transition-all duration-300 relative">
       <div className="relative aspect-[4/3] overflow-hidden">
         <img 
           src={exhibition.imageUrl} 
           alt={exhibition.title} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => {
+            const imgs = [
+              "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&auto=format&fit=crop&q=80",
+              "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
+              "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80",
+            ];
+            (e.target as HTMLImageElement).src = imgs[exhibition.title.length % imgs.length];
+          }}
         />
-        <button className="absolute top-4 right-4 p-2 rounded-full bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors">
-          <Heart className={`w-5 h-5 ${exhibition.isFavorite ? 'fill-purple-500 text-purple-500' : 'text-white'}`} />
+        <button 
+          onClick={handleToggleFavorite}
+          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors"
+        >
+          <Heart className={`w-5 h-5 transition-all ${favorited ? 'fill-purple-500 text-purple-500 scale-110' : 'text-white hover:scale-110'}`} />
         </button>
         <div className="absolute bottom-4 left-4 flex gap-2">
           {exhibition.tags.map(tag => (
