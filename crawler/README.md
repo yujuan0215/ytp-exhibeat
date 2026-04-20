@@ -11,7 +11,7 @@ This folder documents the two scripts used for:
 
 Script path:
 
-- `../crawl_artemperor_tidbits_playwright.py`
+- `../crawl_artemperor.py`
 
 What it does:
 
@@ -21,9 +21,9 @@ What it does:
 - Clicks read-more if available
 - Extracts:
   - `title`
-  - `date` (from `展期`)
-  - `location` (from `地點`)
-  - `author` (from `參展藝術家`, fallback labels if missing)
+  - `date` 
+  - `location` 
+  - `author` 
   - `full_text`
   - `image`
   - `related_link`
