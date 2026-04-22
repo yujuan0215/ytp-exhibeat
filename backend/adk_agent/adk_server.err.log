@@ -1,0 +1,9 @@
+C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\authlib\_joserfc_helpers.py:8: AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
+It will be compatible before version 2.0.0.
+  from authlib.jose import ECKey
+C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\google\adk\features\_feature_decorator.py:72: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
+  check_feature_enabled()
+Usage: adk web [OPTIONS] [AGENTS_DIR]
+Try 'adk web --help' for help.
+
+Error: Invalid value for '[AGENTS_DIR]': Directory 'adk_server.log' is a file.

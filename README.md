@@ -1,164 +1,348 @@
 # YTP-ExhiBeat 展覽整合平台
 
-本專案是一個全方位的都會藝文展演平台，透過動態推薦演算法、互動式地圖視覺化與強大的自然語言 AI Agent，為用戶打造直覺且無縫的找展覽體驗。
+本專案是一個都會藝文展演平台，結合**動態推薦演算法**、**互動式地圖**與**自然語言 AI Agent**，讓使用者能直覺地找到想看的展覽。
 
-為了支撐龐大的運算需求（包含自然語言處理與推薦模型），本系統架構將明確拆分為**前端 (Frontend)**、**後端 (Backend)**、**資料庫 (DB)** 以及**資料擷取管道 (Scraper)**。
-
-## 🚀 系統核心功能與應用場景
-
-1. **資訊彙整主頁**：運用大數據推薦模型主動推播有興趣的展演活動。包含展演的重點摘要（AI 生成輔助）、標籤篩選器以及即時社群評論與回饋區塊。
-2. **視覺化地圖 (Map)**：將展演活動空間化呈現，支援自選願望清單標記與地圖範圍推薦。讓使用者一目瞭然城市裡的藝文脈動。
-3. **AI Agent (自然語言助手)**：AI Agent 不僅能幫你查詢相關資料、安排行程，更能直接連動操作地圖標記及收藏清單。背後依賴向量檢索庫 (ChromaDB) 輔助減少幻覺。
-
-## ✅ Backend 模組總覽
-
-後端程式集中在 `backend/`，目前由三塊組成：**ADK Agent 服務**、**推薦原型腳本**，以及兩者共用的**推薦啟發式核心**。
-
-### `backend/adk_agent/`（Google ADK + Gemini）
-
-可直接執行、可查真實展演資料、可部署到 Cloud Run 的 Agent 原型，能力包含：
-
-- 使用 Google ADK 與 Gemini（Vertex AI）做展演探索與簡化行程規劃
-- 串接文化部藝文活動 OpenAPI：同步、搜尋、活動詳情、附近活動
-- 串接 Open-Meteo 天氣 API，做情境式回覆
-- 透過 Nominatim / OpenStreetMap Search 做地理相關查詢
-- 本地 SQLite 快取活動資料，降低重複打外部 API 的不穩定性
-- `Makefile`：`make setup` / `make run` 本地啟動；`make deploy PROJECT=...` 部署 Cloud Run
-
-**快速開始**（需 Python 3.11+、GCP 專案與 Vertex AI 權限）：
-
-```bash
-cd backend/adk_agent
-make setup
-source .venv/bin/activate
-# 編輯 gemini_agent/.env（可由 .env.sample 複製），填入 GOOGLE_CLOUD_PROJECT 等
-make run
-```
-
-`adk web` 預設監聽 `0.0.0.0:8000`。部署與 `gcloud` 認證流程請見 `backend/adk_agent/Makefile`；模組細節見 `backend/adk_agent/README.md`。
-
-**環境變數重點**（`gemini_agent/.env`）：`GOOGLE_GENAI_USE_VERTEXAI`、`GOOGLE_CLOUD_PROJECT`、`GOOGLE_CLOUD_LOCATION`、`GEMINI_MODEL`；選填 `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`、`GOOGLE_MAPS_API_KEY`（詳見 `.env.sample`）。請勿將 `.env` 提交版本庫。
-
-### `backend/app/recommender/`（LightFM 推薦原型）
-
-- 讀取 repo 根目錄的 `exhibitions.json`
-- 從展覽文字、地點、票價、熱門度抽取 item features
-- 以 synthetic personas 模擬互動，再與 heuristic 分數混合
-- 輸出可解釋的推薦排序（之後可改接真實 click / 收藏 / 地圖互動）
-
-**設計重點**（冷啟動可 demo、上線可演進）：
-
-- **共用特徵與規則**：城市/標籤/場館關鍵字、室內外與熱門度門檻、`UserPreference` / `RecommendableEvent` 等，集中在 `backend/shared/recommendation_core.py`，讓 recommender 與 ADK tools 用同一套推斷與理由生成。
-- **兩段式排序**：
-  - **Heuristic baseline**：可在沒有模型/環境不完整時跑出穩定排序（也能解釋「為什麼推你」）。
-  - **Hybrid LightFM**：用內容特徵 + synthetic interactions 做 ranking，最後再與 heuristic 分數混合，降低 demo 抖動。
-- **Persona → 互動資料**：用 persona 規則合成冷啟動互動，驗證整個 pipeline；之後可直接替換成真實事件 `click / save / map_view / agent_query`。
-- **可解釋輸出**：除了排序分數，也會產生推薦理由（reasons），方便接到首頁 feed、地圖與 Agent 回覆。
-
-**安裝與執行**（建議 Python 3.11 或 3.12；LightFM 在 3.13 上可能較不穩定）：
-
-```bash
-cd backend/app/recommender
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-執行 demo（腳本會自動把 repo 根目錄加入 `sys.path`，一般從根目錄用相對路徑即可）：
-
-```bash
-python3 backend/app/recommender/exhibeat_lightfm_demo.py --top-k 5
-python3 backend/app/recommender/exhibeat_lightfm_demo.py --persona taipei_after_work --top-k 5
-```
-
-`--backend auto` 會在已安裝 LightFM 時走 hybrid，否則自動退回 heuristic。更多參數與 JSON 輸出見 `backend/app/recommender/README.md`。
-
-### `backend/shared/`（共用邏輯）
-
-`recommendation_core.py` 提供縣市關鍵字、標籤／場館關鍵字規則、`UserPreference` / `RecommendableEvent` 等資料結構，以及城市與標籤推斷、heuristic 評分與推薦理由建構。**ADK Agent 的 `event_tools`** 與 **推薦原型腳本** 皆 import 此模組，避免兩套規則漂移。
+架構明確拆分為：**前端 (Frontend / React+Vite)**、**後端 API Proxy (FastAPI)**、**ADK Agent (Google ADK + Gemini)**、**推薦系統 (LightFM + Heuristic)** 以及**資料擷取 (Crawler)**。
 
 ---
 
-正式 REST `api/`、`rag/`、`db/` 等目錄可作為後續擴充；目前 repo 內已實作的部分以上述三路徑為主。
+## 📐 系統執行時的連線關係
 
-## 🗂️ 專案目錄與系統架構圖 (前後端分離架構)
+```
+Browser (port 5173)
+      │
+      ▼  Vite dev server + proxy
+/api/* → http://127.0.0.1:8000
+                     │
+                     ▼  FastAPI api_proxy_server.py
+  ┌──────────────────┴──────────────────┐
+  │ /api/recommendations/*               │──→ backend/app/recommender
+  │ /api/apps/*, /api/run, /api/list-apps│──→ ADK Web Server  (port 8001)
+  └──────────────────────────────────────┘
+```
+
+所有前端呼叫只認一個 origin（`/api/...`），後端會自動分流。這樣前端不用管背後是 ADK、推薦系統，還是未來加上的其他服務。
+
+---
+
+## 🚀 快速開始（三種路線）
+
+下面三種方式挑一種即可。**第一次建議先用「本機 venv」確認整體流程跑得起來，再考慮 Docker。**
+
+| 路線 | 適合對象 | 需要 |
+| --- | --- | --- |
+| 1. 本機 venv + npm | 大多數開發者 | Python 3.11/3.12（建議）或 3.13、Node 22+ |
+| 2. Docker Compose | 不想碰 Python/venv、或要一鍵起服務 | Docker Desktop |
+| 3. Cloud Run | 正式部署 | GCP 專案、`gcloud` CLI |
+
+---
+
+## 🔑 先決條件：Google API 金鑰（必備）
+
+ADK Agent 需要呼叫 Gemini 模型，你必須 **擇一** 提供憑證。第一次測試強烈建議走 (A)：
+
+### (A) Google AI Studio API Key — **推薦，免 GCP 帳單**
+
+1. 開啟 <https://aistudio.google.com/app/apikey>（需要 Google 帳號登入）
+2. 點選 **Create API key**，把金鑰複製下來
+3. 稍後會填入 `backend/adk_agent/gemini_agent/.env` 的 `GOOGLE_API_KEY=`
+
+> 免費配額：每分鐘 15 次呼叫，每天 1500 次，大多數測試綽綽有餘。
+
+### (B) Vertex AI — 正式部署路線
+
+1. 在 Google Cloud Console 建立或選用一個專案（<https://console.cloud.google.com>）
+2. 為該專案啟用 Vertex AI API（URL：`https://console.cloud.google.com/apis/library/aiplatform.googleapis.com`）
+3. 安裝 [gcloud CLI](https://cloud.google.com/sdk/docs/install)，然後執行：
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project <your-project-id>
+   ```
+4. 在 `backend/adk_agent/gemini_agent/.env` 把 `GOOGLE_GENAI_USE_VERTEXAI` 改為 `1`，並設定 `GOOGLE_CLOUD_PROJECT` 和 `GOOGLE_CLOUD_LOCATION`
+
+### 其他可選 API（非必要，缺了不影響主流程）
+
+| 變數 | 用途 | 申請位置 |
+| --- | --- | --- |
+| `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET` | 附近捷運/公車查詢 | <https://tdx.transportdata.tw/> |
+| `GOOGLE_MAPS_API_KEY` | 場館評分 / 評論補強 | <https://console.cloud.google.com/apis/credentials> |
+
+---
+
+## 🖥️ 路線 1：本機 venv + npm（Windows / macOS / Linux）
+
+### 0. 前置安裝
+
+| 作業系統 | Python 3.11/3.12 | Node 22+ |
+| --- | --- | --- |
+| Windows | 官網下載安裝，或 `winget install Python.Python.3.12` | `winget install OpenJS.NodeJS.LTS` |
+| macOS | `brew install python@3.12` | `brew install node@22` |
+| Linux (Ubuntu/Debian) | `sudo apt install python3.12 python3.12-venv` | `curl -fsSL https://deb.nodesource.com/setup_22.x \| sudo -E bash - && sudo apt install -y nodejs` |
+
+> Windows 上 Python **3.13** 也能跑（已測試），但 LightFM 套件（可選）只支援到 3.12。若之後想啟用 LightFM 推薦，請保留 3.11 或 3.12。
+
+### 1. Clone repo
+
+```bash
+git clone <this-repo-url>
+cd ytp-exhibeat
+```
+
+### 2. Windows（PowerShell）
+
+```powershell
+# 一次性建立後端 venv、安裝依賴、產生 .env
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_backend.ps1
+
+# 編輯 backend\adk_agent\gemini_agent\.env，填入 GOOGLE_API_KEY
+notepad backend\adk_agent\gemini_agent\.env
+
+# 啟動後端（port 8000 + 8001）
+powershell -ExecutionPolicy Bypass -File .\scripts\start_backend.ps1
+```
+
+另開一個 PowerShell 視窗：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_frontend.ps1
+```
+
+### 3. macOS / Linux（bash / zsh）
+
+```bash
+bash scripts/setup_backend.sh
+
+# 填入 GOOGLE_API_KEY
+${EDITOR:-nano} backend/adk_agent/gemini_agent/.env
+
+bash scripts/start_backend.sh
+```
+
+另開 terminal：
+
+```bash
+bash scripts/start_frontend.sh
+```
+
+### 4. 打開瀏覽器
+
+- 前端 UI：<http://127.0.0.1:5173>
+- 後端 API（直接測試）：<http://127.0.0.1:8000/api/recommendations/home>
+- ADK Web UI（直接測 Agent）：<http://127.0.0.1:8001>
+
+---
+
+## ✅ 驗證前後端確實串起來
+
+不想點網頁也可以直接用 `curl` 確認。三個回應都該是 200：
+
+```bash
+curl -s -w "\n%{http_code}\n" http://127.0.0.1:5173/api/recommendations/home | tail -c 200
+curl -s -w "\n%{http_code}\n" http://127.0.0.1:5173/api/list-apps
+curl -s -X POST -H "Content-Type: application/json" -d '{}' \
+  http://127.0.0.1:5173/api/apps/gemini_agent/users/local-dev-user/sessions \
+  -w "\n%{http_code}\n"
+```
+
+預期：
+
+1. 第一條回 18 個展覽 JSON（`"exhibitions":[…]`）
+2. 第二條回 `["gemini_agent",...]`
+3. 第三條回一個含 `id`、`appName` 的 session JSON
+
+> 第一次打 `/api/recommendations/home` 可能需要 10–15 秒，因為後端會試呼叫一次 Gemini；若沒有憑證，之後每次都會直接用 naive fallback，幾十毫秒就能回。
+
+---
+
+## 🐳 路線 2：Docker Compose（一鍵）
+
+前提：[Docker Desktop](https://www.docker.com/products/docker-desktop/) 已安裝並在執行。Windows 建議用 WSL2 backend。
+
+```bash
+# 先準備 .env（任何一台機器都要這一步，container 會掛進去讀）
+cp backend/adk_agent/gemini_agent/.env.sample \
+   backend/adk_agent/gemini_agent/.env
+# 編輯它，填入 GOOGLE_API_KEY
+
+# 起服務（-d 讓它在背景）
+docker compose up --build -d
+
+# 看 log
+docker compose logs -f
+```
+
+打開 <http://127.0.0.1:5173> 就是完整前端。
+
+關閉：
+
+```bash
+docker compose down
+```
+
+> Vite 在容器內是以 dev server 模式跑（方便開發時熱重載）。要打包成正式產物請改用 `npm run build` + 任何靜態 host。
+
+---
+
+## ☁️ 路線 3：部署到 Google Cloud Run（後端）
+
+僅適用於走 Vertex AI 路線。`backend/adk_agent/Makefile`（僅支援 macOS / Linux，Windows 請在 WSL 內執行）提供：
+
+```bash
+cd backend/adk_agent
+make auth PROJECT=<your-gcp-project-id>
+make enable-apis
+make deploy PROJECT=<your-gcp-project-id>
+```
+
+部署完 gcloud 會印出 service URL；把前端的 `VITE_API_PROXY_TARGET` 指到該 URL 就能讓 production 前端接到 Cloud Run 後端。
+
+---
+
+## 🛠️ 常見問題排查
+
+### ❓ `npm run dev` 印出 `[vite] http proxy error: /api/... ECONNREFUSED`
+
+代表後端（port 8000）還沒起來。先在另一個終端機執行 `start_backend` 再試。
+
+### ❓ 後端一直卡在 `Gemini summarisation failed ... credentials were not found`
+
+`.env` 裡走的是 Vertex AI 路線但缺 ADC。首次出現這個訊息後，後端會自動關閉 AI summary（naive 截斷代替），之後請求會很快。若想用真的 Gemini 摘要，改走 AI Studio key：
+
+```env
+GOOGLE_GENAI_USE_VERTEXAI=0
+GOOGLE_API_KEY=AI...
+```
+
+然後重啟後端。
+
+### ❓ Windows 執行 PS1 出現 `無法載入檔案 ... 因為這個系統上已停用指令碼執行`
+
+加一次 `-ExecutionPolicy Bypass`（如範例）即可。若想永久開啟：
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+### ❓ Windows `pip install` 卡在某個套件（例如 `litellm`）報 `Errno 2 ... long path`
+
+Windows 預設檔案路徑長度上限會讓 pip 解壓深層套件失敗。兩種解法：
+
+1. 啟用 Long Path 支援（建議，需管理員 PowerShell）：
+   ```powershell
+   Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+     LongPathsEnabled 1
+   ```
+   然後重開 PowerShell 重跑 setup。
+2. 如果失敗的是 `litellm`，本專案不會直接用它，可放心跳過。
+
+### ❓ Port 8000 / 8001 / 5173 被佔用
+
+```powershell
+# Windows
+netstat -ano | findstr :8000
+taskkill /F /PID <pid>
+```
+
+```bash
+# macOS / Linux
+lsof -i :8000
+kill -9 <pid>
+```
+
+### ❓ 後端啟動時報 `Directory 'xxx' is a file`
+
+這是 Windows shell 對 `*` 做 glob 展開導致的。請確認 `scripts/start_backend.ps1` 沒有手動加 `--allow_origins "*"`（預設已經拿掉）。
+
+### ❓ 從 WSL 呼叫 Windows 端的前端
+
+在 `frontend/.env.local` 寫：
+
+```
+VITE_API_PROXY_TARGET=http://<wsl-ip>:8000
+```
+
+`<wsl-ip>` 可以用 `ip addr | grep eth0` 查。
+
+---
+
+## 📂 專案結構（目前落地的部分）
 
 ```text
 ytp-exhibeat/
-├── frontend/                   # React 前端
-│   ├── public/
-│   │   └── index.html
+├── frontend/                      # React + Vite
 │   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home/                  # 分頁一：資訊彙整主頁
-│   │   │   │   ├── index.jsx
-│   │   │   │   ├── RecommendFeed.jsx  # 動態推薦首頁
-│   │   │   │   ├── SearchBar.jsx      # 關鍵字 / 標籤搜尋
-│   │   │   │   ├── EventCard.jsx      # 展演縮圖區塊
-│   │   │   │   └── CommentSection.jsx # 社群互動 / 留言 / 評分
-│   │   │   ├── Map/                   # 分頁二：視覺化地圖
-│   │   │   │   ├── index.jsx
-│   │   │   │   ├── MapView.jsx        # 地圖介面（Leaflet / Mapbox）
-│   │   │   │   ├── MarkerLayer.jsx    # 展演標記與篩選
-│   │   │   │   └── WishlistOverlay.jsx# 喜好清單圖層
-│   │   │   └── Agent/                 # 分頁三：AI Agent
-│   │   │       ├── index.jsx
-│   │   │       ├── ChatInterface.jsx  # 多輪對話介面
-│   │   │       └── AgentActions.jsx   # 連動地圖 / 寫入清單
-│   │   ├── components/                # 共用元件
-│   │   │   ├── Navbar.jsx
-│   │   │   ├── TagFilter.jsx          # 標籤分類元件
-│   │   │   └── AIBadge.jsx            # AI 生成標示
-│   │   ├── store/                     # 全域狀態（Zustand / Redux）
-│   │   │   ├── userStore.js           # 用戶偏好 / 喜愛清單
-│   │   │   └── eventStore.js          # 展演資料快取
-│   │   ├── hooks/
-│   │   │   ├── useRecommend.js        # 推薦演算法 hook
-│   │   │   └── useAgent.js            # AI Agent 對話 hook
-│   │   ├── services/                  # API 呼叫層
-│   │   │   ├── eventService.js
-│   │   │   ├── agentService.js
-│   │   │   └── mapService.js
-│   │   └── App.jsx
-│   └── package.json               # (與原架構相同，略)
+│   │   ├── lib/api.ts             # 統一的 /api/* 呼叫層
+│   │   └── pages/
+│   └── vite.config.ts             # 只允許從 VITE_API_PROXY_TARGET 覆寫，預設 127.0.0.1:8000
 │
 ├── backend/
-│   ├── shared/                # 推薦啟發式與特徵推斷（ADK tools + recommender 共用）
-│   │   └── recommendation_core.py
-│   ├── adk_agent/             # Google ADK Agent 原型（可本地 / Cloud Run）
+│   ├── adk_agent/                 # 這裡有 api_proxy_server + ADK agent
+│   │   ├── api_proxy_server.py    # FastAPI：推薦 API + ADK 反向代理
 │   │   ├── gemini_agent/
-│   │   │   ├── agent.py
+│   │   │   ├── agent.py           # ADK agent 入口
+│   │   │   ├── .env.sample        # 一鍵改成 .env 然後填 GOOGLE_API_KEY
+│   │   │   ├── instruction/
 │   │   │   ├── models/
-│   │   │   ├── instruction/system.md
-│   │   │   └── tools/
-│   │   │       ├── event_tools.py
-│   │   │       ├── weather.py
-│   │   │       └── sample_tool.py
-│   │   ├── Dockerfile
-│   │   ├── Makefile
-│   │   ├── requirements.txt
-│   │   ├── README.md
-│   │   └── .env.sample
-│   └── app/
-│       └── recommender/       # LightFM + heuristic 推薦原型
-│           ├── exhibeat_lightfm_demo.py
-│           ├── requirements.txt
-│           └── README.md
+│   │   │   └── tools/             # 文化部 / 天氣 / 地理 / 推薦 tools
+│   │   ├── Makefile               # macOS/Linux 的 `make setup/run/deploy`
+│   │   └── requirements.txt
+│   │
+│   ├── app/recommender/           # LightFM + heuristic 推薦原型
+│   │   ├── exhibeat_lightfm_demo.py
+│   │   └── requirements.txt
+│   │
+│   └── shared/                    # ADK tools & recommender 共用的規則
+│       └── recommendation_core.py
 │
-├── crawler/                   
-│   ├── spiders/               
-│   ├── cleaner.py             
-│   └── vectorizer.py          # 🆕 爬蟲後處理：將長篇展覽介紹切塊 (Chunking) 並寫入向量庫
+├── crawler/                       # 藝文網站爬蟲（目前：artemperor）
+│   ├── crawl_artemperor.py
+│   └── vectorize_artemperor.py
 │
-└── data/                      
-    ├── sqlite.db              # 儲存結構化資料 (User, 收藏清單)
-    └── vector_store/          # 🆕 存放 ChromaDB 或 FAISS 的本地向量索引檔案
+├── data/                          # SQLite / 向量庫輸出
+│
+├── scripts/                       # 🆕 跨平台 setup / start 腳本
+│   ├── setup_backend.ps1 / .sh
+│   ├── start_backend.ps1 / .sh
+│   └── start_frontend.ps1 / .sh
+│
+├── docker-compose.yml             # 🆕 一鍵起整套
+├── Dockerfile.backend             # 🆕 後端容器（ADK + API proxy）
+├── Dockerfile.frontend            # 🆕 前端 dev 容器
+│
+├── exhibitions.json               # 預先抓好的展覽資料（推薦系統輸入）
+└── README.md                      # 本檔案
 ```
 
-## 🛠️ 資料流動概念
+---
 
-1. **資料獲取 (Scraper / 外部 OpenAPI)**：`crawler/` 或文化部等公開 API 提供展演資料；結構化資料可進 DB，長文可再切塊向量化（產品規劃中的 RAG 路徑）。
-2. **後端 (Backend)**（目前實作）：
-   - **ADK Agent**：工具層呼叫文化部 API、天氣與地理服務，並將活動寫入本地 SQLite；對話層由 Gemini 編排。推薦相關的規則與理由說明與 `backend/shared/recommendation_core.py` 對齊。
-   - **推薦原型**：離線／腳本讀取 `exhibitions.json`，以 LightFM 與同一套 heuristic 產生排序，供 demo 或日後接到正式 API。
-3. **前端 (Frontend)**：地圖與列表等 UI；正式上線時可改呼叫統一 REST / BFF，目前 Agent 側以 ADK Web UI 或部署後的服務 URL 驗證。
+## 🧩 後端模組總覽
+
+### `backend/adk_agent/`（Google ADK + Gemini）
+
+- 使用 Google ADK 與 Gemini（AI Studio 或 Vertex AI 皆可）做展演探索與行程規劃
+- 串接文化部藝文活動 OpenAPI、Open-Meteo 天氣、Nominatim 地理查詢
+- 本地 SQLite 快取活動資料，減輕外部 API 壓力
+- `api_proxy_server.py` 把「推薦系統」跟「ADK Agent」包成同一個 origin，前端只打 `/api/...`
+
+### `backend/app/recommender/`（LightFM + Heuristic）
+
+- 讀取 `exhibitions.json`，從文字、地點、票價、熱門度抽取 item features
+- 以 synthetic personas 產生互動資料做 cold start
+- **Heuristic baseline** 沒裝 LightFM 也能跑；**Hybrid LightFM** 則會融合 embedding 與啟發式分數
+- `api_proxy_server.py` 預設以 `fallback`（純 heuristic）模式呼叫，所以 Python 3.13 也能跑
+
+### `backend/shared/recommendation_core.py`
+
+城市/標籤/場館關鍵字、`UserPreference`、`RecommendableEvent` 等共用資料結構與評分函式。`event_tools`（ADK）與推薦原型共用，避免兩套規則漂移。
+
+---
+
+## 🛣️ 資料流動
+
+1. **資料獲取**：`crawler/` 或文化部等公開 API 提供展演資料；結構化資料進 SQLite，長文切塊後可寫入 ChromaDB。
+2. **後端**：
+   - **ADK Agent** 負責對話、工具呼叫（文化部 API、天氣、地理）、寫入 SQLite
+   - **推薦系統** 離線讀 `exhibitions.json`，線上透過 `api_proxy_server.py` 暴露 REST
+   - 兩者共用 `backend/shared/recommendation_core.py` 的推薦規則
+3. **前端**：所有 UI 都只走 `/api/...`，由 Vite dev server（開發）或 Cloud Run（正式）轉發到上述後端。

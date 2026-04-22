@@ -1,0 +1,14 @@
+**/.venv
+**/venv
+**/__pycache__
+**/.adk
+**/node_modules
+**/dist
+**/build
+**/.next
+**/*.sqlite3
+**/.git
+**/.env
+**/.env.local
+.idea
+.vscode

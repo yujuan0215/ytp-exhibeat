@@ -1,5 +1,4 @@
 google-adk
-litellm
 python-dotenv
 pydantic
 tzdata
@@ -7,3 +6,6 @@ fastapi
 uvicorn
 httpx
 numpy
+# Optional: uncomment if you want to route Gemini calls through LiteLLM.
+# On Windows, enable Long Path support first (pip warning above).
+# litellm

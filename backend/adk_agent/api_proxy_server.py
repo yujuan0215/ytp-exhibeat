@@ -58,6 +58,9 @@ PLACEHOLDER_IMAGES = [
 
 # ─── AI Summarisation with Gemini (cached) ───────────────────────────────────
 _summary_cache: dict[str, str] = {}
+# Set to True after the first Gemini failure so we stop paying the timeout cost
+# on every subsequent request. The process can be restarted to re-enable.
+_gemini_disabled: bool = False
 
 def _is_meaningful_description(text: str) -> bool:
     if not text or len(text) < 15:
@@ -68,12 +71,22 @@ def _is_meaningful_description(text: str) -> bool:
     ascii_count = sum(1 for c in non_space if ord(c) < 128)
     return ascii_count / len(non_space) <= 0.6
 
+def _naive_summary(description: str) -> str:
+    clean = " ".join(description.split())
+    fallback = clean[:50].rstrip() + ("…" if len(clean) > 50 else "")
+    return fallback if _is_meaningful_description(fallback) else ""
+
 def _gemini_summarize(uid: str, title: str, description: str) -> str:
+    global _gemini_disabled
     if uid in _summary_cache:
         return _summary_cache[uid]
     if not _is_meaningful_description(description):
         _summary_cache[uid] = ""
         return ""
+    if _gemini_disabled:
+        result = _naive_summary(description)
+        _summary_cache[uid] = result
+        return result
     try:
         from dotenv import load_dotenv
         env_path = Path(__file__).parent / "gemini_agent" / ".env"
@@ -110,11 +123,12 @@ def _gemini_summarize(uid: str, title: str, description: str) -> str:
         return summary
 
     except Exception as exc:
-        logger.warning(f"Gemini summarisation failed for {uid}: {exc}")
-        # Fallback: naive truncation
-        clean = " ".join(description.split())
-        fallback = clean[:50].rstrip() + ("…" if len(clean) > 50 else "")
-        result = fallback if _is_meaningful_description(fallback) else ""
+        logger.warning(
+            f"Gemini summarisation failed for {uid}: {exc}. "
+            "Disabling AI summariser for this process; subsequent items will use naive truncation."
+        )
+        _gemini_disabled = True
+        result = _naive_summary(description)
         _summary_cache[uid] = result
         return result
 
@@ -230,7 +244,10 @@ ADK_HOST = f"http://127.0.0.1:{ADK_PORT}"
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_adk(request: Request, path: str):
     import urllib.parse
-    url = f"{ADK_HOST}/api/{path}"
+    # ADK exposes its routes at the root (e.g. /apps/..., /run, /list-apps),
+    # not under /api/. The frontend adds /api/ as a uniform prefix, and Vite's
+    # dev proxy forwards that to us; we strip it here before talking to ADK.
+    url = f"{ADK_HOST}/{path}"
     qp = dict(request.query_params)
     if qp:
         url += "?" + urllib.parse.urlencode(qp)
