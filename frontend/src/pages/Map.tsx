@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations } from "@/lib/api";
+import { isFavorited, toggleFavorite } from "@/lib/favorites";
+import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { useLocation } from "react-router-dom";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { ActionToast } from "@/components/ActionToast";
+import { Heart, MapPin, Clock3, Navigation } from "lucide-react";
 
 declare global {
   interface Window {
@@ -180,6 +186,8 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 }
 
 export function Map() {
+  const { user } = useAuth();
+  const location = useLocation();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -190,7 +198,17 @@ export function Map() {
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<"all" | "nearby" | "free" | "ending">("all");
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(5);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const infoWindowRef = useRef<any>(null);
+  const markerLookupRef = useRef<Record<string, { marker: any; content: string }>>({});
 
   useEffect(() => {
     const styleId = "map-info-window-theme";
@@ -237,6 +255,89 @@ export function Map() {
       })),
     [exhibitions],
   );
+
+  const sidebarItems = useMemo(() => {
+    const list = [...exhibitions];
+    if (activeFilter === "free") {
+      return list.filter((e) => e.price === "FREE" || e._meta?.isFree).slice(0, visibleCount);
+    }
+    if (activeFilter === "ending") {
+      return list
+        .filter((e) => !!e._meta?.endDate)
+        .sort((a, b) => new Date(a._meta?.endDate || "").getTime() - new Date(b._meta?.endDate || "").getTime())
+        .slice(0, visibleCount);
+    }
+    if (activeFilter === "nearby") {
+      return list
+        .filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number")
+        .slice(0, visibleCount);
+    }
+    return list.slice(0, visibleCount);
+  }, [activeFilter, exhibitions, visibleCount]);
+
+  const totalFilteredCount = useMemo(() => {
+    const list = [...exhibitions];
+    if (activeFilter === "free") return list.filter((e) => e.price === "FREE" || e._meta?.isFree).length;
+    if (activeFilter === "ending") return list.filter((e) => !!e._meta?.endDate).length;
+    if (activeFilter === "nearby") {
+      return list.filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number").length;
+    }
+    return list.length;
+  }, [activeFilter, exhibitions]);
+
+  const hasMore = sidebarItems.length < totalFilteredCount;
+
+  useEffect(() => {
+    setVisibleCount(5);
+  }, [activeFilter]);
+
+  useEffect(() => {
+    const syncFavorites = () => {
+      setFavoriteIds(new Set(exhibitions.filter((e) => isFavorited(e.id)).map((e) => e.id)));
+    };
+    syncFavorites();
+    window.addEventListener("favorites-changed", syncFavorites);
+    return () => window.removeEventListener("favorites-changed", syncFavorites);
+  }, [exhibitions]);
+
+  const handleToggleFavorite = async (e: React.MouseEvent, exhibition: Exhibition) => {
+    e.stopPropagation();
+    if (!user) {
+      setShowSignInPrompt(true);
+      return;
+    }
+    const nowFavorited = await toggleFavorite(exhibition);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (nowFavorited) next.add(exhibition.id);
+      else next.delete(exhibition.id);
+      return next;
+    });
+    setToastMessage(nowFavorited ? "已加入收藏" : "已取消收藏");
+    setShowToast(true);
+  };
+
+  useEffect(() => {
+    if (!showToast) return;
+    const timer = window.setTimeout(() => setShowToast(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [showToast]);
+
+  const focusEventOnMap = (eventId: string) => {
+    const map = mapInstanceRef.current;
+    const infoWindow = infoWindowRef.current;
+    const entry = markerLookupRef.current[eventId];
+    if (!map || !infoWindow || !entry) return;
+
+    const pos = entry.marker.getPosition?.();
+    if (pos) {
+      map.panTo(pos);
+      map.setZoom(Math.max(map.getZoom?.() ?? 11, 13));
+    }
+    infoWindow.setContent(entry.content);
+    infoWindow.open({ anchor: entry.marker, map });
+    setSelectedEventId(eventId);
+  };
 
   useEffect(() => {
     if (!mapRef.current || !apiKey || markerData.length === 0) return;
@@ -286,6 +387,7 @@ export function Map() {
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
+          gestureHandling: "greedy",
           ...(useCloudStyle
             ? { mapId }
             : {
@@ -296,6 +398,9 @@ export function Map() {
         });
 
         const infoWindow = new maps.InfoWindow();
+        mapInstanceRef.current = map;
+        infoWindowRef.current = infoWindow;
+        markerLookupRef.current = {};
         const bounds = new maps.LatLngBounds();
 
         markers = resolvedData.map(({ item, coord }) => {
@@ -318,19 +423,17 @@ export function Map() {
             },
           });
 
-          marker.addListener("click", () => {
-            infoWindow.setContent(
-              `<div style="max-width:240px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
+          const popupContent = `<div style="max-width:240px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
                 <strong style="display:block;color:#f5f3ff;margin-bottom:4px;">${safeTitle}</strong>
                 <span style="display:block;color:#c4b5fd;">${safeLocation}</span>
                 <span style="display:block;color:#cbd5e1;margin-top:2px;">${safeDate}</span>
                 <a href="${eventUrl}" style="display:inline-block;margin-top:10px;color:#e9d5ff;text-decoration:none;border:1px solid #7c3aed;background:#581c87;padding:5px 9px;border-radius:999px;font-size:12px;">
                   造訪活動頁面
                 </a>
-              </div>`,
-            );
-            infoWindow.open({ anchor: marker, map });
-          });
+              </div>`;
+
+          markerLookupRef.current[item.id] = { marker, content: popupContent };
+          marker.addListener("click", () => focusEventOnMap(item.id));
 
           bounds.extend(coord);
           return marker;
@@ -346,6 +449,9 @@ export function Map() {
     return () => {
       detached = true;
       markers.forEach((m) => m.setMap(null));
+      markerLookupRef.current = {};
+      mapInstanceRef.current = null;
+      infoWindowRef.current = null;
     };
   }, [apiKey, mapId, markerData, useCloudStyle]);
 
@@ -360,18 +466,120 @@ export function Map() {
   }
 
   return (
-    <section className="px-8 py-10">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-white">地圖探索</h1>
-        <p className="mt-2 text-sm text-white/60">{isV1 ? "沉浸式夜色地圖探索展演空間。" : "Dark mode Google Map with exhibition markers."}</p>
-      </header>
+    <section className="px-8 py-6 h-[calc(100vh-6.5rem)]">
+      <div className={`grid h-full gap-0 overflow-hidden border border-white/10 bg-[#0b1220] shadow-2xl ${isV1 ? "rounded-md" : "rounded-3xl"} lg:grid-cols-[minmax(0,1fr)_380px]`}>
+        <div className="relative h-full min-h-0 border-r border-white/10">
+          <div ref={mapRef} className="absolute inset-0 h-full w-full" />
+          {loading && (
+            <div className="absolute left-5 top-5 rounded-md border border-white/10 bg-[#111827]/85 px-3 py-2 text-xs text-white/80">
+              載入活動資料中…
+            </div>
+          )}
+          {error && (
+            <div className="absolute left-5 top-16 rounded-md border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {error}
+            </div>
+          )}
+        </div>
 
-      {loading && <p className="text-white/60">載入活動資料中…</p>}
-      {error && <p className="text-rose-300">{error}</p>}
+        <aside className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#0f0f1a] p-6">
+          <header className="mb-5">
+            <h1 className="text-4xl font-bold text-white">台北展演地圖</h1>
+            <p className="mt-2 text-sm text-white/60">
+              探索你附近的 {exhibitions.length} 個展覽活動
+            </p>
+          </header>
 
-      <div className={`h-[620px] w-full overflow-hidden ${isV1 ? "rounded-md" : "rounded-3xl"} border border-white/10 bg-[#0b1220] shadow-xl`}>
-        <div ref={mapRef} className="h-full w-full" />
+          <div className="mb-5 flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveFilter("all")}
+              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "all" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+            >
+              全部展覽
+            </button>
+            <button
+              onClick={() => setActiveFilter("nearby")}
+              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "nearby" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+            >
+              就近推薦
+            </button>
+            <button
+              onClick={() => setActiveFilter("free")}
+              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "free" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+            >
+              免費參展
+            </button>
+            <button
+              onClick={() => setActiveFilter("ending")}
+              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "ending" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+            >
+              即將結束
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {sidebarItems.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => focusEventOnMap(item.id)}
+                className={`w-full border p-3 text-left transition-colors ${
+                  selectedEventId === item.id
+                    ? "border-cyan-300/60 bg-[#1c1f35]"
+                    : "border-white/5 bg-[#171725] hover:bg-[#1b1b2b]"
+                } ${isV1 ? "rounded-md" : "rounded-2xl"}`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    focusEventOnMap(item.id);
+                  }
+                }}
+              >
+                <div className="flex gap-3">
+                  <img src={item.imageUrl} alt={item.title} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <p className="line-clamp-2 text-sm font-bold text-white">{item.title}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => void handleToggleFavorite(e, item)}
+                        title={user ? (favoriteIds.has(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                        className="p-1"
+                      >
+                        <Heart className={`h-4 w-4 transition-all ${favoriteIds.has(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"}`} />
+                      </button>
+                    </div>
+                    <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
+                      <MapPin className="h-3 w-3" /> {item.location}
+                    </p>
+                    <p className="flex items-center gap-1 text-[11px] text-white/50">
+                      <Clock3 className="h-3 w-3" /> {item.dateStr.replace(" -> ", " — ")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setVisibleCount((v) => Math.min(v + 5, totalFilteredCount))}
+            disabled={!hasMore}
+            className={`mt-5 flex w-full items-center justify-center gap-2 bg-[#df8eff] py-3 font-semibold text-[#2f0f42] hover:bg-[#d680f6] disabled:cursor-not-allowed disabled:opacity-60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+          >
+            <Navigation className="h-4 w-4" /> 探索更多展覽
+          </button>
+        </aside>
       </div>
+      <SignInPrompt
+        open={showSignInPrompt}
+        from={location.pathname + location.search}
+        title="收藏活動前請先登入"
+        description="登入後就能把展覽加入你的收藏清單，隨時回來查看。"
+        onClose={() => setShowSignInPrompt(false)}
+      />
+      <ActionToast open={showToast} message={toastMessage} />
     </section>
   );
 }

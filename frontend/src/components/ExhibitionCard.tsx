@@ -1,20 +1,23 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
 import { Heart, Calendar, MapPin, Bookmark, ArrowRight, Lock } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { ActionToast } from "@/components/ActionToast";
 
 export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { exhibition: Exhibition; isCollectionVariant?: boolean }) {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const [favorited, setFavorited] = useState(false);
   const { user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     setFavorited(isFavorited(exhibition.id));
@@ -28,12 +31,20 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      navigate("/login", { state: { from: location.pathname + location.search } });
+      setShowSignInPrompt(true);
       return;
     }
     const newState = await toggleFavorite(exhibition);
     setFavorited(newState);
+    setToastMessage(newState ? "已加入收藏" : "已取消收藏");
+    setShowToast(true);
   };
+
+  useEffect(() => {
+    if (!showToast) return;
+    const timer = window.setTimeout(() => setShowToast(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [showToast]);
 
   const detailHref = `/exhibition/${encodeURIComponent(exhibition.id)}`;
 
@@ -65,13 +76,6 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
               <Lock className="w-5 h-5 text-white/70 hover:text-white" />
             )}
           </button>
-          <div className="absolute bottom-4 left-4 flex gap-2">
-            {exhibition.tags.map(tag => (
-              <Badge key={tag} variant="secondary" className={`${isV1 ? "rounded-sm" : ""} bg-secondary/20 text-secondary hover:bg-secondary/30 border-none backdrop-blur-md`}>
-                {tag}
-              </Badge>
-            ))}
-          </div>
         </div>
       </Link>
 
@@ -129,6 +133,14 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? <><span>加入收藏</span><Bookmark className="w-4 h-4 fill-current" /></> : <>查看詳情 <ArrowRight className="w-4 h-4" /></>)}
         </Link>
       </CardContent>
+      <SignInPrompt
+        open={showSignInPrompt}
+        from={location.pathname + location.search}
+        title="想收藏這個展覽嗎？"
+        description="登入 ExhiBeat 後就能把活動加入收藏，並在收藏頁快速找到它。"
+        onClose={() => setShowSignInPrompt(false)}
+      />
+      <ActionToast open={showToast} message={toastMessage} />
     </Card>
   );
 }

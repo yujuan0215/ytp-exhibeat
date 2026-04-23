@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Exhibition, Recommendation } from "@/data/mock";
 import { getCollectionRecommendations, getMoreCollectionRecommendations } from "@/lib/api";
@@ -6,12 +6,36 @@ import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Zap, Loader2, ChevronDown, Lock } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFavorites } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
+const DEFAULT_REF_COORD = { lat: 25.033, lng: 121.5654 }; // Taipei 101 area fallback
+
+function getEndDateTimestamp(exhibition: Exhibition): number {
+  if (exhibition._meta?.endDate) {
+    const parsed = new Date(exhibition._meta.endDate).getTime();
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const raw = exhibition.dateStr ?? "";
+  const parts = raw.split(/-|->|—/).map((v) => v.trim()).filter(Boolean);
+  const candidate = parts[parts.length - 1];
+  if (!candidate) return Number.MAX_SAFE_INTEGER;
+  const parsed = new Date(candidate).getTime();
+  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+}
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const earthKm = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const aa =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * earthKm * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+}
 
 export function Collection() {
   const { theme } = useTheme();
@@ -23,6 +47,8 @@ export function Collection() {
   const [allRecs, setAllRecs] = useState<Recommendation[]>([]);
   const [recsVisible, setRecsVisible] = useState(3);
   const [hasMoreRecs, setHasMoreRecs] = useState(true);
+  const [sortMode, setSortMode] = useState<"date" | "distance">("date");
+  const [referenceCoord, setReferenceCoord] = useState(DEFAULT_REF_COORD);
 
   useEffect(() => {
     setCollectionExhibitions(getFavorites());
@@ -42,6 +68,19 @@ export function Collection() {
     window.addEventListener("favorites-changed", handleSync);
     return () => window.removeEventListener("favorites-changed", handleSync);
   }, []);
+
+  useEffect(() => {
+    if (sortMode !== "distance" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setReferenceCoord({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {
+        // Keep fallback coordinate when user blocks geolocation.
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 1000 * 60 * 5 },
+    );
+  }, [sortMode]);
 
   const handleLoadMoreRecs = async () => {
     if (recsVisible < allRecs.length) {
@@ -65,6 +104,27 @@ export function Collection() {
   };
 
   const visibleRecs = allRecs.slice(0, recsVisible);
+  const sortedCollection = useMemo(() => {
+    const list = [...collectionExhibitions];
+    if (sortMode === "distance") {
+      return list.sort((a, b) => {
+        const aLat = a._meta?.latitude;
+        const aLng = a._meta?.longitude;
+        const bLat = b._meta?.latitude;
+        const bLng = b._meta?.longitude;
+        const aHasCoord = typeof aLat === "number" && typeof aLng === "number";
+        const bHasCoord = typeof bLat === "number" && typeof bLng === "number";
+        if (!aHasCoord && !bHasCoord) return a.title.localeCompare(b.title, "zh-Hant");
+        if (!aHasCoord) return 1;
+        if (!bHasCoord) return -1;
+        const aDistance = haversineKm(referenceCoord, { lat: aLat, lng: aLng });
+        const bDistance = haversineKm(referenceCoord, { lat: bLat, lng: bLng });
+        return aDistance - bDistance;
+      });
+    }
+    return list.sort((a, b) => getEndDateTimestamp(a) - getEndDateTimestamp(b));
+  }, [collectionExhibitions, referenceCoord, sortMode]);
+
   const endingSoon = collectionExhibitions.filter(e => {
     const end = new Date(e.dateStr.replace(/.*-> /, "").trim());
     const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
@@ -83,12 +143,26 @@ export function Collection() {
           </div>
           
           <div className="flex items-center gap-4">
-            <Tabs defaultValue="date" className="w-[180px]">
-              <TabsList className={`grid w-full grid-cols-2 bg-surface-container-low ${isV1 ? "rounded-md" : "rounded-full"}`}>
-                <TabsTrigger value="date" className={`${isV1 ? "rounded-sm" : "rounded-full"} data-[state=active]:bg-white/10 data-[state=active]:text-white`}>按日期</TabsTrigger>
-                <TabsTrigger value="distance" className={`${isV1 ? "rounded-sm" : "rounded-full"} data-[state=active]:bg-transparent data-[state=active]:text-white/60`}>按距離</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className={`hidden md:flex items-center gap-1 border border-white/10 bg-white/5 p-1 ${isV1 ? "rounded-md" : "rounded-full"}`}>
+              <button
+                type="button"
+                onClick={() => setSortMode("date")}
+                className={`px-3 py-1 text-sm font-medium transition-colors ${isV1 ? "rounded-sm" : "rounded-full"} ${
+                  sortMode === "date" ? "bg-[#00d6ff] text-[#042028]" : "text-white/65 hover:text-white"
+                }`}
+              >
+                按日期
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("distance")}
+                className={`px-3 py-1 text-sm font-medium transition-colors ${isV1 ? "rounded-sm" : "rounded-full"} ${
+                  sortMode === "distance" ? "bg-[#00d6ff] text-[#042028]" : "text-white/65 hover:text-white"
+                }`}
+              >
+                按距離
+              </button>
+            </div>
             <Button variant="outline" size="sm" className={`${isV1 ? "rounded-md" : "rounded-full"} bg-surface-container-low border-transparent text-white hover:bg-white/10 flex items-center gap-2`}>
               <Zap className="w-4 h-4" /> 篩選
             </Button>
@@ -130,8 +204,8 @@ export function Collection() {
             <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
               <Loader2 className="w-5 h-5 animate-spin" /> 載入收藏中…
             </div>
-          ) : collectionExhibitions.length > 0 ? (
-            collectionExhibitions.map(exhibition => (
+          ) : sortedCollection.length > 0 ? (
+            sortedCollection.map(exhibition => (
               <ExhibitionCard key={exhibition.id} exhibition={exhibition} isCollectionVariant={true} />
             ))
           ) : (
