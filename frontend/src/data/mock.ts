@@ -13,6 +13,8 @@ export interface Exhibition {
     endDate: string;
     editModifyDate: string;
     score: number;
+    latitude?: number;
+    longitude?: number;
   };
 }
 

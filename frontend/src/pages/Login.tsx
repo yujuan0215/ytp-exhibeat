@@ -1,14 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, user, status } = useAuth();
 
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? "/";
+  const requestedRedirect = (location.state as { from?: string } | null)?.from ?? "/";
+  const redirectTo = requestedRedirect === "/login" || requestedRedirect === "/register" ? "/" : requestedRedirect;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +29,18 @@ export function Login() {
       setSubmitting(false);
     }
   };
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center text-white/60 gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> 驗證登入狀態中…
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-6 py-12">

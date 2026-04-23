@@ -5,28 +5,97 @@ import { useTheme } from "@/lib/theme";
 
 declare global {
   interface Window {
-    google?: typeof google;
+    google?: any;
   }
 }
 
 const FALLBACK_CENTER = { lat: 25.0478, lng: 121.5319 };
 
-const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: "geometry", stylers: [{ color: "#111827" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#111827" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#374151" }] },
-  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1f2937" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1f2937" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#111827" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#1f2937" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0c4a6e" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#7dd3fc" }] },
+const DARK_MAP_STYLES = [
+  {
+    featureType: "landscape",
+    elementType: "all",
+    stylers: [{ hue: "#6600ff" }, { saturation: -11 }, { visibility: "on" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "all",
+    stylers: [{ saturation: "33" }, { hue: "#6600ff" }, { lightness: "2" }, { visibility: "simplified" }],
+  },
+  {
+    featureType: "poi.attraction",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.business",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.government",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.medical",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "all",
+    stylers: [{ visibility: "on" }, { saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.place_of_worship",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.school",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "poi.sports_complex",
+    elementType: "all",
+    stylers: [{ saturation: "-58" }, { lightness: "28" }],
+  },
+  {
+    featureType: "road",
+    elementType: "all",
+    stylers: [{ hue: "#5e00ff" }, { saturation: -79 }],
+  },
+  {
+    featureType: "road.arterial",
+    elementType: "labels.icon",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "road.local",
+    elementType: "all",
+    stylers: [{ lightness: 30 }, { weight: 1.3 }],
+  },
+  {
+    featureType: "transit",
+    elementType: "all",
+    stylers: [{ visibility: "simplified" }, { hue: "#5e00ff" }, { saturation: -16 }],
+  },
+  {
+    featureType: "transit.line",
+    elementType: "all",
+    stylers: [{ saturation: -72 }],
+  },
+  {
+    featureType: "water",
+    elementType: "all",
+    stylers: [{ saturation: -65 }, { hue: "#1900ff" }, { lightness: 8 }],
+  },
 ];
 
 type LatLng = { lat: number; lng: number };
+type MarkerSeed = { item: Exhibition; coord: LatLng | null; geocodeQuery: string };
 
 const CITY_COORDS: Record<string, LatLng> = {
   "台北市": { lat: 25.033, lng: 121.5654 },
@@ -58,6 +127,36 @@ function getApproxCoordinate(exhibition: Exhibition): LatLng {
   return FALLBACK_CENTER;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildEventPageUrl(item: Exhibition): string {
+  return `/exhibition/${encodeURIComponent(item.id)}`;
+}
+
+function geocodeWithGoogle(geocoder: any, address: string): Promise<LatLng | null> {
+  return new Promise((resolve) => {
+    geocoder.geocode({ address }, (results: any[], status: string) => {
+      if (status !== "OK" || !results?.length) {
+        resolve(null);
+        return;
+      }
+      const loc = results[0]?.geometry?.location;
+      if (!loc) {
+        resolve(null);
+        return;
+      }
+      resolve({ lat: loc.lat(), lng: loc.lng() });
+    });
+  });
+}
+
 function loadGoogleMaps(apiKey: string): Promise<void> {
   if (window.google?.maps) return Promise.resolve();
 
@@ -85,11 +184,36 @@ export function Map() {
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAP_ID;
+  const styleMode = (import.meta.env.VITE_GOOGLE_MAP_STYLE_MODE ?? "local").trim().toLowerCase();
+  const useCloudStyle = styleMode === "cloud" && !!mapId;
 
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const styleId = "map-info-window-theme";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .gm-style .gm-style-iw-c {
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 12px !important;
+      }
+      .gm-style .gm-style-iw-d {
+        overflow: hidden !important;
+      }
+      .gm-style .gm-style-iw-tc::after {
+        background: #111827 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   useEffect(() => {
     getHomeRecommendations()
@@ -105,7 +229,11 @@ export function Map() {
     () =>
       exhibitions.map((item) => ({
         item,
-        coord: getApproxCoordinate(item),
+        coord:
+          typeof item._meta?.latitude === "number" && typeof item._meta?.longitude === "number"
+            ? { lat: item._meta.latitude, lng: item._meta.longitude }
+            : null,
+        geocodeQuery: `${item.location.replace("•", " ")} ${item.title} 台灣`,
       })),
     [exhibitions],
   );
@@ -114,45 +242,91 @@ export function Map() {
     if (!mapRef.current || !apiKey || markerData.length === 0) return;
 
     let detached = false;
-    let markers: google.maps.Marker[] = [];
+    let markers: any[] = [];
 
     loadGoogleMaps(apiKey)
-      .then(() => {
+      .then(async () => {
         if (detached || !mapRef.current) return;
 
-        const map = new google.maps.Map(mapRef.current, {
-          center: markerData[0]?.coord ?? FALLBACK_CENTER,
+        const maps = window.google?.maps;
+        if (!maps) throw new Error("Google Maps SDK not available");
+
+        const geocoder = new maps.Geocoder();
+        const resolvedData = await Promise.all(
+          markerData.map(async (entry: MarkerSeed) => {
+            if (entry.coord) return { item: entry.item, coord: entry.coord };
+
+            const cacheKey = `geocode:${entry.geocodeQuery}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached) as LatLng;
+                if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) {
+                  return { item: entry.item, coord: parsed };
+                }
+              } catch {
+                // ignore invalid cache and re-geocode
+              }
+            }
+
+            const geocoded = await geocodeWithGoogle(geocoder, entry.geocodeQuery);
+            if (geocoded) {
+              localStorage.setItem(cacheKey, JSON.stringify(geocoded));
+              return { item: entry.item, coord: geocoded };
+            }
+
+            return { item: entry.item, coord: getApproxCoordinate(entry.item) };
+          }),
+        );
+        if (detached || !mapRef.current) return;
+
+        const map = new maps.Map(mapRef.current, {
+          center: resolvedData[0]?.coord ?? FALLBACK_CENTER,
           zoom: 11,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
-          ...(mapId ? { mapId } : { styles: DARK_MAP_STYLES }),
+          ...(useCloudStyle
+            ? { mapId }
+            : {
+                mapTypeId: "roadmap",
+                styles: DARK_MAP_STYLES,
+                backgroundColor: "#0b1220",
+              }),
         });
 
-        const infoWindow = new google.maps.InfoWindow();
-        const bounds = new google.maps.LatLngBounds();
+        const infoWindow = new maps.InfoWindow();
+        const bounds = new maps.LatLngBounds();
 
-        markers = markerData.map(({ item, coord }) => {
-          const marker = new google.maps.Marker({
+        markers = resolvedData.map(({ item, coord }) => {
+          const safeTitle = escapeHtml(item.title);
+          const safeLocation = escapeHtml(item.location);
+          const safeDate = escapeHtml(item.dateStr);
+          const eventUrl = buildEventPageUrl(item);
+
+          const marker = new maps.Marker({
             position: coord,
             map,
             title: item.title,
             icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: "#22d3ee",
+              path: maps.SymbolPath.CIRCLE,
+              scale: 9,
+              fillColor: "#a855f7",
               fillOpacity: 0.95,
-              strokeColor: "#0e7490",
+              strokeColor: "#4c1d95",
               strokeWeight: 2,
             },
           });
 
           marker.addListener("click", () => {
             infoWindow.setContent(
-              `<div style="max-width:220px;">
-                <strong>${item.title}</strong><br/>
-                <span>${item.location}</span><br/>
-                <span>${item.dateStr}</span>
+              `<div style="max-width:240px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
+                <strong style="display:block;color:#f5f3ff;margin-bottom:4px;">${safeTitle}</strong>
+                <span style="display:block;color:#c4b5fd;">${safeLocation}</span>
+                <span style="display:block;color:#cbd5e1;margin-top:2px;">${safeDate}</span>
+                <a href="${eventUrl}" style="display:inline-block;margin-top:10px;color:#e9d5ff;text-decoration:none;border:1px solid #7c3aed;background:#581c87;padding:5px 9px;border-radius:999px;font-size:12px;">
+                  造訪活動頁面
+                </a>
               </div>`,
             );
             infoWindow.open({ anchor: marker, map });
@@ -162,7 +336,7 @@ export function Map() {
           return marker;
         });
 
-        if (markerData.length > 1) map.fitBounds(bounds);
+        if (resolvedData.length > 1) map.fitBounds(bounds);
       })
       .catch((e) => {
         console.error(e);
@@ -173,7 +347,7 @@ export function Map() {
       detached = true;
       markers.forEach((m) => m.setMap(null));
     };
-  }, [apiKey, mapId, markerData]);
+  }, [apiKey, mapId, markerData, useCloudStyle]);
 
   if (!apiKey) {
     return (

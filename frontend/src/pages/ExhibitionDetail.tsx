@@ -179,7 +179,7 @@ export function ExhibitionDetail() {
               <>
                 {exhibition.title.split("：")[0]}：
                 <br />
-                <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <span className="text-[#df8eff]">
                   {exhibition.title.split("：")[1]}
                 </span>
               </>
@@ -270,7 +270,7 @@ export function ExhibitionDetail() {
             <button
               disabled
               title="購票整合即將推出"
-              className="w-full py-4 rounded-full bg-gradient-to-br from-primary to-[#d878ff] text-[#4f006d] font-bold text-lg transition-colors flex items-center justify-center gap-2 opacity-95 cursor-not-allowed"
+              className="w-full py-4 rounded-full btn-gradient-safe font-bold text-lg transition-colors flex items-center justify-center gap-2 cursor-not-allowed"
             >
               立即預約門票 <ArrowRight className="w-4 h-4" />
             </button>

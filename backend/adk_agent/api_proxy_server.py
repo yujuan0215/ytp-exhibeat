@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 import httpx
+from sqlalchemy import func
 import uvicorn
 
 # ─── Project Root Discovery ──────────────────────────────────────────────────
@@ -47,6 +48,7 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     get_db,
     hash_password,
     normalize_email,
+    normalize_display_name,
     sanitize_preference_tags,
     verify_password,
 )
@@ -203,6 +205,8 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
             "endDate":         end_date_str,
             "editModifyDate":  edit_date_str,
             "score":           rec.get("score", 0),
+            "latitude":        rec.get("latitude"),
+            "longitude":       rec.get("longitude"),
         },
     }
 
@@ -277,11 +281,22 @@ async def preference_options():
 @app.post("/api/auth/register", response_model=TokenResponse)
 async def register(payload: RegisterRequest, db=Depends(get_db)):
     normalized_email = normalize_email(payload.email)
+    normalized_display_name = normalize_display_name(payload.display_name)
     existing_user = db.query(User).filter(User.email == normalized_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
+        )
+    existing_display_name = (
+        db.query(User)
+        .filter(func.lower(User.display_name) == normalized_display_name.lower())
+        .first()
+    )
+    if existing_display_name:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken",
         )
 
     sanitized_tags = sanitize_preference_tags(payload.preference_tags)
@@ -289,7 +304,7 @@ async def register(payload: RegisterRequest, db=Depends(get_db)):
         id=str(uuid.uuid4()),
         email=normalized_email,
         password_hash=hash_password(payload.password),
-        display_name=payload.display_name.strip(),
+        display_name=normalized_display_name,
         preference_tags=json.dumps(sanitized_tags),
     )
     db.add(user)

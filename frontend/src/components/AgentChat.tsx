@@ -35,7 +35,7 @@ export function AgentChat() {
         className={`fixed bottom-6 right-6 w-[380px] h-[600px] max-h-[85vh] bg-[#120f1c] border border-purple-500/30 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none'}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-purple-500/20 bg-gradient-to-r from-purple-900/40 to-transparent">
+        <div className="flex items-center justify-between p-4 border-b border-purple-500/20 bg-[#2a1b38]/50">
           <h3 className="font-semibold text-purple-200 flex items-center gap-2">
             <MessageCircle size={18} className="text-purple-400" />
             ExhiBeat AI

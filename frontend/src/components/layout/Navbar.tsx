@@ -47,8 +47,8 @@ export function Navbar() {
       <div className="flex items-center gap-8">
         <Link
           to="/"
-          className="inline-block text-3xl font-extrabold font-headline bg-gradient-to-br from-[#df8eff] to-[#d878ff] bg-clip-text text-transparent py-1 tracking-tight"
-          style={{ WebkitBackgroundClip: "text" }}
+          className="inline-block text-3xl font-extrabold py-1 tracking-tight"
+          style={{ color: "#df8eff", fontFamily: '"The Seasons", serif', fontWeight: 400 }}
         >
           ExhiBeat
         </Link>
@@ -171,7 +171,7 @@ export function Navbar() {
             <Link
               to="/register"
               state={{ from: location.pathname + location.search }}
-              className="hidden sm:inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-sm font-semibold text-white transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-9 px-4 rounded-full btn-gradient-safe text-sm font-semibold transition-colors"
             >
               <Sparkles className="w-4 h-4" /> 註冊
             </Link>

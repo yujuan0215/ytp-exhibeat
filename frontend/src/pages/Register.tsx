@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, UserPlus, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { listPreferenceOptions, type PreferenceOption } from "@/lib/api";
@@ -7,9 +7,10 @@ import { listPreferenceOptions, type PreferenceOption } from "@/lib/api";
 export function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { register } = useAuth();
+  const { register, user, status } = useAuth();
 
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? "/";
+  const requestedRedirect = (location.state as { from?: string } | null)?.from ?? "/";
+  const redirectTo = requestedRedirect === "/login" || requestedRedirect === "/register" ? "/" : requestedRedirect;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,13 +34,22 @@ export function Register() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const trimmedDisplayName = displayName.trim();
+    if (!trimmedDisplayName) {
+      setError("使用者名稱不可空白");
+      return;
+    }
+    if (trimmedDisplayName.length > 128) {
+      setError("使用者名稱不可超過 128 字元");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await register({
         email: email.trim(),
         password,
-        display_name: displayName.trim() || email.split("@")[0],
+        display_name: trimmedDisplayName,
         preference_tags: selectedTags,
       });
       navigate(redirectTo, { replace: true });
@@ -49,6 +59,18 @@ export function Register() {
       setSubmitting(false);
     }
   };
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center text-white/60 gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> 驗證登入狀態中…
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-6 py-12">
@@ -64,9 +86,10 @@ export function Register() {
               <label className="text-sm font-semibold text-white/90 mb-2 block">顯示名稱</label>
               <input
                 type="text"
+                required
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                maxLength={120}
+                maxLength={128}
                 className="w-full h-12 rounded-md bg-transparent border border-white/20 focus:border-primary focus:ring-1 focus:ring-primary/40 outline-none px-4 text-lg text-white placeholder:text-white/35 transition-colors"
                 placeholder="顯示在個人頁的名稱"
               />

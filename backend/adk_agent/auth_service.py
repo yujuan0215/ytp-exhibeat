@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -75,7 +75,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    display_name: Mapped[str] = mapped_column(String(120))
+    display_name: Mapped[str] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     preference_tags: Mapped[str] = mapped_column(Text, default="[]")
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
@@ -100,8 +100,18 @@ class Favorite(Base):
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
-    display_name: str = Field(min_length=1, max_length=120)
+    display_name: str = Field(min_length=1, max_length=128)
     preference_tags: list[str] = Field(default_factory=list)
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Username cannot be blank")
+        if len(trimmed) > 128:
+            raise ValueError("Username cannot exceed 128 characters")
+        return trimmed
 
 
 class LoginRequest(BaseModel):
@@ -187,6 +197,10 @@ def get_db() -> Generator[Session, None, None]:
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def normalize_display_name(display_name: str) -> str:
+    return display_name.strip()
 
 
 def sanitize_preference_tags(tags: list[str]) -> list[str]:

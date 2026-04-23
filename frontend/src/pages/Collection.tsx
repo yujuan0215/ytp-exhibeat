@@ -113,7 +113,7 @@ export function Collection() {
                 <Link
                   to="/login"
                   state={{ from: "/collection" }}
-                  className={`px-5 py-2 ${isV1 ? "rounded-md bg-primary hover:bg-primary/90" : "rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"} text-sm font-semibold text-white transition-colors`}
+                  className={`px-5 py-2 ${isV1 ? "rounded-md bg-primary hover:bg-primary/90" : "rounded-full btn-gradient-safe"} text-sm font-semibold transition-colors`}
                 >
                   前往登入
                 </Link>

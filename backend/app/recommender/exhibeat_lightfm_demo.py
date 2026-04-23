@@ -72,6 +72,8 @@ class Exhibition:
     description: str
     image_url: str = ""
     edit_modify_date: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -172,6 +174,16 @@ def build_exhibition(record: dict) -> Exhibition:
     title = clean_text(record.get("title", "未命名展覽"))
     location = clean_text(show_info.get("location", ""))
     location_name = clean_text(show_info.get("locationName", ""))
+    latitude_raw = show_info.get("latitude")
+    longitude_raw = show_info.get("longitude")
+    try:
+        latitude = float(latitude_raw) if latitude_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        latitude = None
+    try:
+        longitude = float(longitude_raw) if longitude_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        longitude = None
     city = infer_city(location)
     start_date = parse_date(record["startDate"])
     end_date = parse_date(record["endDate"])
@@ -205,6 +217,8 @@ def build_exhibition(record: dict) -> Exhibition:
         description=description,
         image_url=record.get("imageUrl", "") or "",
         edit_modify_date=record.get("editModifyDate", "") or "",
+        latitude=latitude,
+        longitude=longitude,
     )
 
 
@@ -437,6 +451,8 @@ def run_fallback_demo(
                 "is_free": event.is_free,
                 "price_text": event.price_text,
                 "edit_modify_date": event.edit_modify_date,
+                "latitude": event.latitude,
+                "longitude": event.longitude,
             }
             for event in ranked_events
         ]
@@ -562,6 +578,8 @@ def run_lightfm_demo(
                     "is_free": event.is_free,
                     "price_text": event.price_text,
                     "edit_modify_date": event.edit_modify_date,
+                    "latitude": event.latitude,
+                    "longitude": event.longitude,
                 }
             )
 

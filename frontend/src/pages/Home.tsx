@@ -146,7 +146,7 @@ export function Home() {
                 </span>
               </div>
               <div className="flex gap-4">
-                <Button size="lg" className="bg-gradient-to-br from-primary to-[#d878ff] text-[#4f006d] rounded-full px-8 py-4 font-bold text-lg hover:shadow-[0_0_20px_rgba(223,142,255,0.4)] transition-all active:scale-95">
+                <Button size="lg" className="btn-gradient-safe rounded-full px-8 py-4 font-bold text-lg transition-all active:scale-95">
                   立即預訂
                 </Button>
                 <Link to={hero ? `/exhibition/${encodeURIComponent(hero.id)}` : "#"} state={{ exhibition: hero }}>
@@ -160,7 +160,7 @@ export function Home() {
             <>
               <h1 className="text-6xl font-black text-white/40 mb-4">無推薦資料</h1>
               <div className="flex gap-4">
-                <Button size="lg" className="bg-gradient-to-br from-primary to-[#d878ff] text-[#4f006d] rounded-full px-8 py-4 font-bold text-lg">
+                <Button size="lg" className="btn-gradient-safe rounded-full px-8 py-4 font-bold text-lg">
                   立即預訂
                 </Button>
                 <Button size="lg" variant="outline" className="bg-[#25252c]/70 text-white px-8 py-4 rounded-full font-bold text-lg border-white/10">

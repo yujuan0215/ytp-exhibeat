@@ -8,6 +8,7 @@ httpx
 numpy
 sqlalchemy
 passlib[bcrypt]
+bcrypt<5
 python-jose[cryptography]
 # Optional: uncomment if you want to route Gemini calls through LiteLLM.
 # On Windows, enable Long Path support first (pip warning above).
