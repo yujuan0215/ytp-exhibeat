@@ -1,29 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 270 50% 5%;
+    /* Default to V1 (design screenshot palette) */
+    --background: 240 15% 7%;
     --foreground: 0 0% 100%;
-    --card: 270 30% 10%;
+    --card: 240 11% 10%;
     --card-foreground: 0 0% 100%;
-    --popover: 270 30% 10%;
+    --popover: 240 11% 10%;
     --popover-foreground: 0 0% 100%;
-    --primary: 270 50% 50%;
+    --primary: 279 77% 72%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 270 30% 15%;
+    --secondary: 188 100% 50%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 270 30% 15%;
-    --muted-foreground: 270 10% 70%;
-    --accent: 270 50% 50%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 240 10% 15%;
+    --muted-foreground: 0 0% 67%;
+    --accent: 336 100% 71%;
+    --accent-foreground: 240 15% 7%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 270 30% 15%;
-    --input: 270 30% 15%;
-    --ring: 270 50% 50%;
-    --radius: 0.5rem;
+    --border: 240 5% 30%;
+    --input: 240 10% 15%;
+    --ring: 279 77% 72%;
+    --radius: 0.375rem;
+
+    /* compatibility tokens for hardcoded classes */
+    --theme-bg-main: #0e0e13;
+    --theme-bg-deep: #0d0a15;
+    --theme-surface-1: #19191f;
+    --theme-surface-2: #1f1f26;
+    --theme-cyan: #00e3fd;
+    --theme-purple: #df8eff;
+    --theme-warm: #f2916d;
+    --theme-gold: #f2ba52;
+    --theme-tertiary: #ff6b98;
+  }
+
+  :root[data-theme="v1"] {
+    --background: 240 15% 7%;
+    --foreground: 0 0% 100%;
+    --card: 240 11% 10%;
+    --popover: 240 11% 10%;
+    --primary: 279 77% 72%;
+    --secondary: 188 100% 50%;
+    --muted: 240 10% 15%;
+    --muted-foreground: 0 0% 67%;
+    --accent: 336 100% 71%;
+    --accent-foreground: 240 47% 6%;
+    --border: 240 5% 30%;
+    --input: 240 10% 15%;
+    --ring: 279 77% 72%;
+
+    --theme-bg-main: #0e0e13;
+    --theme-bg-deep: #0d0a15;
+    --theme-surface-1: #19191f;
+    --theme-surface-2: #1f1f26;
+    --theme-cyan: #00e3fd;
+    --theme-purple: #df8eff;
+    --theme-warm: #f2916d;
+    --theme-gold: #f2ba52;
+    --theme-tertiary: #ff6b98;
+  }
+
+  :root[data-theme="v2"] {
+    --background: 240 15% 7%;
+    --foreground: 0 0% 100%;
+    --card: 219 44% 24%;
+    --popover: 219 44% 24%;
+    --primary: 258 65% 56%;
+    --secondary: 219 44% 24%;
+    --muted: 219 44% 20%;
+    --muted-foreground: 0 0% 78%;
+    --accent: 39 86% 63%;
+    --accent-foreground: 208 96% 7%;
+    --border: 219 44% 32%;
+    --input: 219 44% 24%;
+    --ring: 258 65% 56%;
+
+    --theme-bg-main: #0e0e13;
+    --theme-bg-deep: #0d0a15;
+    --theme-surface-1: #223459;
+    --theme-surface-2: #1b2b4a;
+    --theme-cyan: #f2ba52;
+    --theme-purple: #774ad9;
+    --theme-warm: #f2916d;
+    --theme-gold: #f2ba52;
+    --theme-tertiary: #f2916d;
   }
 }
 
@@ -33,5 +99,146 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  }
+  .font-headline {
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif !important;
+  }
+  .font-body {
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif !important;
+  }
+}
+
+/* Theme compatibility layer for existing hardcoded utility usage */
+@layer base {
+  :root[data-theme] .bg-\[\#1a1625\] {
+    background-color: color-mix(in srgb, var(--theme-surface-1) 92%, transparent) !important;
+  }
+  :root[data-theme] .bg-\[\#0d0a15\] {
+    background-color: var(--theme-bg-deep) !important;
+  }
+  :root[data-theme] .bg-\[\#011526\] {
+    background-color: var(--theme-bg-main) !important;
+  }
+  :root[data-theme] .bg-\[\#0f1727\] {
+    background-color: var(--theme-surface-1) !important;
+  }
+  :root[data-theme] .bg-\[\#0a1220\] {
+    background-color: var(--theme-surface-2) !important;
+  }
+  :root[data-theme] .bg-\[\#0b1220\] {
+    background-color: var(--theme-surface-2) !important;
+  }
+  :root[data-theme] .bg-\[\#223459\] {
+    background-color: var(--theme-surface-1) !important;
+  }
+  :root[data-theme] .text-\[\#0cf\] {
+    color: var(--theme-cyan) !important;
+  }
+  :root[data-theme] .text-\[\#1fc4e8\] {
+    color: var(--theme-cyan) !important;
+  }
+  :root[data-theme] .text-\[\#f2ba52\] {
+    color: var(--theme-gold) !important;
+  }
+  :root[data-theme] .text-\[\#f2916d\] {
+    color: var(--theme-warm) !important;
+  }
+  :root[data-theme] .text-\[\#ff6b98\] {
+    color: var(--theme-tertiary) !important;
+  }
+  :root[data-theme] .bg-\[\#774AD9\] {
+    background-color: var(--theme-purple) !important;
+  }
+  :root[data-theme] .border-\[\#774AD9\] {
+    border-color: var(--theme-purple) !important;
+  }
+  :root[data-theme] .bg-\[\#774AD9\]\/20 {
+    background-color: color-mix(in srgb, var(--theme-purple) 20%, transparent) !important;
+  }
+  :root[data-theme] .bg-\[\#774AD9\]\/30 {
+    background-color: color-mix(in srgb, var(--theme-purple) 30%, transparent) !important;
+  }
+  :root[data-theme] .border-\[\#774AD9\]\/40 {
+    border-color: color-mix(in srgb, var(--theme-purple) 40%, transparent) !important;
+  }
+  :root[data-theme] .text-\[\#d9c7ff\] {
+    color: color-mix(in srgb, var(--theme-purple) 40%, white) !important;
+  }
+  :root[data-theme] .bg-\[\#1fc4e8\]\/20 {
+    background-color: color-mix(in srgb, var(--theme-cyan) 20%, transparent) !important;
+  }
+  :root[data-theme] .bg-\[\#ff6b98\]\/20 {
+    background-color: color-mix(in srgb, var(--theme-tertiary) 20%, transparent) !important;
+  }
+  :root[data-theme] .text-\[\#7ee3ff\] {
+    color: color-mix(in srgb, var(--theme-cyan) 70%, white) !important;
+  }
+  :root[data-theme] .bg-\[\#f2916d\]\/20 {
+    background-color: color-mix(in srgb, var(--theme-warm) 20%, transparent) !important;
+  }
+
+  :root[data-theme] .border-purple-500,
+  :root[data-theme] .ring-purple-500 {
+    border-color: var(--theme-purple) !important;
+    --tw-ring-color: var(--theme-purple) !important;
+  }
+  :root[data-theme] .text-purple-400,
+  :root[data-theme] .text-purple-300 {
+    color: color-mix(in srgb, var(--theme-purple) 72%, white) !important;
+  }
+  :root[data-theme] .from-purple-500,
+  :root[data-theme] .from-purple-600 {
+    --tw-gradient-from: var(--theme-purple) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: color-mix(in srgb, var(--theme-purple) 0%, transparent) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  }
+  :root[data-theme] .to-pink-500,
+  :root[data-theme] .to-pink-600,
+  :root[data-theme] .to-pink-300 {
+    --tw-gradient-to: var(--theme-warm) var(--tw-gradient-to-position) !important;
+  }
+  :root[data-theme] .bg-\[\#5b61f6\] {
+    background-color: var(--theme-purple) !important;
+  }
+  :root[data-theme] .bg-secondary {
+    background-color: var(--theme-cyan) !important;
+  }
+  :root[data-theme] .hover\:bg-\[\#5359ea\]:hover {
+    background-color: color-mix(in srgb, var(--theme-purple) 85%, black) !important;
+  }
+}
+
+@layer base {
+  :root[data-theme="v1"] .from-black\/85 {
+    --tw-gradient-from: rgb(5 5 10 / 0.9) var(--tw-gradient-from-position) !important;
+  }
+  :root[data-theme="v1"] .via-black\/55 {
+    --tw-gradient-stops: var(--tw-gradient-from), rgb(10 10 18 / 0.58) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+  :root[data-theme="v2"] .from-black\/85 {
+    --tw-gradient-from: rgb(1 21 38 / 0.9) var(--tw-gradient-from-position) !important;
+  }
+  :root[data-theme="v2"] .via-black\/55 {
+    --tw-gradient-stops: var(--tw-gradient-from), rgb(12 27 48 / 0.55) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+}
+
+/* Global corner reduction */
+@layer base {
+  .rounded-full {
+    border-radius: 0.5rem !important;
+  }
+  .rounded-3xl {
+    border-radius: 0.875rem !important;
+  }
+  .rounded-2xl {
+    border-radius: 0.75rem !important;
+  }
+  .rounded-xl {
+    border-radius: 0.625rem !important;
+  }
+  .rounded-lg {
+    border-radius: 0.5rem !important;
   }
 }

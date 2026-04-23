@@ -5,9 +5,9 @@ import { AgentChat } from "../AgentChat";
 
 export function Layout() {
   return (
-    <div className="min-h-screen bg-[#0d0a15] text-foreground flex flex-col font-sans selection:bg-purple-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body selection:bg-primary/30 overflow-x-hidden">
       <Navbar />
-      <main className="flex-1 w-full max-w-7xl mx-auto relative">
+      <main className="flex-1 w-full max-w-7xl mx-auto relative pt-20">
         <Outlet />
       </main>
       <Footer />

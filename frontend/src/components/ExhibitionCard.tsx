@@ -1,96 +1,133 @@
 import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
-import { Heart, Calendar, MapPin, BookmarkPlus, ArrowRight } from "lucide-react";
+import { Heart, Calendar, MapPin, Bookmark, ArrowRight, Lock } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
+import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 
 export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { exhibition: Exhibition; isCollectionVariant?: boolean }) {
+  const { theme } = useTheme();
+  const isV1 = theme === "v1";
   const [favorited, setFavorited] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     setFavorited(isFavorited(exhibition.id));
-    
+
     const handleSync = () => setFavorited(isFavorited(exhibition.id));
     window.addEventListener("favorites-changed", handleSync);
     return () => window.removeEventListener("favorites-changed", handleSync);
   }, [exhibition.id]);
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const newState = toggleFavorite(exhibition);
+    if (!user) {
+      navigate("/login", { state: { from: location.pathname + location.search } });
+      return;
+    }
+    const newState = await toggleFavorite(exhibition);
     setFavorited(newState);
   };
 
+  const detailHref = `/exhibition/${encodeURIComponent(exhibition.id)}`;
+
   return (
-    <Card className="bg-[#1a1625] border-transparent overflow-hidden group hover:ring-2 hover:ring-purple-500/50 transition-all duration-300 relative">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img 
-          src={exhibition.imageUrl} 
-          alt={exhibition.title} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => {
-            const imgs = [
-              "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&auto=format&fit=crop&q=80",
-              "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
-              "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80",
-            ];
-            (e.target as HTMLImageElement).src = imgs[exhibition.title.length % imgs.length];
-          }}
-        />
-        <button 
-          onClick={handleToggleFavorite}
-          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors"
-        >
-          <Heart className={`w-5 h-5 transition-all ${favorited ? 'fill-purple-500 text-purple-500 scale-110' : 'text-white hover:scale-110'}`} />
-        </button>
-        <div className="absolute bottom-4 left-4 flex gap-2">
-          {exhibition.tags.map(tag => (
-            <Badge key={tag} variant="secondary" className="bg-[#0cf]/20 text-[#0cf] hover:bg-[#0cf]/30 border-none backdrop-blur-md">
-              {tag}
-            </Badge>
-          ))}
+    <Card className="bg-surface-container-low border-transparent ring-0 overflow-hidden group transition-all duration-300 relative hover:-translate-y-1 hover:shadow-2xl">
+      <Link to={detailHref} state={{ exhibition }} className="block">
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <img
+            src={exhibition.imageUrl}
+            alt={exhibition.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            onError={(e) => {
+              const imgs = [
+                "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&auto=format&fit=crop&q=80",
+                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
+                "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80",
+              ];
+              (e.target as HTMLImageElement).src = imgs[exhibition.title.length % imgs.length];
+            }}
+          />
+          <button
+            onClick={handleToggleFavorite}
+            title={user ? (favorited ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+            className={`absolute top-4 right-4 z-20 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors`}
+          >
+            {user ? (
+              <Heart className={`w-5 h-5 transition-all ${favorited ? 'fill-purple-500 text-purple-500 scale-110' : 'text-white hover:scale-110'}`} />
+            ) : (
+              <Lock className="w-5 h-5 text-white/70 hover:text-white" />
+            )}
+          </button>
+          <div className="absolute bottom-4 left-4 flex gap-2">
+            {exhibition.tags.map(tag => (
+              <Badge key={tag} variant="secondary" className={`${isV1 ? "rounded-sm" : ""} bg-secondary/20 text-secondary hover:bg-secondary/30 border-none backdrop-blur-md`}>
+                {tag}
+              </Badge>
+            ))}
+          </div>
         </div>
-      </div>
-      
-      <CardContent className="p-5">
-        <div className="flex justify-between items-start mb-4">
-          <h3 className="font-bold text-lg leading-tight w-[70%]">{exhibition.title}</h3>
+      </Link>
+
+      <CardContent className="p-5 flex flex-col h-[300px]">
+        <div className="flex justify-between items-start gap-3 min-h-[56px]">
+          <Link
+            to={detailHref}
+            state={{ exhibition }}
+            className="font-bold text-lg leading-tight flex-1 min-w-0 line-clamp-2 hover:text-primary transition-colors"
+            title={exhibition.title}
+          >
+            {exhibition.title}
+          </Link>
           {!isCollectionVariant && (
-            <span className={`font-semibold ${exhibition.price === 'FREE' ? 'text-[#0cf]' : 'text-[#0cf]'}`}>
+            <span
+              className={`font-semibold min-w-0 max-w-[44%] text-right truncate whitespace-nowrap ${exhibition.price === 'FREE' ? 'text-secondary' : 'text-secondary'}`}
+              title={exhibition.price}
+            >
               {exhibition.price}
             </span>
           )}
         </div>
-        
-        <div className="space-y-2 text-sm text-muted-foreground mb-6">
+
+        <div className="space-y-2 text-sm text-muted-foreground mt-4 mb-4 min-h-[52px]">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 opacity-70" />
-            <span>{exhibition.dateStr}</span>
+            <span className="line-clamp-1">{exhibition.dateStr}</span>
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 opacity-70" />
-            <span>{exhibition.location}</span>
+            <span className="line-clamp-1">{exhibition.location}</span>
           </div>
         </div>
 
         {!isCollectionVariant && exhibition.aiSummary && (
-          <div className="bg-purple-900/10 border border-purple-500/20 rounded-lg p-3 mb-6">
-            <p className="text-xs leading-relaxed">
-              <span className="font-bold text-purple-400 mr-2">AI 摘要 :</span>
-              <span className="text-muted-foreground">{exhibition.aiSummary}</span>
-            </p>
+          <div className="bg-surface/50 rounded-md p-1.5 mb-4 min-h-[84px]">
+            <div className="rounded-md bg-surface-container-low border-l-2 border-primary/60 px-3 py-2.5">
+              <p className="text-xs leading-relaxed line-clamp-2">
+                <span className="font-bold text-purple-400 mr-2">AI 摘要：</span>
+                <span className="text-muted-foreground">{exhibition.aiSummary}</span>
+              </p>
+            </div>
           </div>
         )}
 
-        <button className={`w-full py-2.5 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-          exhibition.price === 'FREE' && !isCollectionVariant
-            ? 'bg-white/5 hover:bg-white/10'
-            : 'bg-white/5 hover:bg-purple-500 hover:text-white'
-        }`}>
-          {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? <><BookmarkPlus className="w-4 h-4" /> 加入收藏</> : <>立即預約 <ArrowRight className="w-4 h-4" /></>)}
-        </button>
+        <Link
+          to={detailHref}
+          state={{ exhibition }}
+          className={`w-full py-2.5 mt-auto ${isV1 ? "rounded-md" : "rounded-full"} text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            exhibition.price === 'FREE' && !isCollectionVariant
+              ? 'bg-white/5 hover:bg-white/10'
+              : `${isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"}`
+          }`}
+        >
+          {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? <><span>加入收藏</span><Bookmark className="w-4 h-4 fill-current" /></> : <>查看詳情 <ArrowRight className="w-4 h-4" /></>)}
+        </Link>
       </CardContent>
     </Card>
   );

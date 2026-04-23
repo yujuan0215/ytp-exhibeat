@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations } from "@/lib/api";
+import { useTheme } from "@/lib/theme";
 
 declare global {
   interface Window {
@@ -80,6 +81,8 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 }
 
 export function Map() {
+  const { theme } = useTheme();
+  const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAP_ID;
 
@@ -186,13 +189,13 @@ export function Map() {
     <section className="px-8 py-10">
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-white">地圖探索</h1>
-        <p className="mt-2 text-sm text-white/60">Dark mode Google Map with exhibition markers.</p>
+        <p className="mt-2 text-sm text-white/60">{isV1 ? "沉浸式夜色地圖探索展演空間。" : "Dark mode Google Map with exhibition markers."}</p>
       </header>
 
       {loading && <p className="text-white/60">載入活動資料中…</p>}
       {error && <p className="text-rose-300">{error}</p>}
 
-      <div className="h-[620px] w-full overflow-hidden rounded-3xl border border-white/10 bg-[#0b1220] shadow-xl">
+      <div className={`h-[620px] w-full overflow-hidden ${isV1 ? "rounded-md" : "rounded-3xl"} border border-white/10 bg-[#0b1220] shadow-xl`}>
         <div ref={mapRef} className="h-full w-full" />
       </div>
     </section>

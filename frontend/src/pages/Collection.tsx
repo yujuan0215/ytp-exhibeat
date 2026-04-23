@@ -1,18 +1,23 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Exhibition, Recommendation } from "@/data/mock";
 import { getCollectionRecommendations, getMoreCollectionRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, Loader2, ChevronDown } from "lucide-react";
+import { Sparkles, Zap, Loader2, ChevronDown, Lock } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFavorites } from "@/lib/favorites";
+import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
 export function Collection() {
+  const { theme } = useTheme();
+  const isV1 = theme === "v1";
+  const { user, status } = useAuth();
   const [collectionExhibitions, setCollectionExhibitions] = useState<Exhibition[]>([]);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allRecs, setAllRecs] = useState<Recommendation[]>([]);
@@ -20,13 +25,10 @@ export function Collection() {
   const [hasMoreRecs, setHasMoreRecs] = useState(true);
 
   useEffect(() => {
-    // Load favorites from localStorage instantly
     setCollectionExhibitions(getFavorites());
-    
-    // Load recommendations from backend
+
     getCollectionRecommendations()
       .then(data => {
-        setRecommendations(data.recommendations);
         setAllRecs(data.recommendations);
         setLoading(false);
       })
@@ -76,25 +78,55 @@ export function Collection() {
       <div className="flex-1">
         <header className="flex flex-col md:flex-row items-baseline justify-between mb-8 gap-4">
           <div>
-            <h2 className="text-[#0cf] text-sm font-bold tracking-widest uppercase mb-2">Personal Gallery</h2>
+            <h2 className="text-secondary text-sm font-bold tracking-widest uppercase mb-2">Personal Gallery</h2>
             <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
           </div>
           
           <div className="flex items-center gap-4">
             <Tabs defaultValue="date" className="w-[180px]">
-              <TabsList className="grid w-full grid-cols-2 bg-[#1a1625] rounded-full border border-white/5">
-                <TabsTrigger value="date" className="rounded-full data-[state=active]:bg-white/10 data-[state=active]:text-white">按日期</TabsTrigger>
-                <TabsTrigger value="distance" className="rounded-full data-[state=active]:bg-transparent data-[state=active]:text-white/60">按距離</TabsTrigger>
+              <TabsList className={`grid w-full grid-cols-2 bg-surface-container-low ${isV1 ? "rounded-md" : "rounded-full"}`}>
+                <TabsTrigger value="date" className={`${isV1 ? "rounded-sm" : "rounded-full"} data-[state=active]:bg-white/10 data-[state=active]:text-white`}>按日期</TabsTrigger>
+                <TabsTrigger value="distance" className={`${isV1 ? "rounded-sm" : "rounded-full"} data-[state=active]:bg-transparent data-[state=active]:text-white/60`}>按距離</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button variant="outline" size="sm" className="rounded-full bg-[#1a1625] border-white/5 text-white hover:bg-white/10 flex items-center gap-2">
+            <Button variant="outline" size="sm" className={`${isV1 ? "rounded-md" : "rounded-full"} bg-surface-container-low border-transparent text-white hover:bg-white/10 flex items-center gap-2`}>
               <Zap className="w-4 h-4" /> 篩選
             </Button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[300px]">
-          {loading ? (
+          {status === "loading" ? (
+            <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
+              <Loader2 className="w-5 h-5 animate-spin" /> 檢查登入狀態…
+            </div>
+          ) : !user ? (
+            <div className={`col-span-full flex flex-col items-center justify-center text-center gap-4 py-16 ${isV1 ? "rounded-md" : "rounded-3xl"} bg-surface-container/50`}>
+              <div className={`w-14 h-14 ${isV1 ? "rounded-md" : "rounded-full"} bg-primary/10 flex items-center justify-center`}>
+                <Lock className="w-6 h-6 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-white/80 font-semibold">登入後解鎖你的收藏</p>
+                <p className="text-white/50 text-sm">收藏會同步到你的帳號，換裝置也能繼續追蹤。</p>
+              </div>
+              <div className="flex gap-3">
+                <Link
+                  to="/login"
+                  state={{ from: "/collection" }}
+                  className={`px-5 py-2 ${isV1 ? "rounded-md bg-primary hover:bg-primary/90" : "rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"} text-sm font-semibold text-white transition-colors`}
+                >
+                  前往登入
+                </Link>
+                <Link
+                  to="/register"
+                  state={{ from: "/collection" }}
+                  className={`px-5 py-2 ${isV1 ? "rounded-md" : "rounded-full"} border border-outline-variant/30 bg-surface-container-low hover:bg-surface-container-high text-sm font-semibold text-white/80 hover:text-white transition-colors`}
+                >
+                  建立帳號
+                </Link>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
               <Loader2 className="w-5 h-5 animate-spin" /> 載入收藏中…
             </div>
@@ -114,7 +146,7 @@ export function Collection() {
       <aside className="w-full lg:w-80 flex flex-col gap-8">
         
         {/* Recommendations */}
-        <div className="bg-[#1a1625]/50 rounded-3xl p-6 border border-white/5">
+        <div className={`bg-surface-container-low ${isV1 ? "rounded-md" : "rounded-3xl"} p-6`}>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-white">推薦給您</h3>
             <Sparkles className="w-6 h-6 text-purple-500" />
@@ -127,21 +159,21 @@ export function Collection() {
               </div>
             ) : visibleRecs.length > 0 ? (
               visibleRecs.map(rec => (
-                <div key={rec.id} className="flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors">
+                <div key={rec.id} className={`flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 min-h-[82px] ${isV1 ? "rounded-md" : "rounded-xl"} transition-colors`}>
                   <img
                     src={rec.imageUrl}
                     alt={rec.title}
-                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                    className={`w-16 h-16 ${isV1 ? "rounded-md" : "rounded-lg"} object-cover flex-shrink-0`}
                     onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                   />
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-[#0cf] font-medium tracking-wider mb-1 block truncate">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] text-secondary font-medium tracking-wider mb-1 block truncate">
                       {rec.tag}
                     </span>
-                    <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-purple-400 transition-colors w-40 truncate">
+                    <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[34px]">
                       {rec.title}
                     </h4>
-                    <p className="text-xs text-muted-foreground truncate">{rec.location}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{rec.location}</p>
                   </div>
                 </div>
               ))
@@ -153,7 +185,7 @@ export function Collection() {
           {hasMoreRecs && (
             <Button
               variant="outline"
-              className="w-full mt-6 rounded-full border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 bg-transparent transition-colors gap-2"
+              className={`w-full mt-6 ${isV1 ? "rounded-md" : "rounded-full"} border-primary/30 text-primary hover:bg-primary/10 hover:text-primary bg-transparent transition-colors gap-2`}
               onClick={handleLoadMoreRecs}
               disabled={loadingMore}
             >
@@ -169,16 +201,16 @@ export function Collection() {
         </div>
 
         {/* Stats */}
-        <Card className="bg-[#1a1625]/50 border-white/5 border rounded-3xl pt-2">
+        <Card className={`bg-surface-container-low border-transparent ring-0 ${isV1 ? "rounded-md" : "rounded-3xl"} pt-2`}>
           <CardContent className="p-6">
             <h3 className="text-lg font-bold text-white mb-6">收藏統計</h3>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-4xl font-light text-purple-400 mb-1">{collectionExhibitions.length}</p>
+                <p className="text-4xl font-light text-primary mb-1">{collectionExhibitions.length}</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">收藏活動</p>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-light text-[#0cf] mb-1">{endingSoon}</p>
+                <p className="text-4xl font-light text-secondary mb-1">{endingSoon}</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">即將結束</p>
               </div>
             </div>
