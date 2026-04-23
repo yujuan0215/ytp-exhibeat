@@ -230,7 +230,9 @@ ADK_HOST = f"http://127.0.0.1:{ADK_PORT}"
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_adk(request: Request, path: str):
     import urllib.parse
-    url = f"{ADK_HOST}/api/{path}"
+    # Frontend calls /api/* while ADK exposes routes at root (e.g. /apps/*, /run).
+    # Strip the /api prefix when forwarding to ADK.
+    url = f"{ADK_HOST}/{path}"
     qp = dict(request.query_params)
     if qp:
         url += "?" + urllib.parse.urlencode(qp)
