@@ -61,6 +61,9 @@ _summary_cache: dict[str, str] = {}
 # Set to True after the first Gemini failure so we stop paying the timeout cost
 # on every subsequent request. The process can be restarted to re-enable.
 _gemini_disabled: bool = False
+# Default to fast naive summary so recommendation APIs stay responsive.
+# Set EXHIBEAT_ENABLE_GEMINI_SUMMARY=1 to enable model-generated summaries.
+_enable_gemini_summary: bool = os.environ.get("EXHIBEAT_ENABLE_GEMINI_SUMMARY", "0") == "1"
 
 def _is_meaningful_description(text: str) -> bool:
     if not text or len(text) < 15:
@@ -83,6 +86,10 @@ def _gemini_summarize(uid: str, title: str, description: str) -> str:
     if not _is_meaningful_description(description):
         _summary_cache[uid] = ""
         return ""
+    if not _enable_gemini_summary:
+        result = _naive_summary(description)
+        _summary_cache[uid] = result
+        return result
     if _gemini_disabled:
         result = _naive_summary(description)
         _summary_cache[uid] = result
@@ -252,7 +259,10 @@ async def proxy_adk(request: Request, path: str):
     if qp:
         url += "?" + urllib.parse.urlencode(qp)
 
-    client = httpx.AsyncClient()
+    # /run may take several seconds when Gemini is generating content.
+    # Use explicit, longer timeout values to avoid premature 500s from proxy.
+    timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
+    client = httpx.AsyncClient(timeout=timeout)
 
     async def body_stream():
         async for chunk in request.stream():

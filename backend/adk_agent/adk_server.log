@@ -1,30 +1,20 @@
-﻿C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\authlib\_joserfc_helpers.py:8:
- AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
-位於 線路:7 字元:9
-+         & $exe web --host 0.0.0.0 --port 8001 2>&1
-+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (C:\Users\cnjon\...oserfc instead.:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/authlib/_joserfc_helpers.py:8: AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
 It will be compatible before version 2.0.0.
   from authlib.jose import ECKey
-C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\google\adk\features\_feature_d
-ecorator.py:72: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/google/adk/features/_feature_decorator.py:72: UserWarning: [EXPERIMENTAL] feature PLUGGABLE_AUTH is enabled.
   check_feature_enabled()
-2026-04-21 22:41:35,563 - INFO - service_factory.py:266 - Using in-memory memory service
-2026-04-21 22:41:35,563 - INFO - local_storage.py:84 - Using per-agent session storage rooted at C:\Users\cnjon\OneDriv
-e\文件\GitHub\ytp-exhibeat\backend\adk_agent
-2026-04-21 22:41:35,564 - INFO - local_storage.py:110 - Using file artifact service at C:\Users\cnjon\OneDrive\文件\GitHu
-b\ytp-exhibeat\backend\adk_agent\.adk\artifacts
-C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\google\adk\cli\fast_api.py:204
-: UserWarning: [EXPERIMENTAL] InMemoryCredentialService: This feature is experimental and may change or be removed in f
-uture versions without notice. It may introduce breaking changes at any time.
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:273: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.cloud.resourcemanager_v3 once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.cloud.resourcemanager_v3 past that date.
+  warnings.warn(message, FutureWarning)
+2026-04-23 16:03:54,662 - INFO - service_factory.py:266 - Using in-memory memory service
+2026-04-23 16:03:54,662 - INFO - local_storage.py:84 - Using per-agent session storage rooted at /mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent
+2026-04-23 16:03:54,668 - INFO - local_storage.py:110 - Using file artifact service at /mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.adk/artifacts
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/google/adk/cli/fast_api.py:198: UserWarning: [EXPERIMENTAL] InMemoryCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   credential_service = InMemoryCredentialService()
-C:\Users\cnjon\OneDrive\文件\GitHub\ytp-exhibeat\backend\adk_agent\.venv\Lib\site-packages\google\adk\auth\credential_ser
-vice\in_memory_credential_service.py:33: UserWarning: [EXPERIMENTAL] BaseCredentialService: This feature is experimenta
-l and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+/mnt/c/Users/cnjon/OneDrive/文件/GitHub/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.10/site-packages/google/adk/auth/credential_service/in_memory_credential_service.py:33: UserWarning: [EXPERIMENTAL] BaseCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   super().__init__()
-INFO:     Started server process [5536]
+INFO:     Started server process [199]
 INFO:     Waiting for application startup.
 
 +-----------------------------------------------------------------------------+

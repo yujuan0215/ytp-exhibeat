@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # scripts/setup_backend.sh
+# Note: keep this file with LF line endings for WSL/Linux.
 # macOS / Linux 初始化後端環境：建立 venv、安裝依賴、複製 .env.sample → .env
 #
 # 用法：
@@ -17,7 +18,8 @@ echo "[1/4] 檢查 Python..."
 PY_CMD=""
 for cand in python3.12 python3.11 python3; do
   if command -v "$cand" >/dev/null 2>&1; then
-    PY_CMD="$cand"; break
+    PY_CMD="$cand"
+    break
   fi
 done
 if [ -z "$PY_CMD" ]; then

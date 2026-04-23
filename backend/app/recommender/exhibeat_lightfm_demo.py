@@ -7,7 +7,7 @@ import random
 import re
 import sys
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -389,7 +389,7 @@ def resolve_backend(preferred_backend: str) -> str:
 def build_payload(backend_name: str, personas: list[Persona], exhibitions: list[Exhibition], interactions: dict[tuple[str, str], float], persona_results: list[dict], reference_date: date, args: argparse.Namespace) -> dict:
     return {
         "meta": {
-            "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "today_assumption": reference_date.isoformat(),
             "backend": backend_name,
             "persona_count": len(personas),

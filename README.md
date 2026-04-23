@@ -89,6 +89,20 @@ git clone <this-repo-url>
 cd ytp-exhibeat
 ```
 
+### 1.5 前端手動指令（不使用腳本）
+
+如果你想先用最直覺的 npm 指令，不一定要用 `scripts/start_frontend.*`。
+
+重點是：前端的 `package.json` 在 `frontend/`，所以要先切到該資料夾。
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+若你在 repo 根目錄直接執行 `npm install`，會看到 `ENOENT ... package.json`（因為根目錄沒有前端的 `package.json`）。
+
 ### 2. Windows（PowerShell）
 
 ```powershell
@@ -199,70 +213,9 @@ make deploy PROJECT=<your-gcp-project-id>
 
 ---
 
-## 🛠️ 常見問題排查
+## 常見問題排查
 
-### ❓ `npm run dev` 印出 `[vite] http proxy error: /api/... ECONNREFUSED`
-
-代表後端（port 8000）還沒起來。先在另一個終端機執行 `start_backend` 再試。
-
-### ❓ 後端一直卡在 `Gemini summarisation failed ... credentials were not found`
-
-`.env` 裡走的是 Vertex AI 路線但缺 ADC。首次出現這個訊息後，後端會自動關閉 AI summary（naive 截斷代替），之後請求會很快。若想用真的 Gemini 摘要，改走 AI Studio key：
-
-```env
-GOOGLE_GENAI_USE_VERTEXAI=0
-GOOGLE_API_KEY=AI...
-```
-
-然後重啟後端。
-
-### ❓ Windows 執行 PS1 出現 `無法載入檔案 ... 因為這個系統上已停用指令碼執行`
-
-加一次 `-ExecutionPolicy Bypass`（如範例）即可。若想永久開啟：
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-### ❓ Windows `pip install` 卡在某個套件（例如 `litellm`）報 `Errno 2 ... long path`
-
-Windows 預設檔案路徑長度上限會讓 pip 解壓深層套件失敗。兩種解法：
-
-1. 啟用 Long Path 支援（建議，需管理員 PowerShell）：
-   ```powershell
-   Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
-     LongPathsEnabled 1
-   ```
-   然後重開 PowerShell 重跑 setup。
-2. 如果失敗的是 `litellm`，本專案不會直接用它，可放心跳過。
-
-### ❓ Port 8000 / 8001 / 5173 被佔用
-
-```powershell
-# Windows
-netstat -ano | findstr :8000
-taskkill /F /PID <pid>
-```
-
-```bash
-# macOS / Linux
-lsof -i :8000
-kill -9 <pid>
-```
-
-### ❓ 後端啟動時報 `Directory 'xxx' is a file`
-
-這是 Windows shell 對 `*` 做 glob 展開導致的。請確認 `scripts/start_backend.ps1` 沒有手動加 `--allow_origins "*"`（預設已經拿掉）。
-
-### ❓ 從 WSL 呼叫 Windows 端的前端
-
-在 `frontend/.env.local` 寫：
-
-```
-VITE_API_PROXY_TARGET=http://<wsl-ip>:8000
-```
-
-`<wsl-ip>` 可以用 `ip addr | grep eth0` 查。
+常見啟動與串接問題已移到獨立文件：`docs/TROUBLESHOOTING.md`
 
 ---
 

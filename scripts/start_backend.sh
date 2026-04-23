@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # scripts/start_backend.sh
+# Note: keep this file with LF line endings for WSL/Linux.
 # 同時啟動 ADK Agent (port 8001) 與 API Proxy (port 8000)。
 # Ctrl+C 會一併關閉兩個 process。
 #
@@ -40,7 +41,7 @@ trap cleanup EXIT INT TERM
 
 echo "啟動 ADK Agent Web UI (port 8001) ..."
 adk web --host 0.0.0.0 --port 8001 --allow_origins "*" \
-    > "$ADK_DIR/adk_server.log" 2>&1 &
+  > "$ADK_DIR/adk_server.log" 2>&1 &
 ADK_PID=$!
 sleep 3
 
