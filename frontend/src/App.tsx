@@ -2,12 +2,14 @@ import { Routes, Route } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { Home } from "./pages/Home";
 import { Collection } from "./pages/Collection";
+import { Map } from "./pages/Map";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
+        <Route path="map" element={<Map />} />
         <Route path="collection" element={<Collection />} />
       </Route>
     </Routes>

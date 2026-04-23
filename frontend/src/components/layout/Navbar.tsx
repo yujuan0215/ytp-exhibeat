@@ -19,7 +19,7 @@ export function Navbar() {
           <Link to="/" className={`text-sm font-medium transition-colors hover:text-foreground/80 ${location.pathname === '/' ? 'text-foreground border-b-2 border-purple-500 pb-[1.1rem] -mb-4' : 'text-foreground/60'}`}>
             首頁
           </Link>
-          <Link to="#" className={`text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60`}>
+          <Link to="/map" className={`text-sm font-medium transition-colors hover:text-foreground/80 ${location.pathname === '/map' ? 'text-foreground border-b-2 border-purple-500 pb-[1.1rem] -mb-4' : 'text-foreground/60'}`}>
             地圖探索
           </Link>
           <Link to="/collection" className={`text-sm font-medium transition-colors hover:text-foreground/80 ${location.pathname === '/collection' ? 'text-foreground border-b-2 border-purple-500 pb-[1.1rem] -mb-4' : 'text-foreground/60'}`}>
