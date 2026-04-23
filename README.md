@@ -25,6 +25,49 @@ Browser (port 5173)
 
 ---
 
+## 🔐 使用者登入與收藏
+
+後端提供 email/password 註冊與登入，使用 Bearer JWT 驗證受保護 API；前端有完整的 `/login`、`/register`、`/exhibition/:id` 與 Navbar 使用者選單。詳細交接文件見 [`docs/AUTH_AND_FAVORITES.md`](docs/AUTH_AND_FAVORITES.md)。
+
+### 對應 API（完整列表）
+
+| 方法 | 路徑 | 用途 | 需要登入 |
+| --- | --- | --- | --- |
+| GET | `/api/auth/preference-options` | 註冊時可選偏好標籤 | ❌ |
+| POST | `/api/auth/register` | 建立帳號，可附 `preference_tags[]` | ❌ |
+| POST | `/api/auth/login` | 簽發 JWT | ❌ |
+| GET | `/api/auth/me` | 取得目前登入者 | ✅ |
+| PATCH | `/api/auth/me/preferences` | 更新偏好標籤 | ✅ |
+| GET | `/api/favorites` | 取得使用者收藏 | ✅ |
+| POST | `/api/favorites` | 新增/更新收藏（含展覽 snapshot） | ✅ |
+| DELETE | `/api/favorites/{exhibition_id}` | 移除收藏 | ✅ |
+
+### 資料庫與環境變數
+
+預設使用 SQLite（本機檔案），會自動建立在 `data/exhibeat_auth.db`。
+> ⚠️ 如果你先前已跑過舊版（無 `preference_tags`/`favorites` 欄位）的 auth DB，升級後請刪除 `data/exhibeat_auth.db` 重建。
+
+- `AUTH_DATABASE_URL` — 例：`sqlite:///data/exhibeat_auth.db`；雲端部署建議改成 Postgres 連線字串
+- `AUTH_JWT_SECRET` — JWT 簽章密鑰，正式環境請務必改成強密碼
+- `AUTH_JWT_EXPIRE_MINUTES` — token 過期分鐘數（預設 60）
+
+### 前端登入行為摘要
+
+- 未登入：其他功能照常使用；收藏按鈕顯示鎖頭，按下會導向 `/login`；`收藏頁` 主內容區顯示登入提示
+- 已登入：Navbar 顯示頭像與下拉選單（含登入者資訊、我的收藏、登出）
+- 收藏：登入時存到後端並本地鏡像一份；登出會清空本地鏡像避免交叉污染
+- 展覽詳情頁：從任何列表點卡片標題／按鈕／圖片都可進入 `/exhibition/:id`，頁面上可直接加入收藏或分享
+
+### 未來擴充 Google 綁定
+
+使用者資料表已預留 `google_sub` 與 `google_email`。未來只要：
+
+1. 在前端按下「使用 Google 登入」走 Google OAuth
+2. 後端驗證 id_token 後，依 `google_sub` 查找或建立帳號
+3. 重用現有 `/api/auth/login` 的 JWT 回傳流程即可
+
+---
+
 ## 🚀 快速開始（三種路線）
 
 下面三種方式挑一種即可。**第一次建議先用「本機 venv」確認整體流程跑得起來，再考慮 Docker。**

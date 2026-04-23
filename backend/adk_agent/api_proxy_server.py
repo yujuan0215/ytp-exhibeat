@@ -1,11 +1,13 @@
 import argparse
 import hashlib
+import json
 import os
 import re as _re
 import sys
+import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 import httpx
 import uvicorn
@@ -27,6 +29,27 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("api_proxy")
 
 from backend.app.recommender.exhibeat_lightfm_demo import run_demo  # noqa: E402
+from backend.adk_agent.auth_service import (  # noqa: E402
+    PREFERENCE_OPTIONS,
+    Favorite,
+    FavoriteCreateRequest,
+    FavoriteResponse,
+    LoginRequest,
+    PreferenceOption,
+    PreferenceUpdateRequest,
+    RegisterRequest,
+    TokenResponse,
+    User,
+    UserResponse,
+    create_access_token,
+    ensure_database_ready,
+    get_current_user,
+    get_db,
+    hash_password,
+    normalize_email,
+    sanitize_preference_tags,
+    verify_password,
+)
 
 EXHIBITIONS_PATH = PROJECT_ROOT / "exhibitions.json"
 logger.info(f"Project Root: {PROJECT_ROOT}")
@@ -37,6 +60,7 @@ if not EXHIBITIONS_PATH.exists():
     sys.exit(1)
 
 app = FastAPI(title="ExhiBeat Recommender & Proxy API")
+ensure_database_ready()
 
 # ─── Image Pool ──────────────────────────────────────────────────────────────
 PLACEHOLDER_IMAGES = [
@@ -243,6 +267,153 @@ async def get_collection_recommendations():
             for s in sidebar
         ],
     }
+
+
+@app.get("/api/auth/preference-options", response_model=list[PreferenceOption])
+async def preference_options():
+    return [PreferenceOption(**opt) for opt in PREFERENCE_OPTIONS]
+
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+async def register(payload: RegisterRequest, db=Depends(get_db)):
+    normalized_email = normalize_email(payload.email)
+    existing_user = db.query(User).filter(User.email == normalized_email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+
+    sanitized_tags = sanitize_preference_tags(payload.preference_tags)
+    user = User(
+        id=str(uuid.uuid4()),
+        email=normalized_email,
+        password_hash=hash_password(payload.password),
+        display_name=payload.display_name.strip(),
+        preference_tags=json.dumps(sanitized_tags),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    access_token, expires_in = create_access_token(user.id)
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=expires_in,
+        user=UserResponse.from_orm_user(user),
+    )
+
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login(payload: LoginRequest, db=Depends(get_db)):
+    normalized_email = normalize_email(payload.email)
+    user = db.query(User).filter(User.email == normalized_email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    access_token, expires_in = create_access_token(user.id)
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=expires_in,
+        user=UserResponse.from_orm_user(user),
+    )
+
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def me(current_user: User = Depends(get_current_user)):
+    return UserResponse.from_orm_user(current_user)
+
+
+@app.patch("/api/auth/me/preferences", response_model=UserResponse)
+async def update_my_preferences(
+    payload: PreferenceUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    sanitized_tags = sanitize_preference_tags(payload.preference_tags)
+    current_user.preference_tags = json.dumps(sanitized_tags)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return UserResponse.from_orm_user(current_user)
+
+
+# ─── Favorites (requires auth) ───────────────────────────────────────────────
+def _favorite_to_response(fav: Favorite) -> FavoriteResponse:
+    try:
+        payload = json.loads(fav.payload or "{}")
+        if not isinstance(payload, dict):
+            payload = {}
+    except json.JSONDecodeError:
+        payload = {}
+    return FavoriteResponse(
+        exhibition_id=fav.exhibition_id,
+        payload=payload,
+        created_at=fav.created_at,
+    )
+
+
+@app.get("/api/favorites", response_model=list[FavoriteResponse])
+async def list_favorites(
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    favs = (
+        db.query(Favorite)
+        .filter(Favorite.user_id == current_user.id)
+        .order_by(Favorite.created_at.desc())
+        .all()
+    )
+    return [_favorite_to_response(f) for f in favs]
+
+
+@app.post("/api/favorites", response_model=FavoriteResponse)
+async def add_favorite(
+    payload: FavoriteCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    existing = (
+        db.query(Favorite)
+        .filter(Favorite.user_id == current_user.id, Favorite.exhibition_id == payload.exhibition_id)
+        .first()
+    )
+    if existing:
+        existing.payload = json.dumps(payload.payload, ensure_ascii=False)
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+        return _favorite_to_response(existing)
+
+    fav = Favorite(
+        user_id=current_user.id,
+        exhibition_id=payload.exhibition_id,
+        payload=json.dumps(payload.payload, ensure_ascii=False),
+    )
+    db.add(fav)
+    db.commit()
+    db.refresh(fav)
+    return _favorite_to_response(fav)
+
+
+@app.delete("/api/favorites/{exhibition_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_favorite(
+    exhibition_id: str,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    fav = (
+        db.query(Favorite)
+        .filter(Favorite.user_id == current_user.id, Favorite.exhibition_id == exhibition_id)
+        .first()
+    )
+    if fav:
+        db.delete(fav)
+        db.commit()
+    return None
 
 # ─── ADK Reverse Proxy ────────────────────────────────────────────────────────
 ADK_PORT = int(os.environ.get("ADK_PORT", "8001"))

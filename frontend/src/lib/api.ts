@@ -1,23 +1,55 @@
 /**
- * Core API service for communicating with the ADK backend.
+ * Core API service for communicating with the ExhiBeat backend.
  */
+
+import type { Exhibition } from "@/data/mock";
 
 const APP_NAME = "gemini_agent";
 const USER_ID = "local-dev-user";
+const TOKEN_STORAGE_KEY = "exhibeat_token";
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function setAuthToken(token: string | null) {
+  if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  else localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+function authHeaders(extra?: Record<string, string>): HeadersInit {
+  const token = getAuthToken();
+  const base: Record<string, string> = { ...(extra ?? {}) };
+  if (token) base["Authorization"] = `Bearer ${token}`;
+  return base;
+}
+
+async function handleJson<T>(response: Response, fallbackMsg: string): Promise<T> {
+  if (!response.ok) {
+    let detail = fallbackMsg;
+    try {
+      const body = await response.json();
+      if (body?.detail) detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {
+      /* noop */
+    }
+    throw new Error(detail);
+  }
+  return (await response.json()) as T;
+}
 
 async function getOrCreateSession() {
   let sessionId = localStorage.getItem('adk_session');
   if (sessionId) return sessionId;
 
-  // Create a new session in ADK's internal database
   const response = await fetch(`/api/apps/${APP_NAME}/users/${USER_ID}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
   });
-  
+
   if (!response.ok) throw new Error("Failed to create ADK session");
-  
+
   const data = await response.json();
   localStorage.setItem('adk_session', data.id);
   return data.id;
@@ -26,29 +58,28 @@ async function getOrCreateSession() {
 export const sendMessageToAgent = async (message: string) => {
   let sessionId = await getOrCreateSession();
 
-  let response = await fetch('/api/run', { 
+  let response = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       appName: APP_NAME,
       userId: USER_ID,
       sessionId: sessionId,
-      newMessage: { role: "user", parts: [{ text: message }] } 
+      newMessage: { role: "user", parts: [{ text: message }] }
     })
   });
-  
-  // If session expired or was deleted from backend DB, reset and retry once
+
   if (response.status === 404) {
     localStorage.removeItem('adk_session');
     sessionId = await getOrCreateSession();
-    response = await fetch('/api/run', { 
+    response = await fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         appName: APP_NAME,
         userId: USER_ID,
         sessionId: sessionId,
-        newMessage: { role: "user", parts: [{ text: message }] } 
+        newMessage: { role: "user", parts: [{ text: message }] }
       })
     });
   }
@@ -57,10 +88,9 @@ export const sendMessageToAgent = async (message: string) => {
     if (response.status === 403) throw new Error("Forbidden: ADK rejected the request. Please restart the backend server.");
     throw new Error(`Failed to fetch from backend: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
-  
-  // Extract response text exactly following ADK/Gemini Part structure
+
   let reply = "Sorry, I couldn't process that.";
   if (Array.isArray(data)) {
     const finalEvent = data.slice().reverse().find(e => e.message?.text || e.output?.text || e.content?.text || e.content?.parts?.[0]?.text);
@@ -68,11 +98,11 @@ export const sendMessageToAgent = async (message: string) => {
       reply = finalEvent.message?.text || finalEvent.output?.text || finalEvent.content?.text || finalEvent.content?.parts?.[0]?.text || JSON.stringify(finalEvent);
     }
   }
-  
+
   return { reply };
 };
 
-export const getHomeRecommendations = async () => {
+export const getHomeRecommendations = async (): Promise<Exhibition[]> => {
   const response = await fetch('/api/recommendations/home');
   if (!response.ok) throw new Error("Failed to fetch home recommendations");
   const data = await response.json();
@@ -94,4 +124,102 @@ export const getMoreCollectionRecommendations = async () => {
   if (!response.ok) throw new Error("Failed to fetch more recommendations");
   const data = await response.json();
   return data.recommendations as { id: string; title: string; tag: string; location: string; imageUrl: string }[];
+};
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  is_active: boolean;
+  preference_tags: string[];
+  google_sub: string | null;
+  google_email: string | null;
+  created_at: string;
+}
+
+export interface AuthTokenPayload {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: AuthUser;
+}
+
+export interface PreferenceOption {
+  id: string;
+  label: string;
+  emoji: string;
+}
+
+export const listPreferenceOptions = async (): Promise<PreferenceOption[]> => {
+  const response = await fetch('/api/auth/preference-options');
+  return handleJson<PreferenceOption[]>(response, "Failed to load preference options");
+};
+
+export const register = async (body: {
+  email: string;
+  password: string;
+  display_name: string;
+  preference_tags: string[];
+}): Promise<AuthTokenPayload> => {
+  const response = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleJson<AuthTokenPayload>(response, "註冊失敗，請稍後再試");
+};
+
+export const login = async (body: { email: string; password: string }): Promise<AuthTokenPayload> => {
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleJson<AuthTokenPayload>(response, "登入失敗，請稍後再試");
+};
+
+export const fetchMe = async (): Promise<AuthUser> => {
+  const response = await fetch('/api/auth/me', { headers: authHeaders() });
+  return handleJson<AuthUser>(response, "Failed to load user");
+};
+
+export const updatePreferences = async (preference_tags: string[]): Promise<AuthUser> => {
+  const response = await fetch('/api/auth/me/preferences', {
+    method: 'PATCH',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ preference_tags }),
+  });
+  return handleJson<AuthUser>(response, "更新偏好標籤失敗");
+};
+
+// ─── Favorites (auth required) ───────────────────────────────────────────────
+export interface RemoteFavorite {
+  exhibition_id: string;
+  payload: Partial<Exhibition> & Record<string, unknown>;
+  created_at: string;
+}
+
+export const listRemoteFavorites = async (): Promise<RemoteFavorite[]> => {
+  const response = await fetch('/api/favorites', { headers: authHeaders() });
+  return handleJson<RemoteFavorite[]>(response, "Failed to load favorites");
+};
+
+export const addRemoteFavorite = async (exhibition: Exhibition): Promise<RemoteFavorite> => {
+  const response = await fetch('/api/favorites', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ exhibition_id: exhibition.id, payload: exhibition }),
+  });
+  return handleJson<RemoteFavorite>(response, "Failed to save favorite");
+};
+
+export const deleteRemoteFavorite = async (exhibitionId: string): Promise<void> => {
+  const response = await fetch(`/api/favorites/${encodeURIComponent(exhibitionId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new Error("Failed to remove favorite");
+  }
 };
