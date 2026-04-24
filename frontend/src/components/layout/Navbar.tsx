@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles } from "lucide-react";
+import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -13,14 +13,17 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setMenuOpen(false);
     setNotificationOpen(false);
     setSettingsOpen(false);
+    setMobileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -28,12 +31,13 @@ export function Navbar() {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
       if (!notificationRef.current?.contains(e.target as Node)) setNotificationOpen(false);
       if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
+      if (!mobileMenuRef.current?.contains(e.target as Node)) setMobileMenuOpen(false);
     };
-    if (menuOpen || notificationOpen || settingsOpen) {
+    if (menuOpen || notificationOpen || settingsOpen || mobileMenuOpen) {
       document.addEventListener("mousedown", onDocClick);
     }
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [menuOpen, notificationOpen, settingsOpen]);
+  }, [menuOpen, notificationOpen, settingsOpen, mobileMenuOpen]);
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-foreground/90 ${
@@ -108,37 +112,6 @@ export function Navbar() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-        <div className="hidden md:flex items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1">
-          <button
-            type="button"
-            onClick={() => setTheme("v1")}
-            className={`px-2 py-1 text-xs rounded-sm transition-colors ${theme === "v1" ? "bg-[#774AD9] text-white" : "text-white/65 hover:text-white"}`}
-            title="一版（詳情頁風格）"
-          >
-            一版
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("v2")}
-            className={`px-2 py-1 text-xs rounded-sm transition-colors ${theme === "v2" ? "bg-[#774AD9] text-white" : "text-white/65 hover:text-white"}`}
-            title="二版（CSS 色票）"
-          >
-            二版
-          </button>
-        </div>
-        <div className="hidden xl:block text-[10px] leading-tight text-white/45 min-w-[140px]">
-          {theme === "v1" ? (
-            <>
-              <div>V1: bg `#0E0E13`</div>
-              <div>accent `#DF8EFF` / `#00E3FD`</div>
-            </>
-          ) : (
-            <>
-              <div>V2: bg `#0E0E13`</div>
-              <div>accent `#774AD9` / `#F2BA52`</div>
-            </>
           )}
         </div>
         <div className="relative" ref={settingsRef}>
@@ -257,6 +230,58 @@ export function Navbar() {
             </Link>
           </div>
         )}
+        <div className="relative md:hidden" ref={mobileMenuRef}>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="p-2 rounded-md text-white/80 hover:text-white hover:bg-[#1f1f26] transition-colors"
+            aria-label="開啟選單"
+            aria-expanded={mobileMenuOpen}
+            aria-haspopup="menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
+          {mobileMenuOpen && (
+            <div className="absolute right-0 top-full mt-3 w-64 rounded-2xl border border-white/10 bg-[#1a1625] shadow-xl overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/5">
+                <p className="text-sm font-semibold text-white">導覽選單</p>
+              </div>
+              <div className="px-2 py-2">
+                <Link to="/" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">首頁</Link>
+                <Link to="/map" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">地圖探索</Link>
+                <Link to="/collection" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">收藏頁</Link>
+                <div className="my-2 border-t border-white/10" />
+                {!user ? (
+                  <>
+                    <Link
+                      to="/login"
+                      state={{ from: location.pathname + location.search }}
+                      className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg"
+                    >
+                      登入
+                    </Link>
+                    <Link
+                      to="/register"
+                      state={{ from: location.pathname + location.search }}
+                      className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg"
+                    >
+                      註冊
+                    </Link>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full text-left px-3 py-2 text-sm text-rose-300 hover:bg-white/5 rounded-lg"
+                  >
+                    登出
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </nav>
   );

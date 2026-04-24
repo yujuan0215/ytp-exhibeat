@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { ExternalLink } from "@/components/ExternalLink";
+
 export function Footer() {
   return (
     <footer className="w-full py-12 mt-12 text-center text-sm text-muted-foreground border-t border-[#48474d]/20 bg-background">
@@ -6,16 +9,16 @@ export function Footer() {
           ExhiBeat
         </span>
         <div className="flex gap-6">
-          <a href="#" className="text-foreground/40 hover:text-primary transition-colors">關於我們</a>
-          <a href="#" className="text-foreground/40 hover:text-primary transition-colors">服務條款</a>
-          <a href="#" className="text-foreground/40 hover:text-primary transition-colors">隱私政策</a>
-          <a href="#" className="text-foreground/40 hover:text-primary transition-colors">聯繫藝術家</a>
+          <Link to="/about" className="text-foreground/40 hover:text-primary transition-colors">關於我們</Link>
+          <Link to="/terms" className="text-foreground/40 hover:text-primary transition-colors">服務條款</Link>
+          <Link to="/privacy" className="text-foreground/40 hover:text-primary transition-colors">隱私政策</Link>
+          <Link to="/contact" className="text-foreground/40 hover:text-primary transition-colors">聯絡我們</Link>
         </div>
       </div>
       <p className="mb-4 text-foreground/40">© 2024 ExhiBeat. 展動台北.</p>
       <div className="flex justify-center gap-4">
-        <a href="#" className="hover:text-primary transition-colors">🌐</a>
-        <a href="#" className="hover:text-primary transition-colors">✉️</a>
+        <ExternalLink href="https://www.google.com" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">🌐</ExternalLink>
+        <ExternalLink href="mailto:hello@exhibeat.local" className="hover:text-primary transition-colors">✉️</ExternalLink>
       </div>
     </footer>
   );
