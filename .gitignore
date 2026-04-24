@@ -38,3 +38,7 @@ backend/adk_agent/.venv/
 
 # 本地參考用上游 repo
 third_party/
+
+# 本機執行產生檔案
+data/exhibeat_auth.db
+sh-thd-*
