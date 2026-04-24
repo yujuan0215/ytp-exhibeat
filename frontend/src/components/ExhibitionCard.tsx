@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
-import { Heart, Calendar, MapPin, Bookmark, ArrowRight, Lock } from "lucide-react";
+import { Heart, Calendar, MapPin, ArrowRight, Lock } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
@@ -125,12 +125,10 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           to={detailHref}
           state={{ exhibition }}
           className={`w-full py-2.5 mt-auto ${isV1 ? "rounded-md" : "rounded-full"} text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            exhibition.price === 'FREE' && !isCollectionVariant
-              ? 'bg-white/5 hover:bg-white/10'
-              : `${isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"}`
+            isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"
           }`}
         >
-          {isCollectionVariant ? '查看詳情' : (exhibition.price === 'FREE' ? <><span>加入收藏</span><Bookmark className="w-4 h-4 fill-current" /></> : <>查看詳情 <ArrowRight className="w-4 h-4" /></>)}
+          查看詳情 <ArrowRight className="w-4 h-4" />
         </Link>
       </CardContent>
       <SignInPrompt
