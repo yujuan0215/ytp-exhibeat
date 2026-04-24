@@ -101,6 +101,11 @@ export function ExhibitionDetail() {
   }, [id]);
 
   const heroImage = exhibition?.imageUrl || FALLBACK_HERO;
+  const galleryImages = useMemo(() => {
+    const fromMeta = exhibition?._meta?.allImages ?? [];
+    if (Array.isArray(fromMeta) && fromMeta.length > 0) return fromMeta;
+    return SHOT_IMAGES;
+  }, [exhibition]);
   const locationParts = useMemo(() => {
     if (!exhibition) return { venue: "", city: "" };
     const [venue, city] = exhibition.location.split("•").map((s) => s.trim());
@@ -234,7 +239,7 @@ export function ExhibitionDetail() {
           <section className="flex flex-col gap-6">
             <h3 className="text-lg font-bold text-white mb-3">現場直擊</h3>
             <div className="grid grid-cols-3 gap-3">
-              {SHOT_IMAGES.map((img, idx) => (
+              {galleryImages.slice(0, 9).map((img, idx) => (
                 <img
                   key={idx}
                   src={img}

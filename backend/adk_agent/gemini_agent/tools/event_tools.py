@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import hashlib
 import json
 import math
 import os
@@ -130,6 +131,8 @@ CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parent.parent
 DATA_DIR = REPO_ROOT / ".adk"
 DB_PATH = DATA_DIR / "exhibeat.sqlite3"
+ARTEMPEROR_EXHIBITIONS_PATH = PROJECT_ROOT / "data" / "artemperor_exhibitions.json"
+VECTOR_CHUNKS_PATH = PROJECT_ROOT / "data" / "exhibitions_merged_chunks.json"
 _TDX_TOKEN_CACHE: dict[str, datetime | str | None] = {
     "access_token": None,
     "expires_at": None,
@@ -157,6 +160,157 @@ def _request_json(url: str, params: dict[str, Any], headers: dict[str, str] | No
         )
         response.raise_for_status()
         return response.json()
+
+
+@lru_cache(maxsize=1)
+def _load_local_artemperor_events() -> list[dict[str, Any]]:
+    if not ARTEMPEROR_EXHIBITIONS_PATH.exists():
+        return []
+    try:
+        payload = json.loads(ARTEMPEROR_EXHIBITIONS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def _events_for_category(category_code: str) -> list[dict[str, Any]]:
+    remote_items = _fetch_events_by_category(category_code)
+    if category_code != "6":
+        return remote_items
+
+    merged: list[dict[str, Any]] = []
+    seen_uids: set[str] = set()
+    for event in [*remote_items, *_load_local_artemperor_events()]:
+        uid = str(event.get("UID") or "").strip()
+        if not uid or uid in seen_uids:
+            continue
+        seen_uids.add(uid)
+        merged.append(event)
+    return merged
+
+
+def _tokenize_for_rag(value: str) -> set[str]:
+    normalized = re.sub(r"\s+", " ", (value or "").lower()).strip()
+    tokens = {t for t in re.split(r"[\s,，。；、|:/()\[\]{}<>\"'`!?\-]+", normalized) if len(t) >= 2}
+    # Add 2-char CJK shingles for better zh keyword overlap.
+    cjk = "".join(ch for ch in normalized if "\u4e00" <= ch <= "\u9fff")
+    for i in range(max(0, len(cjk) - 1)):
+        tokens.add(cjk[i : i + 2])
+    return tokens
+
+
+def _deterministic_embed(text: str, dimensions: int = 256) -> list[float]:
+    values: list[float] = []
+    text = text or ""
+    for i in range(dimensions):
+        seed = f"{i}|{text}".encode("utf-8")
+        digest = hashlib.sha256(seed).digest()
+        num = int.from_bytes(digest[:4], byteorder="big", signed=False)
+        values.append((num / 2**31) - 1.0)
+    return values
+
+
+@lru_cache(maxsize=1)
+def _load_vector_chunks() -> list[dict[str, Any]]:
+    if not VECTOR_CHUNKS_PATH.exists():
+        return []
+    try:
+        payload = json.loads(VECTOR_CHUNKS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    chunks = payload.get("chunks", []) if isinstance(payload, dict) else []
+    if not isinstance(chunks, list):
+        return []
+    valid: list[dict[str, Any]] = []
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+        emb = chunk.get("embedding", [])
+        if not isinstance(emb, list) or not emb:
+            continue
+        valid.append(chunk)
+    return valid
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def _rag_supporting_snippets_vector(query: str, event_title: str, top_k: int = 2) -> list[str]:
+    chunks = _load_vector_chunks()
+    if not chunks:
+        return []
+    query_vec = _deterministic_embed(f"{query} {event_title}")
+    scored: list[tuple[float, str]] = []
+    for chunk in chunks:
+        emb = chunk.get("embedding", [])
+        if not isinstance(emb, list):
+            continue
+        score = _cosine_similarity(query_vec, emb)
+        if score <= 0:
+            continue
+        text = _truncate_text(str(chunk.get("chunk_text", "")), 260)
+        title = str((chunk.get("metadata") or {}).get("title", "")).strip()
+        if not text:
+            continue
+        snippet = f"{title}：{text}" if title else text
+        scored.append((score, snippet))
+    scored.sort(key=lambda row: row[0], reverse=True)
+
+    snippets: list[str] = []
+    seen: set[str] = set()
+    for _score, snippet in scored:
+        if snippet in seen:
+            continue
+        seen.add(snippet)
+        snippets.append(snippet)
+        if len(snippets) >= top_k:
+            break
+    return snippets
+
+
+def _rag_supporting_snippets(query: str, event_title: str, event_description: str, top_k: int = 2) -> list[str]:
+    vector_hits = _rag_supporting_snippets_vector(query=query, event_title=event_title, top_k=top_k)
+    if vector_hits:
+        return vector_hits
+
+    query_tokens = _tokenize_for_rag(f"{query} {event_title}")
+    if not query_tokens:
+        return []
+
+    ranked: list[tuple[int, str]] = []
+    for item in _load_local_artemperor_events():
+        title = _strip_html(str(item.get("title") or ""))
+        description = _strip_html(str(item.get("descriptionFilterHtml") or ""))
+        if not description:
+            continue
+        haystack_tokens = _tokenize_for_rag(f"{title} {description}")
+        overlap = len(query_tokens & haystack_tokens)
+        if overlap <= 0:
+            continue
+        snippet = _truncate_text(description, 260)
+        ranked.append((overlap, f"{title}：{snippet}"))
+
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    snippets: list[str] = []
+    seen: set[str] = set()
+    for _score, snippet in ranked:
+        if snippet in seen:
+            continue
+        seen.add(snippet)
+        snippets.append(snippet)
+        if len(snippets) >= top_k:
+            break
+    return snippets
 
 
 def _localized_text(value: Any) -> str:
@@ -646,7 +800,7 @@ def _sync_category_to_db(category_code: str, force: bool = False) -> dict[str, A
             conn.close()
             return {"category_code": category_code, "occurrence_count": count, "used_cache": True}
 
-    items = _fetch_events_by_category(category_code)
+    items = _events_for_category(category_code)
     fetched_at = datetime.utcnow().isoformat()
     category_label = CATEGORY_CODE_TO_LABEL.get(category_code, category_code)
 
@@ -1457,6 +1611,12 @@ def recommend_events(
     for score, row, reasons in ranked[:bounded_limit]:
         result = _row_to_result(row, int(round(score)), include_copy_seed=True, include_reviews=include_reviews)
         result["recommendation_reasons"] = reasons
+        result["rag_context"] = _rag_supporting_snippets(
+            query=f"{query} {interests}",
+            event_title=result.get("title", ""),
+            event_description=result.get("description", ""),
+            top_k=2,
+        )
         result["scoring_context"] = {
             "weather_context": weather_context,
             "interests": interests,
@@ -1648,6 +1808,10 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
         return {"error": f"找不到 UID 為 `{event_uid}` 的活動。", "source": "文化部藝文活動 OpenAPI"}
 
     event = json.loads(event_row["raw_json"])
+    artemperor_meta = event.get("artemperorMeta") if isinstance(event.get("artemperorMeta"), dict) else {}
+    all_images = artemperor_meta.get("allImages", [])
+    if not isinstance(all_images, list):
+        all_images = []
     occurrence_rows = _find_occurrence_rows(event_uid)
     show_infos = [_normalize_show_info_from_row(row) for row in occurrence_rows]
     taipei_show_infos = [
@@ -1673,6 +1837,7 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
             "support_unit": event.get("supportUnit") or [],
             "other_unit": event.get("otherUnit") or [],
             "image_url": event.get("imageUrl") or "",
+            "all_images": all_images,
             "ticket_url": event.get("webSales") or "",
             "promote_url": event.get("sourceWebPromote") or "",
             "source_web_name": event.get("sourceWebName") or "",
@@ -1681,6 +1846,12 @@ def get_event_detail(event_uid: str) -> dict[str, Any]:
             "end_date": event.get("endDate"),
             "hit_rate": event.get("hitRate") or 0,
             "copy_seed": copy_seed,
+            "rag_context": _rag_supporting_snippets(
+                query=event.get("title", ""),
+                event_title=event.get("title", ""),
+                event_description=_strip_html(event.get("descriptionFilterHtml")),
+                top_k=3,
+            ),
             "taipei_show_info": taipei_show_infos,
             "all_show_info": show_infos,
         },

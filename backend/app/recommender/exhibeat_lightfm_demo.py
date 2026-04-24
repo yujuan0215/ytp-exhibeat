@@ -71,6 +71,7 @@ class Exhibition:
     features: tuple[str, ...]
     description: str
     image_url: str = ""
+    all_images: tuple[str, ...] = ()
     edit_modify_date: str = ""
     latitude: float | None = None
     longitude: float | None = None
@@ -200,6 +201,13 @@ def build_exhibition(record: dict) -> Exhibition:
     for venue in venues:
         features.add(f"venue:{venue}")
 
+    artemperor_meta = record.get("artemperorMeta", {}) if isinstance(record.get("artemperorMeta"), dict) else {}
+    all_images_raw = artemperor_meta.get("allImages", [])
+    if isinstance(all_images_raw, list):
+        all_images = tuple(str(url) for url in all_images_raw if isinstance(url, str) and url.strip())
+    else:
+        all_images = ()
+
     return Exhibition(
         uid=record["UID"],
         title=title,
@@ -216,6 +224,7 @@ def build_exhibition(record: dict) -> Exhibition:
         features=tuple(sorted(features)),
         description=description,
         image_url=record.get("imageUrl", "") or "",
+        all_images=all_images,
         edit_modify_date=record.get("editModifyDate", "") or "",
         latitude=latitude,
         longitude=longitude,
@@ -448,6 +457,7 @@ def run_fallback_demo(
                 "reasons": build_reasons(persona, event, reference_date),
                 "description": event.description,
                 "image_url": event.image_url,
+                "all_images": list(event.all_images),
                 "is_free": event.is_free,
                 "price_text": event.price_text,
                 "edit_modify_date": event.edit_modify_date,
@@ -575,6 +585,7 @@ def run_lightfm_demo(
                     "reasons": build_reasons(persona, event, reference_date),
                     "description": event.description,
                     "image_url": event.image_url,
+                    "all_images": list(event.all_images),
                     "is_free": event.is_free,
                     "price_text": event.price_text,
                     "edit_modify_date": event.edit_modify_date,

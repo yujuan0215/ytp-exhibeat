@@ -1,3 +1,4 @@
+import argparse
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -12,6 +13,7 @@ BASE_URL = "https://artemperor.tw/tidbits"
 TARGET_LOCATION = "台北市"
 MAX_ITEMS = 5
 OUTPUT_PATH = Path("artemperor_tidbits_taipei_top5.json")
+MAX_SCROLL_ROUNDS = 10
 
 
 @dataclass
@@ -250,17 +252,22 @@ def extract_detail(page, box_item: Dict[str, str]) -> TidbitData:
     )
 
 
-def collect_taipei_items_from_boxes(page, max_items: int) -> List[Dict[str, str]]:
+def collect_taipei_items_from_boxes(
+    page,
+    max_items: int,
+    max_scroll_rounds: int,
+    target_location: str,
+) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     seen = set()
-    for _ in range(10):
+    for _ in range(max_scroll_rounds):
         cards = page.locator("div.list_box")
         count = cards.count()
         for idx in range(count):
             card = cards.nth(idx)
             title = clean_text(card.locator("h2").first.inner_text()) if card.locator("h2").count() else ""
             parsed = parse_box_meta_from_card(card)
-            if TARGET_LOCATION not in parsed["location"]:
+            if target_location and target_location not in parsed["location"]:
                 continue
             anchor = card.locator("a[href*='/tidbits/']").first
             if anchor.count() == 0:
@@ -289,9 +296,32 @@ def collect_taipei_items_from_boxes(page, max_items: int) -> List[Dict[str, str]
     return items
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Crawl Artemperor tidbits in Taipei.")
+    parser.add_argument("--max-items", type=int, default=MAX_ITEMS, help="Maximum items to extract.")
+    parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output JSON path.")
+    parser.add_argument("--location", type=str, default=TARGET_LOCATION, help="Location keyword filter.")
+    parser.add_argument("--headless", action="store_true", help="Run browser in headless mode.")
+    parser.add_argument(
+        "--max-scroll-rounds",
+        type=int,
+        default=MAX_SCROLL_ROUNDS,
+        help="How many infinite-scroll rounds to scan for cards.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    max_items = max(1, args.max_items)
+    max_scroll_rounds = max(1, args.max_scroll_rounds)
+    target_location = args.location.strip()
+    if target_location.lower() in {"all", "*", "any"}:
+        target_location = ""
+    output_path = args.output
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=args.headless)
         context = browser.new_context(
             viewport={"width": 1440, "height": 2100},
             locale="zh-TW",
@@ -302,8 +332,9 @@ def main() -> None:
         page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(2200)
 
-        box_items = collect_taipei_items_from_boxes(page, MAX_ITEMS)
-        print(f"Found {len(box_items)} tidbits with location containing '{TARGET_LOCATION}'.")
+        box_items = collect_taipei_items_from_boxes(page, max_items, max_scroll_rounds, target_location)
+        scope_label = target_location if target_location else "(no location filter)"
+        print(f"Found {len(box_items)} tidbits with location containing '{scope_label}'.")
 
         results: List[TidbitData] = []
         failures = []
@@ -318,18 +349,19 @@ def main() -> None:
 
         payload = {
             "source": BASE_URL,
-            "location_filter": TARGET_LOCATION,
-            "requested_items": MAX_ITEMS,
+            "location_filter": target_location,
+            "requested_items": max_items,
             "extracted_items": len(results),
             "items": [asdict(x) for x in results],
             "failures": failures,
         }
 
-        OUTPUT_PATH.write_text(
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        print(f"Saved JSON -> {OUTPUT_PATH.resolve()}")
+        print(f"Saved JSON -> {output_path.resolve()}")
 
         context.close()
         browser.close()

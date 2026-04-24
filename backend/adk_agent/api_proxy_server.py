@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import hashlib
 import json
 import os
@@ -8,9 +9,8 @@ import uuid
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 import httpx
-from sqlalchemy import func
 import uvicorn
 
 # ─── Project Root Discovery ──────────────────────────────────────────────────
@@ -48,12 +48,26 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     get_db,
     hash_password,
     normalize_email,
-    normalize_display_name,
     sanitize_preference_tags,
     verify_password,
 )
 
-EXHIBITIONS_PATH = PROJECT_ROOT / "exhibitions.json"
+def discover_exhibitions_path() -> Path:
+    configured = os.environ.get("EXHIBEAT_EXHIBITIONS_PATH", "").strip()
+    if configured:
+        candidate = Path(configured)
+        if not candidate.is_absolute():
+            candidate = PROJECT_ROOT / candidate
+        return candidate
+
+    merged_candidate = PROJECT_ROOT / "data" / "exhibitions_merged.json"
+    if merged_candidate.exists():
+        return merged_candidate
+
+    return PROJECT_ROOT / "exhibitions.json"
+
+
+EXHIBITIONS_PATH = discover_exhibitions_path()
 logger.info(f"Project Root: {PROJECT_ROOT}")
 logger.info(f"Exhibitions Path: {EXHIBITIONS_PATH}")
 
@@ -205,8 +219,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
             "endDate":         end_date_str,
             "editModifyDate":  edit_date_str,
             "score":           rec.get("score", 0),
-            "latitude":        rec.get("latitude"),
-            "longitude":       rec.get("longitude"),
+            "allImages":       rec.get("all_images", []) if isinstance(rec.get("all_images", []), list) else [],
         },
     }
 
@@ -281,22 +294,11 @@ async def preference_options():
 @app.post("/api/auth/register", response_model=TokenResponse)
 async def register(payload: RegisterRequest, db=Depends(get_db)):
     normalized_email = normalize_email(payload.email)
-    normalized_display_name = normalize_display_name(payload.display_name)
     existing_user = db.query(User).filter(User.email == normalized_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
-        )
-    existing_display_name = (
-        db.query(User)
-        .filter(func.lower(User.display_name) == normalized_display_name.lower())
-        .first()
-    )
-    if existing_display_name:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already taken",
         )
 
     sanitized_tags = sanitize_preference_tags(payload.preference_tags)
@@ -304,7 +306,7 @@ async def register(payload: RegisterRequest, db=Depends(get_db)):
         id=str(uuid.uuid4()),
         email=normalized_email,
         password_hash=hash_password(payload.password),
-        display_name=normalized_display_name,
+        display_name=payload.display_name.strip(),
         preference_tags=json.dumps(sanitized_tags),
     )
     db.add(user)
@@ -448,22 +450,75 @@ async def proxy_adk(request: Request, path: str):
     # /run may take several seconds when Gemini is generating content.
     # Use explicit, longer timeout values to avoid premature 500s from proxy.
     timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
-    client = httpx.AsyncClient(timeout=timeout)
 
     async def body_stream():
         async for chunk in request.stream():
             yield chunk
 
-    req = client.build_request(
-        request.method,
-        url,
-        headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
-        content=body_stream() if request.method in ("POST", "PUT", "PATCH") else None,
-    )
-    response = await client.send(req, stream=True)
-    headers = {k: v for k, v in response.headers.items()
-               if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
-    return StreamingResponse(response.aiter_bytes(), status_code=response.status_code, headers=headers)
+    # ADK receives this request server-to-server from the proxy. Forwarding the
+    # browser Origin/Referer headers causes ADK's origin checks to reject with
+    # 403 ("origin not allowed"), even though traffic is local.
+    blocked_headers = {
+        "host",
+        "origin",
+        "referer",
+        "sec-fetch-site",
+        "sec-fetch-mode",
+        "sec-fetch-dest",
+    }
+    forwarded_headers = {
+        k: v for k, v in request.headers.items() if k.lower() not in blocked_headers
+    }
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        # ADK /run is occasionally flaky with transient 5xx. Retry once so the
+        # chat UI doesn't fail on recoverable backend hiccups.
+        if path == "run" and request.method == "POST":
+            body_bytes = await request.body()
+            attempts = 2
+            response = None
+            for idx in range(attempts):
+                response = await client.request(
+                    request.method,
+                    url,
+                    headers=forwarded_headers,
+                    content=body_bytes,
+                )
+                if response.status_code < 500:
+                    break
+                logger.warning(
+                    "ADK /run returned %s (attempt %s/%s)",
+                    response.status_code,
+                    idx + 1,
+                    attempts,
+                )
+                if idx + 1 < attempts:
+                    await asyncio.sleep(0.35)
+
+            headers = {
+                k: v
+                for k, v in response.headers.items()
+                if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
+            }
+            return Response(content=response.content, status_code=response.status_code, headers=headers)
+
+        req = client.build_request(
+            request.method,
+            url,
+            headers=forwarded_headers,
+            content=body_stream() if request.method in ("POST", "PUT", "PATCH") else None,
+        )
+        try:
+            response = await client.send(req, stream=True)
+        except httpx.HTTPError as exc:
+            logger.error("Proxy transport error for /api/%s: %s", path, exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Backend agent service is temporarily unavailable.",
+            ) from exc
+        headers = {k: v for k, v in response.headers.items()
+                   if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+        return StreamingResponse(response.aiter_bytes(), status_code=response.status_code, headers=headers)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
