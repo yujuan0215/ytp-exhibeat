@@ -149,6 +149,8 @@ export function ExhibitionDetail() {
       : "NT$450";
   const venue = locationParts.venue || exhibition.location;
   const likes = Math.max(120, (exhibition.title.length * 13) % 300 + 120);
+  const actionLabel = isFree ? "查看展覽資訊" : "購票功能即將推出";
+  const actionHint = isFree ? "免費展演通常可直接入場，請以主辦單位公告為準。" : "票務整合開發中，請先參考官方活動頁資訊。";
 
   return (
     <div className="w-full pb-24 bg-background">
@@ -206,19 +208,17 @@ export function ExhibitionDetail() {
       <div className="max-w-7xl mx-auto px-8 mt-12 grid grid-cols-12 gap-12">
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Panel title="AI 亮點摘要" icon={<Sparkles className="w-4 h-4 text-[#774AD9]" />}>
+            <div className="rounded-md border border-white/10 bg-[#0f1727]/88 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-[#774AD9]" />
+                <h3 className="text-sm font-bold text-white">AI 亮點摘要</h3>
+              </div>
               <p
                 className="text-sm text-white/80 leading-relaxed"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 6,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
               >
                 {exhibition.aiSummary || "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。"}
               </p>
-            </Panel>
+            </div>
             <Panel title="社群評分" icon={<Star className="w-4 h-4 text-[#ff6b98]" />}>
               <div className="flex items-end gap-1.5 mt-4 mb-2">
                 {[28, 44, 52, 64, 58].map((h, idx) => (
@@ -270,14 +270,14 @@ export function ExhibitionDetail() {
                 {numericPrice}
               </span>
             </div>
-            <p className="text-xs text-secondary font-medium mt-1">現正提供早鳥優惠至 11/10</p>
+            <p className="text-xs text-secondary font-medium mt-1">{actionHint}</p>
 
             <button
               disabled
-              title="購票整合即將推出"
+              title={actionLabel}
               className="w-full py-4 rounded-full btn-gradient-safe font-bold text-lg transition-colors flex items-center justify-center gap-2 cursor-not-allowed"
             >
-              立即預約門票 <ArrowRight className="w-4 h-4" />
+              {actionLabel} <ArrowRight className="w-4 h-4" />
             </button>
 
             <button

@@ -12,6 +12,7 @@ import { Heart, MapPin, Clock3, Navigation } from "lucide-react";
 declare global {
   interface Window {
     google?: any;
+    gm_authFailure?: () => void;
   }
 }
 
@@ -205,6 +206,7 @@ export function Map() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [mapInitError, setMapInitError] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
@@ -323,6 +325,21 @@ export function Map() {
     return () => window.clearTimeout(timer);
   }, [showToast]);
 
+  useEffect(() => {
+    const prevHandler = window.gm_authFailure;
+    window.gm_authFailure = () => {
+      setMapInitError(
+        "Google Maps authentication failed (gm_authFailure). Check API key referrer restrictions and billing.",
+      );
+      if (typeof prevHandler === "function") {
+        prevHandler();
+      }
+    };
+    return () => {
+      window.gm_authFailure = prevHandler;
+    };
+  }, []);
+
   const focusEventOnMap = (eventId: string) => {
     const map = mapInstanceRef.current;
     const infoWindow = infoWindowRef.current;
@@ -340,13 +357,16 @@ export function Map() {
   };
 
   useEffect(() => {
-    if (!mapRef.current || !apiKey || markerData.length === 0) return;
+    // Even when there are zero exhibitions, initialize the base map so users
+    // can still see the map canvas instead of a blank panel.
+    if (!mapRef.current || !apiKey) return;
 
     let detached = false;
     let markers: any[] = [];
 
     loadGoogleMaps(apiKey)
       .then(async () => {
+        setMapInitError(null);
         if (detached || !mapRef.current) return;
 
         const maps = window.google?.maps;
@@ -444,6 +464,7 @@ export function Map() {
       .catch((e) => {
         console.error(e);
         setError("Google Maps failed to initialize");
+        setMapInitError(e instanceof Error ? e.message : "Unknown Google Maps initialization error");
       });
 
     return () => {
@@ -478,6 +499,11 @@ export function Map() {
           {error && (
             <div className="absolute left-5 top-16 rounded-md border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
               {error}
+            </div>
+          )}
+          {mapInitError && (
+            <div className="absolute left-5 top-28 max-w-[min(560px,calc(100%-2.5rem))] rounded-md border border-amber-300/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+              {mapInitError}
             </div>
           )}
         </div>

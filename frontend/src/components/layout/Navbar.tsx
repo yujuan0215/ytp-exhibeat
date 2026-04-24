@@ -11,19 +11,29 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const notificationRef = useRef<HTMLDivElement | null>(null);
+  const settingsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setMenuOpen(false);
+    setNotificationOpen(false);
+    setSettingsOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+      if (!notificationRef.current?.contains(e.target as Node)) setNotificationOpen(false);
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
     };
-    if (menuOpen) document.addEventListener("mousedown", onDocClick);
+    if (menuOpen || notificationOpen || settingsOpen) {
+      document.addEventListener("mousedown", onDocClick);
+    }
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [menuOpen]);
+  }, [menuOpen, notificationOpen, settingsOpen]);
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-foreground/90 ${
@@ -68,9 +78,38 @@ export function Navbar() {
             className="h-9 w-64 rounded-md border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
-        <button className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-[#1f1f26] rounded-md">
-          <Bell className="h-5 w-5" />
-        </button>
+        <div className="relative" ref={notificationRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setNotificationOpen((o) => !o);
+              setSettingsOpen(false);
+            }}
+            className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-[#1f1f26] rounded-md"
+            aria-haspopup="menu"
+            aria-expanded={notificationOpen}
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+          {notificationOpen && (
+            <div className="absolute right-0 top-full mt-3 w-80 rounded-2xl border border-white/10 bg-[#1a1625] shadow-xl overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/5">
+                <p className="text-sm font-semibold text-white">通知</p>
+                <p className="text-xs text-white/50">最近活動與系統更新</p>
+              </div>
+              <div className="px-4 py-3 space-y-3 text-sm">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <p className="text-white/80">你收藏的展覽有新活動資訊可查看。</p>
+                  <p className="text-[11px] text-white/45 mt-1">剛剛</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <p className="text-white/80">地圖探索已啟用，歡迎查看附近展演。</p>
+                  <p className="text-[11px] text-white/45 mt-1">今天</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="hidden md:flex items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1">
           <button
             type="button"
@@ -102,9 +141,50 @@ export function Navbar() {
             </>
           )}
         </div>
-        <button className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-[#1f1f26] rounded-md">
-          <Settings className="h-5 w-5" />
-        </button>
+        <div className="relative" ref={settingsRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setSettingsOpen((o) => !o);
+              setNotificationOpen(false);
+            }}
+            className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-[#1f1f26] rounded-md"
+            aria-haspopup="menu"
+            aria-expanded={settingsOpen}
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+          {settingsOpen && (
+            <div className="absolute right-0 top-full mt-3 w-64 rounded-2xl border border-white/10 bg-[#1a1625] shadow-xl overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/5">
+                <p className="text-sm font-semibold text-white">設定</p>
+              </div>
+              <div className="px-4 py-3 space-y-3">
+                <div>
+                  <p className="text-xs text-white/50 mb-2">介面主題</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTheme("v1")}
+                      className={`px-2 py-1 text-xs rounded-sm transition-colors ${theme === "v1" ? "bg-[#774AD9] text-white" : "text-white/65 hover:text-white bg-white/5"}`}
+                    >
+                      一版
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTheme("v2")}
+                      className={`px-2 py-1 text-xs rounded-sm transition-colors ${theme === "v2" ? "bg-[#774AD9] text-white" : "text-white/65 hover:text-white bg-white/5"}`}
+                    >
+                      二版
+                    </button>
+                  </div>
+                </div>
+                <Link to="/map" className="block text-sm text-white/80 hover:text-white">前往地圖探索</Link>
+                <Link to="/collection" className="block text-sm text-white/80 hover:text-white">前往收藏頁</Link>
+              </div>
+            </div>
+          )}
+        </div>
 
         {user ? (
           <div className="relative" ref={menuRef}>
