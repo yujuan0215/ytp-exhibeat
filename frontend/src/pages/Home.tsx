@@ -80,6 +80,7 @@ export function Home() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>("全部展演");
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
   const [sortOpen, setSortOpen] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
     getHomeRecommendations()
@@ -95,9 +96,26 @@ export function Home() {
     return sortExhibitions(allExhibitions.filter(pred), activeSort);
   }, [allExhibitions, activeFilter, activeSort]);
 
-  const hero = allExhibitions[0]; // Always top recommendation regardless of filter
+  const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
+  const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
   const grid = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
+
+  useEffect(() => {
+    if (heroCandidates.length === 0) {
+      setHeroIndex(0);
+      return;
+    }
+    setHeroIndex((idx) => (idx >= heroCandidates.length ? 0 : idx));
+  }, [heroCandidates.length]);
+
+  useEffect(() => {
+    if (heroCandidates.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setHeroIndex((idx) => (idx + 1) % heroCandidates.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [heroCandidates.length]);
 
   return (
     <div className="w-full pb-20">
@@ -129,10 +147,8 @@ export function Home() {
             </div>
           ) : hero ? (
             <>
-              <h1 className="text-6xl md:text-8xl font-headline font-extrabold tracking-tighter mb-6 leading-[0.9] text-white">
-                異次元
-                <br />
-                <span className="text-primary italic">台北之光</span>
+              <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tighter mb-6 leading-[1.03] text-white max-w-4xl">
+                {hero.title}
               </h1>
               <p className="max-w-2xl text-lg text-white/70 mb-8 font-body leading-relaxed">
                 {hero.aiSummary || "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。"}
@@ -146,9 +162,6 @@ export function Home() {
                 </span>
               </div>
               <div className="flex gap-4">
-                <Button size="lg" className="btn-gradient-safe rounded-full px-8 py-4 font-bold text-lg transition-all active:scale-95">
-                  立即預訂
-                </Button>
                 <Link to={hero ? `/exhibition/${encodeURIComponent(hero.id)}` : "#"} state={{ exhibition: hero }}>
                   <Button size="lg" variant="outline" className="bg-[#25252c]/70 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-[#2c2b33] transition-all border-white/10">
                     查看詳情
@@ -159,22 +172,29 @@ export function Home() {
           ) : (
             <>
               <h1 className="text-6xl font-black text-white/40 mb-4">無推薦資料</h1>
-              <div className="flex gap-4">
-                <Button size="lg" className="btn-gradient-safe rounded-full px-8 py-4 font-bold text-lg">
-                  立即預訂
-                </Button>
-                <Button size="lg" variant="outline" className="bg-[#25252c]/70 text-white px-8 py-4 rounded-full font-bold text-lg border-white/10">
-                  查看詳情
-                </Button>
-              </div>
+              <Button size="lg" variant="outline" className="bg-[#25252c]/70 text-white px-8 py-4 rounded-full font-bold text-lg border-white/10">
+                查看詳情
+              </Button>
             </>
           )}
         </div>
 
-        <div className="absolute right-8 bottom-16 flex flex-col gap-4">
-          <div className="w-1 h-12 bg-primary rounded-full" />
-          <div className="w-1 h-8 bg-[#25252c] rounded-full" />
-          <div className="w-1 h-8 bg-[#25252c] rounded-full" />
+        <div className="absolute right-8 bottom-16 z-30 flex flex-col gap-3 pointer-events-auto">
+          {heroCandidates.map((item, idx) => {
+            const isActive = idx === heroIndex;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setHeroIndex(idx)}
+                className="group flex items-center justify-center w-6 h-12 rounded-md"
+                aria-label={`切換到推薦展演 ${idx + 1}`}
+                title={item.title}
+              >
+                <span className={`rounded-full transition-all ${isActive ? "w-1 h-12 bg-primary" : "w-1 h-8 bg-[#25252c] group-hover:bg-white/30"}`} />
+              </button>
+            );
+          })}
         </div>
       </section>
 

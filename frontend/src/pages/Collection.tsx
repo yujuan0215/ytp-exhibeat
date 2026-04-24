@@ -49,6 +49,7 @@ export function Collection() {
   const [hasMoreRecs, setHasMoreRecs] = useState(true);
   const [sortMode, setSortMode] = useState<"date" | "distance">("date");
   const [referenceCoord, setReferenceCoord] = useState(DEFAULT_REF_COORD);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     setCollectionExhibitions(getFavorites());
@@ -142,30 +143,44 @@ export function Collection() {
             <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className={`hidden md:flex items-center gap-1 border border-white/10 bg-white/5 p-1 ${isV1 ? "rounded-md" : "rounded-full"}`}>
-              <button
-                type="button"
-                onClick={() => setSortMode("date")}
-                className={`px-3 py-1 text-sm font-medium transition-colors ${isV1 ? "rounded-sm" : "rounded-full"} ${
-                  sortMode === "date" ? "bg-[#00d6ff] text-[#042028]" : "text-white/65 hover:text-white"
-                }`}
-              >
-                按日期
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortMode("distance")}
-                className={`px-3 py-1 text-sm font-medium transition-colors ${isV1 ? "rounded-sm" : "rounded-full"} ${
-                  sortMode === "distance" ? "bg-[#00d6ff] text-[#042028]" : "text-white/65 hover:text-white"
-                }`}
-              >
-                按距離
-              </button>
-            </div>
-            <Button variant="outline" size="sm" className={`${isV1 ? "rounded-md" : "rounded-full"} bg-surface-container-low border-transparent text-white hover:bg-white/10 flex items-center gap-2`}>
+          <div className="relative flex items-center gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`${isV1 ? "rounded-md" : "rounded-full"} bg-surface-container-low border-transparent text-white hover:bg-white/10 flex items-center gap-2`}
+            >
               <Zap className="w-4 h-4" /> 篩選
             </Button>
+            {filterOpen && (
+              <div className={`absolute right-0 top-full z-20 mt-2 w-44 border border-white/10 bg-[#1a1625] p-2 shadow-xl ${isV1 ? "rounded-md" : "rounded-xl"}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortMode("date");
+                    setFilterOpen(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm transition-colors ${isV1 ? "rounded-sm" : "rounded-lg"} ${
+                    sortMode === "date" ? "bg-[#00d6ff] text-[#042028] font-semibold" : "text-white/75 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  按日期
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortMode("distance");
+                    setFilterOpen(false);
+                  }}
+                  className={`mt-1 w-full px-3 py-2 text-left text-sm transition-colors ${isV1 ? "rounded-sm" : "rounded-lg"} ${
+                    sortMode === "distance" ? "bg-[#00d6ff] text-[#042028] font-semibold" : "text-white/75 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  按距離
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -233,7 +248,11 @@ export function Collection() {
               </div>
             ) : visibleRecs.length > 0 ? (
               visibleRecs.map(rec => (
-                <div key={rec.id} className={`flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 min-h-[82px] ${isV1 ? "rounded-md" : "rounded-xl"} transition-colors`}>
+                <Link
+                  key={rec.id}
+                  to={`/exhibition/${encodeURIComponent(rec.id)}`}
+                  className={`flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 min-h-[82px] ${isV1 ? "rounded-md" : "rounded-xl"} transition-colors`}
+                >
                   <img
                     src={rec.imageUrl}
                     alt={rec.title}
@@ -249,7 +268,7 @@ export function Collection() {
                     </h4>
                     <p className="text-xs text-muted-foreground line-clamp-1">{rec.location}</p>
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <div className="text-white/50 text-sm py-4">目前沒有推薦</div>

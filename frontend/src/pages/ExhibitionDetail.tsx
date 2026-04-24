@@ -19,6 +19,7 @@ import type { Exhibition } from "@/data/mock";
 import { getCollectionRecommendations, getHomeRecommendations } from "@/lib/api";
 import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
+import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 const SHOT_IMAGES = [
@@ -45,6 +46,7 @@ export function ExhibitionDetail() {
   const [error, setError] = useState<string | null>(null);
   const [favorited, setFavorited] = useState(false);
   const [suggestions, setSuggestions] = useState<Exhibition[]>([]);
+  const [externalModalOpen, setExternalModalOpen] = useState(false);
 
   useEffect(() => {
     setFavorited(id ? isFavorited(id) : false);
@@ -149,8 +151,10 @@ export function ExhibitionDetail() {
       : "NT$450";
   const venue = locationParts.venue || exhibition.location;
   const likes = Math.max(120, (exhibition.title.length * 13) % 300 + 120);
-  const actionLabel = isFree ? "查看展覽資訊" : "購票功能即將推出";
-  const actionHint = isFree ? "免費展演通常可直接入場，請以主辦單位公告為準。" : "票務整合開發中，請先參考官方活動頁資訊。";
+  const actionLabel = isFree ? "前往展演資訊（外部）" : "前往購票連結（外部）";
+  const actionHint = isFree ? "免費展演通常可直接入場，請以主辦單位公告為準。" : "購票前將導向外部票務平台。";
+
+  const handleExternalAction = () => setExternalModalOpen(true);
 
   return (
     <div className="w-full pb-24 bg-background">
@@ -273,9 +277,10 @@ export function ExhibitionDetail() {
             <p className="text-xs text-secondary font-medium mt-1">{actionHint}</p>
 
             <button
-              disabled
+              type="button"
+              onClick={handleExternalAction}
               title={actionLabel}
-              className="w-full py-4 rounded-full btn-gradient-safe font-bold text-lg transition-colors flex items-center justify-center gap-2 cursor-not-allowed"
+              className="w-full py-4 rounded-full btn-gradient-safe font-bold text-lg transition-colors flex items-center justify-center gap-2"
             >
               {actionLabel} <ArrowRight className="w-4 h-4" />
             </button>
@@ -341,6 +346,15 @@ export function ExhibitionDetail() {
           </div>
         </aside>
       </div>
+      <ExternalNavigationModal
+        open={externalModalOpen}
+        title="即將前往外部平台"
+        description="此外部展演/購票連結功能仍在建置中。未來將導向主辦或票務平台，敬請期待。"
+        confirmLabel="我知道了"
+        cancelLabel="關閉"
+        onConfirm={() => setExternalModalOpen(false)}
+        onCancel={() => setExternalModalOpen(false)}
+      />
     </div>
   );
 }
