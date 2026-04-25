@@ -8,6 +8,7 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listLegalStays, type LegalStay } from "@/lib/api";
@@ -20,6 +21,53 @@ import {
 } from "@/lib/stayFavorites";
 
 const PAGE_SIZE = 36;
+const STAY_PLACEHOLDER_IMAGES = [
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&auto=format&fit=crop&q=80",
+];
+
+function getStayPlaceholderImage(stay: LegalStay): string {
+  const seed = Array.from(stay.id || stay.name).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return STAY_PLACEHOLDER_IMAGES[seed % STAY_PLACEHOLDER_IMAGES.length];
+}
+
+function getStayImageUrl(stay: LegalStay): string {
+  return stay.primaryImageUrl || stay.images?.[0]?.url || getStayPlaceholderImage(stay);
+}
+
+function normalizeExternalUrl(url: string): string {
+  const value = url.trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("//")) return `https:${value}`;
+  return `https://${value}`;
+}
+
+function buildStaySearchUrl(stay: LegalStay): string {
+  const query = [stay.name, stay.address.full, "官網"].filter(Boolean).join(" ");
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
+
+function getStayExternalLinks(stay: LegalStay): Array<{ label: string; url: string; tone?: "primary" | "muted" }> {
+  const links: Array<{ label: string; url: string; tone?: "primary" | "muted" }> = [];
+  const seen = new Set<string>();
+  const addLink = (label: string, rawUrl: string, tone: "primary" | "muted" = "muted") => {
+    const url = normalizeExternalUrl(rawUrl);
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    links.push({ label, url, tone });
+  };
+
+  addLink("官方網站", stay.urls.website, "primary");
+  stay.urls.reservation.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "訂房連結" : "訂房連結 2", url));
+  stay.urls.sameAs.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "相關連結" : "相關連結 2", url));
+  stay.urls.socialMedia.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "社群頁面" : "社群頁面 2", url));
+  addLink("觀光署資料頁", stay.mediaDetailUrl);
+  addLink("搜尋官網", buildStaySearchUrl(stay), "primary");
+
+  return links;
+}
 
 function matchesSearch(stay: LegalStay, term: string): boolean {
   if (!term.trim()) return true;
@@ -149,74 +197,111 @@ export function Accommodations() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visibleStays.map((stay) => {
               const expanded = expandedCardId === stay.id;
+              const stayImageUrl = getStayImageUrl(stay);
+              const placeholderImageUrl = getStayPlaceholderImage(stay);
+              const externalLinks = getStayExternalLinks(stay);
               return (
                 <div
                   key={stay.id}
-                  className={`border border-white/10 bg-[#171725] p-4 text-left transition-colors hover:border-cyan-300/35 hover:bg-[#1b1b2b] ${isV1 ? "rounded-md" : "rounded-2xl"}`}
+                  className={`overflow-hidden border border-white/10 bg-[#171725] text-left transition-colors hover:border-cyan-300/35 hover:bg-[#1b1b2b] ${isV1 ? "rounded-md" : "rounded-2xl"}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="line-clamp-2 min-w-0 flex-1 text-base font-bold text-white">{stay.name}</h2>
+                  <div className="relative aspect-[4/3] overflow-hidden bg-white/5">
+                    <img
+                      src={stayImageUrl}
+                      alt={stay.name}
+                      className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                      onError={(event) => {
+                        const img = event.currentTarget;
+                        if (img.src !== placeholderImageUrl) {
+                          img.src = placeholderImageUrl;
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#171725] to-transparent" />
                     <button
                       type="button"
                       onClick={() => handleToggleFavorite(stay.id)}
-                      className={`shrink-0 p-1.5 ${isV1 ? "rounded-md" : "rounded-full"} bg-black/25 hover:bg-black/40`}
+                      className={`absolute right-3 top-3 z-10 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-black/35 backdrop-blur-md hover:bg-black/55`}
                       title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
                     >
                       <Heart
-                        className={`h-4 w-4 transition-all ${
+                        className={`h-5 w-5 transition-all ${
                           favoriteStayIds.has(stay.id)
                             ? "fill-purple-500 text-purple-500"
-                            : "text-white/55 hover:text-white/85"
+                            : "text-white/75 hover:text-white"
                         }`}
                       />
                     </button>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-xs text-white/65">
-                    {stay.description || "展開可查看地址、電話與更多資訊。"}
-                  </p>
-                  <p className="mt-3 flex items-start gap-1.5 text-xs text-white/60">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="line-clamp-2">{stay.address.full}</span>
-                  </p>
-                  <p className="mt-2 text-xs text-cyan-200">{stay.classLabels.join(" / ") || "合法旅宿"}</p>
+                  <div className="p-4">
+                    <h2 className="line-clamp-2 min-h-[2.5rem] text-base font-bold text-white">{stay.name}</h2>
+                    <p className="mt-2 line-clamp-2 text-xs text-white/65">
+                      {stay.description || "展開可查看地址、電話與更多資訊。"}
+                    </p>
+                    <p className="mt-3 flex items-start gap-1.5 text-xs text-white/60">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="line-clamp-2">{stay.address.full}</span>
+                    </p>
+                    <p className="mt-2 text-xs text-cyan-200">{stay.classLabels.join(" / ") || "合法旅宿"}</p>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleOpenMapExplore(stay)}
-                    className={`mt-3 w-full ${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] font-semibold text-[#042028] hover:bg-[#20deff]`}
-                  >
-                    地圖探索
-                  </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleOpenMapExplore(stay)}
+                      className={`mt-3 w-full ${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] font-semibold text-[#042028] hover:bg-[#20deff]`}
+                    >
+                      地圖探索
+                    </Button>
 
-                  <button
-                    type="button"
-                    onClick={() => setExpandedCardId((id) => (id === stay.id ? null : stay.id))}
-                    className={`mt-2 flex w-full items-center justify-between gap-2 border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/85 hover:bg-black/35 ${isV1 ? "rounded-md" : "rounded-xl"}`}
-                    aria-expanded={expanded}
-                  >
-                    <span>{expanded ? "收合詳細資訊" : "詳細資訊"}</span>
-                    {expanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCardId((id) => (id === stay.id ? null : stay.id))}
+                      className={`mt-2 flex w-full items-center justify-between gap-2 border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/85 hover:bg-black/35 ${isV1 ? "rounded-md" : "rounded-xl"}`}
+                      aria-expanded={expanded}
+                    >
+                      <span>{expanded ? "收合詳細資訊" : "詳細資訊"}</span>
+                      {expanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                    </button>
 
-                  {expanded ? (
-                    <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-xs text-white/75">
-                      <p className="flex items-start gap-2">
-                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-200" />
-                        <span>{stay.address.full}</span>
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 shrink-0 text-cyan-200" />
-                        <span>{stay.phones.join("、") || "電話待補"}</span>
-                      </p>
-                      <p>
-                        <span className="text-white/50">星級評等：</span>
-                        {stay.starRating ? `${stay.starRating} 星` : "未提供"}
-                      </p>
-                      {stay.description ? (
-                        <p className="leading-relaxed text-white/70">{stay.description}</p>
-                      ) : null}
-                    </div>
-                  ) : null}
+                    {expanded ? (
+                      <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-xs text-white/75">
+                        <p className="flex items-start gap-2">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-200" />
+                          <span>{stay.address.full}</span>
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 shrink-0 text-cyan-200" />
+                          <span>{stay.phones.join("、") || "電話待補"}</span>
+                        </p>
+                        <p>
+                          <span className="text-white/50">星級評等：</span>
+                          {stay.starRating ? `${stay.starRating} 星` : "未提供"}
+                        </p>
+                        {stay.description ? (
+                          <p className="leading-relaxed text-white/70">{stay.description}</p>
+                        ) : null}
+                        {externalLinks.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+                            {externalLinks.map((link) => (
+                              <a
+                                key={`${stay.id}-${link.label}-${link.url}`}
+                                href={link.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`inline-flex items-center justify-center gap-1.5 border px-3 py-2 text-xs font-semibold transition-colors ${
+                                  link.tone === "primary"
+                                    ? "border-cyan-300/30 bg-cyan-400/15 text-cyan-100 hover:bg-cyan-400/25"
+                                    : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+                                } ${isV1 ? "rounded-md" : "rounded-full"}`}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                {link.label}
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
