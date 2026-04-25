@@ -8,13 +8,11 @@ import sys
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
-import urllib.parse
-import urllib.request
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import Response, StreamingResponse
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import uvicorn
 
@@ -88,24 +86,6 @@ ensure_database_ready()
 _legal_stays_cache: dict | None = None
 _exhibitions_cache: list[dict] | None = None
 _exhibitions_cache_mtime: float | None = None
-_translation_cache: dict[str, dict[str, str]] = {}
-_offline_translation_cache: dict[tuple[str, str], str] | None = None
-_offline_translation_mtime: float | None = None
-OFFLINE_TRANSLATIONS_PATH = PROJECT_ROOT / "data" / "exhibition_translations.json"
-
-
-class TranslationRequest(BaseModel):
-    texts: list[str] = Field(default_factory=list, max_length=50)
-    target_locale: str = Field(alias="targetLocale")
-    source_locale: str = Field(default="zh-TW", alias="sourceLocale")
-    context: str = ""
-
-
-class TranslationResponse(BaseModel):
-    target_locale: str
-    source_locale: str
-    translations: dict[str, str]
-    backend: str
 
 
 def load_legal_stays_dataset() -> dict:
@@ -258,214 +238,6 @@ def localize_legal_stay(stay: dict, locale: str) -> dict:
     localized["address"] = address
     return localized
 
-
-def _translation_cache_key(text: str, target_locale: str, source_locale: str) -> str:
-    digest = hashlib.sha256(f"{source_locale}|{target_locale}|{text}".encode("utf-8")).hexdigest()
-    return digest
-
-
-def _translation_source_hash(text: str) -> str:
-    return hashlib.sha256(" ".join(str(text).split()).encode("utf-8")).hexdigest()
-
-
-def _load_offline_translation_index() -> dict[tuple[str, str], str]:
-    global _offline_translation_cache, _offline_translation_mtime
-    current_mtime = OFFLINE_TRANSLATIONS_PATH.stat().st_mtime if OFFLINE_TRANSLATIONS_PATH.exists() else None
-    if _offline_translation_cache is not None and _offline_translation_mtime == current_mtime:
-        return _offline_translation_cache
-
-    index: dict[tuple[str, str], str] = {}
-    if not OFFLINE_TRANSLATIONS_PATH.exists():
-        _offline_translation_cache = index
-        _offline_translation_mtime = None
-        return index
-
-    try:
-        payload = json.loads(OFFLINE_TRANSLATIONS_PATH.read_text(encoding="utf-8"))
-        entries = payload.get("entries", [])
-        if not isinstance(entries, list):
-            entries = []
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            source_hash = str(entry.get("source_hash", "")).strip()
-            translations = entry.get("translations", {})
-            if not source_hash or not isinstance(translations, dict):
-                continue
-            for locale, value in translations.items():
-                if isinstance(value, dict):
-                    text = str(value.get("text", "")).strip()
-                    status = str(value.get("status", "translated"))
-                else:
-                    text = str(value).strip()
-                    status = "translated"
-                if text and status == "translated":
-                    index[(source_hash, str(locale))] = text
-    except Exception as exc:
-        logger.warning("Failed to load offline translations: %s", exc)
-
-    _offline_translation_cache = index
-    _offline_translation_mtime = current_mtime
-    return index
-
-
-def _lookup_offline_translation(text: str, target_locale: str) -> str | None:
-    if target_locale == "zh-TW":
-        return text
-    normalized = " ".join(str(text).split())
-    if not normalized:
-        return None
-    return _load_offline_translation_index().get((_translation_source_hash(normalized), target_locale))
-
-
-def _translate_texts_naive(texts: list[str]) -> dict[str, str]:
-    return {text: text for text in texts}
-
-
-def _contains_cjk(text: str) -> bool:
-    return any(
-        ("\u4e00" <= ch <= "\u9fff")  # CJK Unified Ideographs
-        or ("\u3400" <= ch <= "\u4dbf")  # CJK Extension A
-        for ch in text
-    )
-
-
-def _requires_non_cjk_output(target_locale: str) -> bool:
-    # For these locales, we expect mostly non-CJK script output.
-    non_cjk_locales = {"en", "fr", "es", "de", "it", "pt", "id", "vi", "th"}
-    base = (target_locale or "").split("-")[0].lower()
-    return base in non_cjk_locales
-
-
-def _google_translate_fallback(text: str, target_locale: str, source_locale: str) -> str:
-    try:
-        query = urllib.parse.quote(text, safe="")
-        sl = (source_locale or "zh-TW").lower()
-        tl = (target_locale or "en").lower()
-        url = (
-            "https://translate.googleapis.com/translate_a/single"
-            f"?client=gtx&sl={sl}&tl={tl}&dt=t&q={query}"
-        )
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-        chunks = payload[0] if isinstance(payload, list) and payload else []
-        translated = "".join(part[0] for part in chunks if isinstance(part, list) and part and part[0])
-        return translated.strip() or text
-    except Exception:
-        return text
-
-
-def _translate_texts_with_gemini(
-    texts: list[str],
-    target_locale: str,
-    source_locale: str,
-    context: str,
-) -> dict[str, str]:
-    if os.environ.get("EXHIBEAT_ENABLE_AI_TRANSLATION", "0") != "1":
-        return _translate_texts_naive(texts)
-
-    try:
-        import google.generativeai as genai
-        api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if not api_key:
-            return _translate_texts_naive(texts)
-
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"))
-        prompt = (
-            "Translate the following UI or event content for an international traveler.\n"
-            "Translate into natural target-language phrasing. Keep dates/URLs/prices/IDs unchanged.\n"
-            "For exhibition titles, translate descriptive words. Keep proper nouns as-is (or transliterate), but do not leave the entire title untouched unless it is already in the target language.\n"
-            "Return ONLY a JSON object whose keys are the exact source strings and values are translations.\n"
-            f"Source locale: {source_locale}\n"
-            f"Target locale: {target_locale}\n"
-            f"Context: {context[:300]}\n"
-            f"Texts: {json.dumps(texts, ensure_ascii=False)}"
-        )
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.I | _re.S).strip()
-        parsed = json.loads(raw)
-        if not isinstance(parsed, dict):
-            return _translate_texts_naive(texts)
-        translated = {text: str(parsed.get(text, text)) for text in texts}
-
-        force_non_cjk = _requires_non_cjk_output(target_locale)
-        unresolved = [
-            text
-            for text in texts
-            if (
-                (
-                    translated.get(text, text) == text
-                    and _contains_cjk(text)
-                    and not target_locale.lower().startswith("zh")
-                )
-                or (
-                    force_non_cjk
-                    and _contains_cjk(text)
-                    and _contains_cjk(translated.get(text, text))
-                )
-            )
-        ]
-        if unresolved:
-            for text in unresolved[:10]:
-                prompts = [
-                    (
-                        "Translate the following Traditional Chinese exhibition title into the target locale.\n"
-                        "Keep proper names if needed, but translate descriptive words naturally.\n"
-                        "Output translation only.\n"
-                        + (
-                            "IMPORTANT: Do not output Chinese/Japanese characters in the final result; use the target language script.\n"
-                            if force_non_cjk
-                            else ""
-                        )
-                        + f"Target locale: {target_locale}\n"
-                        + f"Source: {text}"
-                    ),
-                    (
-                        "Translate this title to the target locale in fluent wording.\n"
-                        "Return one line only.\n"
-                        + (
-                            "Use Latin alphabet only (ASCII letters, numbers, punctuation). Do NOT use Chinese/Japanese characters.\n"
-                            if force_non_cjk
-                            else ""
-                        )
-                        + f"Target locale: {target_locale}\n"
-                        + f"Title: {text}"
-                    ),
-                ]
-                for single_prompt in prompts:
-                    single_response = model.generate_content(single_prompt)
-                    candidate = single_response.text.strip()
-                    if candidate.startswith("```"):
-                        candidate = _re.sub(r"^```(?:text)?\s*|\s*```$", "", candidate, flags=_re.I | _re.S).strip()
-                    if not candidate or candidate == text:
-                        continue
-                    if force_non_cjk and _contains_cjk(candidate):
-                        continue
-                    translated[text] = candidate
-                    break
-                if force_non_cjk and _contains_cjk(translated.get(text, text)):
-                    translated[text] = _google_translate_fallback(
-                        text=text,
-                        target_locale=target_locale,
-                        source_locale=source_locale,
-                    )
-
-        return translated
-    except Exception as exc:
-        logger.warning("AI translation fallback used: %s", exc)
-        if _requires_non_cjk_output(target_locale):
-            return {
-                text: _google_translate_fallback(
-                    text=text,
-                    target_locale=target_locale,
-                    source_locale=source_locale,
-                )
-                for text in texts
-            }
-        return _translate_texts_naive(texts)
 
 # ─── Image Pool ──────────────────────────────────────────────────────────────
 PLACEHOLDER_IMAGES = [
@@ -849,70 +621,6 @@ async def get_collection_recommendations():
             for s in sidebar
         ],
     }
-
-
-@app.post("/api/i18n/translate", response_model=TranslationResponse)
-async def translate_dynamic_content(payload: TranslationRequest):
-    target_locale = payload.target_locale.strip()
-    source_locale = payload.source_locale.strip() or "zh-TW"
-    unique_texts = []
-    seen = set()
-    for raw in payload.texts:
-        text = " ".join(str(raw).split())
-        if not text or text in seen:
-            continue
-        seen.add(text)
-        unique_texts.append(text[:1200])
-
-    if not unique_texts or target_locale == source_locale:
-        return TranslationResponse(
-            target_locale=target_locale,
-            source_locale=source_locale,
-            translations={text: text for text in unique_texts},
-            backend="passthrough",
-        )
-
-    missing = []
-    translations: dict[str, str] = {}
-    for text in unique_texts:
-        offline = _lookup_offline_translation(text, target_locale)
-        if offline:
-            translations[text] = offline
-            continue
-        cache_key = _translation_cache_key(text, target_locale, source_locale)
-        cached = _translation_cache.get(cache_key)
-        if cached:
-            translations[text] = cached["translation"]
-        else:
-            missing.append(text)
-
-    backend = "cache"
-    if missing:
-        generated = _translate_texts_with_gemini(
-            missing,
-            target_locale=target_locale,
-            source_locale=source_locale,
-            context=payload.context,
-        )
-        backend = "gemini" if os.environ.get("EXHIBEAT_ENABLE_AI_TRANSLATION", "0") == "1" else "passthrough"
-        for text, translated in generated.items():
-            translations[text] = translated
-            # Avoid poisoning cache with unchanged CJK strings in non-Chinese targets.
-            if not (
-                translated == text
-                and _contains_cjk(text)
-                and not target_locale.lower().startswith("zh")
-            ):
-                _translation_cache[_translation_cache_key(text, target_locale, source_locale)] = {
-                    "translation": translated,
-                }
-
-    return TranslationResponse(
-        target_locale=target_locale,
-        source_locale=source_locale,
-        translations=translations,
-        backend=backend,
-    )
 
 
 @app.get("/api/legal-stays")
