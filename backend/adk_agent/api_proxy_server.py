@@ -683,9 +683,19 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
 
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
-async def get_home_recommendations():
-    exhibitions = get_recommendations_for_persona("taipei_after_work", 18)
-    return {"exhibitions": exhibitions}
+async def get_home_recommendations(
+    limit: int = Query(18, ge=1, le=120),
+    offset: int = Query(0, ge=0),
+):
+    requested = offset + limit
+    exhibitions = get_recommendations_for_persona("taipei_after_work", requested)
+    return {
+        "exhibitions": exhibitions[offset : offset + limit],
+        "offset": offset,
+        "limit": limit,
+        "total": len(exhibitions),
+        "hasMore": len(exhibitions) >= requested,
+    }
 
 
 @app.get("/api/tags")
