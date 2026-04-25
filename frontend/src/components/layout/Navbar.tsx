@@ -68,6 +68,7 @@ export function Navbar() {
         </Link>
         <div className="hidden md:flex gap-6">
           <Link to="/" className={linkClass("/")}>首頁</Link>
+          <Link to="/accommodations" className={linkClass("/accommodations")}>找住宿</Link>
           <Link to="/map" className={linkClass("/map")}>地圖探索</Link>
           <Link to="/agent" className={linkClass("/agent")}>AI 助手</Link>
         </div>
@@ -153,6 +154,7 @@ export function Navbar() {
                   </div>
                 </div>
                 <Link to="/map" className="block text-sm text-white/80 hover:text-white">前往地圖探索</Link>
+                <Link to="/accommodations" className="block text-sm text-white/80 hover:text-white">前往找住宿</Link>
                 <Link to="/agent" className="block text-sm text-white/80 hover:text-white">前往 AI 助手</Link>
               </div>
             </div>
@@ -249,6 +251,7 @@ export function Navbar() {
               </div>
               <div className="px-2 py-2">
                 <Link to="/" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">首頁</Link>
+                <Link to="/accommodations" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">找住宿</Link>
                 <Link to="/map" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">地圖探索</Link>
                 <Link to="/agent" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">AI 助手</Link>
                 <div className="my-2 border-t border-white/10" />
