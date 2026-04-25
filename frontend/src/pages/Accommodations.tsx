@@ -20,11 +20,32 @@ import {
   toggleStayFavorite,
 } from "@/lib/stayFavorites";
 
-const PAGE_SIZE = 36;
+const DEFAULT_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [12, 24, 36, 60];
+const API_PAGE_SIZE = 1000;
 const STAY_PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&auto=format&fit=crop&q=80",
+];
+
+type StayClassFilter = "all" | "hotel" | "bnb" | "tourist" | "international";
+type StayFeatureFilter = "all" | "image" | "website" | "budget";
+type PageToken = number | "...";
+
+const STAY_CLASS_FILTERS: Array<{ id: StayClassFilter; label: string; codes?: number[] }> = [
+  { id: "all", label: "全部類型" },
+  { id: "hotel", label: "旅館", codes: [3] },
+  { id: "bnb", label: "民宿", codes: [4] },
+  { id: "tourist", label: "觀光旅館", codes: [2] },
+  { id: "international", label: "國際觀光旅館", codes: [1] },
+];
+
+const STAY_FEATURE_FILTERS: Array<{ id: StayFeatureFilter; label: string }> = [
+  { id: "all", label: "全部條件" },
+  { id: "image", label: "有圖片" },
+  { id: "website", label: "有官網/連結" },
+  { id: "budget", label: "平價參考" },
 ];
 
 function getStayPlaceholderImage(stay: LegalStay): string {
@@ -69,6 +90,61 @@ function getStayExternalLinks(stay: LegalStay): Array<{ label: string; url: stri
   return links;
 }
 
+function matchesClassFilter(stay: LegalStay, filter: StayClassFilter): boolean {
+  if (filter === "all") return true;
+  const option = STAY_CLASS_FILTERS.find((item) => item.id === filter);
+  return option?.codes?.some((code) => stay.classCodes.includes(code)) ?? true;
+}
+
+function matchesFeatureFilter(stay: LegalStay, filter: StayFeatureFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "image") return Boolean(stay.primaryImageUrl || stay.images?.length);
+  if (filter === "website") {
+    return Boolean(
+      stay.urls.website ||
+      stay.urls.reservation.length ||
+      stay.urls.sameAs.length ||
+      stay.urls.socialMedia.length,
+    );
+  }
+  if (filter === "budget") {
+    const lowest = stay.priceRange.lowest;
+    return lowest > 0 && lowest <= 2500;
+  }
+  return true;
+}
+
+function buildPageTokens(totalPages: number, currentPage: number): PageToken[] {
+  if (totalPages <= 9) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+  const normalized = Array.from(pages).filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
+  const tokens: PageToken[] = [];
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const page = normalized[i];
+    const prev = normalized[i - 1];
+    if (prev && page - prev > 1) tokens.push("...");
+    tokens.push(page);
+  }
+  return tokens;
+}
+
+function parseInitialPage(searchParams: URLSearchParams): number {
+  const raw = Number(searchParams.get("page"));
+  if (!Number.isFinite(raw) || raw < 1) return 1;
+  return Math.trunc(raw);
+}
+
+function parseInitialPageSize(searchParams: URLSearchParams): number {
+  const raw = Number(searchParams.get("pageSize"));
+  if (!Number.isFinite(raw)) return DEFAULT_PAGE_SIZE;
+  const pageSize = Math.trunc(raw);
+  return PAGE_SIZE_OPTIONS.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE;
+}
+
 function matchesSearch(stay: LegalStay, term: string): boolean {
   if (!term.trim()) return true;
   const q = term.trim().toLowerCase();
@@ -98,14 +174,34 @@ export function Accommodations() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") ?? "");
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [favoriteStayIds, setFavoriteStayIds] = useState<Set<string>>(new Set());
+  const [selectedClass, setSelectedClass] = useState<StayClassFilter>("all");
+  const [selectedFeature, setSelectedFeature] = useState<StayFeatureFilter>("all");
+  const [selectedTown, setSelectedTown] = useState("all");
+  const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
+  const [pageSize, setPageSize] = useState(() => parseInitialPageSize(searchParams));
+  const [pageInput, setPageInput] = useState(() => String(parseInitialPage(searchParams)));
+  const [pageInputError, setPageInputError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listLegalStays({ city: "Taipei City", locale, lang: locale, limit: PAGE_SIZE, offset: 0 })
-      .then((result) => {
+    async function loadTaipeiStays() {
+      const first = await listLegalStays({ city: "Taipei City", locale, lang: locale, limit: API_PAGE_SIZE, offset: 0 });
+      let combined = first.stays;
+      let offset = first.stays.length;
+      while (offset < first.total && offset < 3000) {
+        const next = await listLegalStays({ city: "Taipei City", locale, lang: locale, limit: API_PAGE_SIZE, offset });
+        combined = [...combined, ...next.stays];
+        offset += next.stays.length;
+        if (next.stays.length === 0) break;
+      }
+      return combined;
+    }
+
+    loadTaipeiStays()
+      .then((loadedStays) => {
         if (cancelled) return;
-        setStays(result.stays);
+        setStays(loadedStays);
       })
       .catch((error) => {
         console.error("Failed to load stays", error);
@@ -126,13 +222,83 @@ export function Accommodations() {
     return () => window.removeEventListener(STAY_FAVORITES_CHANGE_EVENT, sync);
   }, []);
 
-  const visibleStays = useMemo(() => stays.filter((stay) => matchesSearch(stay, searchTerm)), [stays, searchTerm]);
+  const townOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    stays.forEach((stay) => {
+      const town = stay.address.town || "未分類";
+      counts.set(town, (counts.get(town) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "zh-Hant"))
+      .slice(0, 12)
+      .map(([town, count]) => ({ town, count }));
+  }, [stays]);
+
+  const visibleStays = useMemo(() => {
+    return stays.filter((stay) => {
+      const townMatches = selectedTown === "all" || stay.address.town === selectedTown;
+      return (
+        matchesSearch(stay, searchTerm) &&
+        matchesClassFilter(stay, selectedClass) &&
+        matchesFeatureFilter(stay, selectedFeature) &&
+        townMatches
+      );
+    });
+  }, [selectedClass, selectedFeature, selectedTown, stays, searchTerm]);
+  const totalPages = Math.max(1, Math.ceil(visibleStays.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const pagedStays = visibleStays.slice(startIndex, startIndex + pageSize);
+  const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
 
   useEffect(() => {
     if (expandedCardId && !visibleStays.some((s) => s.id === expandedCardId)) {
       setExpandedCardId(null);
     }
   }, [expandedCardId, visibleStays]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedClass, selectedFeature, selectedTown]);
+
+  useEffect(() => {
+    setPageInput(String(safeCurrentPage));
+    setPageInputError("");
+  }, [safeCurrentPage]);
+
+  const jumpToPage = () => {
+    if (!pageInput.trim()) {
+      setPageInputError("請輸入頁碼。");
+      return;
+    }
+    const parsed = Number(pageInput);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+      setPageInputError("頁碼必須是整數。");
+      return;
+    }
+    if (parsed < 1 || parsed > totalPages) {
+      setPageInputError(`頁碼需介於 1 到 ${totalPages}。`);
+      return;
+    }
+    const nextPage = parsed;
+    setCurrentPage(nextPage);
+    setPageInput(String(nextPage));
+    setPageInputError("");
+  };
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (searchTerm.trim()) next.set("q", searchTerm.trim());
+    else next.delete("q");
+    next.set("page", String(safeCurrentPage));
+    next.set("pageSize", String(pageSize));
+
+    const currentString = searchParams.toString();
+    const nextString = next.toString();
+    if (nextString !== currentString) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [pageSize, safeCurrentPage, searchParams, searchTerm, setSearchParams]);
   const handleOpenMapExplore = (stay: LegalStay) => {
     const backParams = new URLSearchParams();
     if (searchTerm.trim()) backParams.set("q", searchTerm.trim());
@@ -150,10 +316,6 @@ export function Accommodations() {
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    const next = new URLSearchParams(searchParams);
-    if (value.trim()) next.set("q", value);
-    else next.delete("q");
-    setSearchParams(next, { replace: true });
   };
 
   const handleToggleFavorite = (stayId: string) => {
@@ -171,7 +333,9 @@ export function Accommodations() {
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <header>
           <h1 className="text-4xl font-bold text-white">找住宿</h1>
-          <p className="mt-2 text-sm text-white/60">依關鍵字或地點搜尋住宿；點「詳細資訊」可展開下拉內容。</p>
+          <p className="mt-2 text-sm text-white/60">
+            依關鍵字、旅宿類型、行政區與資料完整度篩選住宿；點「詳細資訊」可展開下拉內容。
+          </p>
         </header>
 
         <div className="relative w-full md:max-w-lg">
@@ -185,6 +349,83 @@ export function Accommodations() {
           />
         </div>
 
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold text-white/50">旅宿類型</span>
+            {STAY_CLASS_FILTERS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedClass(option.id)}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${isV1 ? "rounded-md" : "rounded-full"} ${
+                  selectedClass === option.id
+                    ? "bg-[#00d6ff] text-[#042028]"
+                    : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold text-white/50">需求條件</span>
+            {STAY_FEATURE_FILTERS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedFeature(option.id)}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${isV1 ? "rounded-md" : "rounded-full"} ${
+                  selectedFeature === option.id
+                    ? "bg-purple-400 text-[#21102d]"
+                    : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {townOptions.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-xs font-semibold text-white/50">熱門行政區</span>
+              <button
+                type="button"
+                onClick={() => setSelectedTown("all")}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${isV1 ? "rounded-md" : "rounded-full"} ${
+                  selectedTown === "all"
+                    ? "bg-white text-[#171725]"
+                    : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                }`}
+              >
+                全部區域
+              </button>
+              {townOptions.map(({ town, count }) => (
+                <button
+                  key={town}
+                  type="button"
+                  onClick={() => setSelectedTown(town)}
+                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${isV1 ? "rounded-md" : "rounded-full"} ${
+                    selectedTown === town
+                      ? "bg-white text-[#171725]"
+                      : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                  }`}
+                >
+                  {town} <span className="opacity-60">{count}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <p className="text-xs text-white/45">
+            第 {safeCurrentPage} / {totalPages} 頁，
+            每頁 {pageSize} 筆，
+            本頁 {pagedStays.length} 筆，
+            共 {visibleStays.length} 筆符合條件住宿
+            {stays.length ? `（已載入資料庫 ${stays.length} 筆台北旅宿）` : ""}
+          </p>
+        </div>
+
         {loading ? (
           <div className="flex min-h-[260px] items-center justify-center gap-3 text-white/50">
             <Loader2 className="h-5 w-5 animate-spin" /> 載入住宿資料中…
@@ -195,7 +436,7 @@ export function Accommodations() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visibleStays.map((stay) => {
+            {pagedStays.map((stay) => {
               const expanded = expandedCardId === stay.id;
               const stayImageUrl = getStayImageUrl(stay);
               const placeholderImageUrl = getStayPlaceholderImage(stay);
@@ -307,6 +548,109 @@ export function Accommodations() {
             })}
           </div>
         )}
+        {!loading && visibleStays.length > 0 ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <label htmlFor="stay-page-size">每頁顯示</label>
+              <select
+                id="stay-page-size"
+                value={pageSize}
+                onChange={(event) => {
+                  const nextPageSize = Number(event.target.value) || DEFAULT_PAGE_SIZE;
+                  setPageSize(nextPageSize);
+                  setCurrentPage(1);
+                }}
+                className={`border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-lg"}`}
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size} 筆
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/8 text-white hover:bg-white/15 disabled:opacity-40`}
+              >
+                上一頁
+              </Button>
+              {pageTokens.map((token, index) => {
+                if (token === "...") {
+                  return (
+                    <span key={`ellipsis-${index}`} className="px-1 text-xs text-white/45">
+                      ...
+                    </span>
+                  );
+                }
+                const pageStart = (token - 1) * pageSize + 1;
+                const pageEnd = Math.min(token * pageSize, visibleStays.length);
+                const active = token === safeCurrentPage;
+                return (
+                  <button
+                    key={token}
+                    type="button"
+                    onClick={() => setCurrentPage(token)}
+                    className={`px-3 py-1.5 text-xs font-semibold transition-colors ${isV1 ? "rounded-md" : "rounded-full"} ${
+                      active
+                        ? "bg-[#00d6ff] text-[#042028]"
+                        : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                    }`}
+                    title={`第 ${token} 頁（${pageStart}-${pageEnd} 筆）`}
+                  >
+                    {token}
+                  </button>
+                );
+              })}
+              <Button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/8 text-white hover:bg-white/15 disabled:opacity-40`}
+              >
+                下一頁
+              </Button>
+            </div>
+
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-xs text-white/70">
+              <span>跳到第</span>
+              <input
+                value={pageInput}
+                onChange={(event) => {
+                  setPageInput(event.target.value.replace(/[^\d]/g, ""));
+                  if (pageInputError) setPageInputError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") jumpToPage();
+                }}
+                inputMode="numeric"
+                className={`w-16 border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-center text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-lg"}`}
+              />
+              <span>頁</span>
+              <Button
+                type="button"
+                onClick={jumpToPage}
+                className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/10 text-white hover:bg-white/15`}
+              >
+                前往
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/10 text-white hover:bg-white/15`}
+              >
+                最後一頁
+              </Button>
+            </div>
+            {pageInputError ? (
+              <p className="text-xs text-rose-300">{pageInputError}</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
