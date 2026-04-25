@@ -67,6 +67,7 @@ class Exhibition:
     is_free: bool
     price_text: str
     tags: tuple[str, ...]
+    source_tags: tuple[str, ...]
     venues: tuple[str, ...]
     features: tuple[str, ...]
     description: str
@@ -189,6 +190,13 @@ def build_exhibition(record: dict) -> Exhibition:
     start_date = parse_date(record["startDate"])
     end_date = parse_date(record["endDate"])
     tags = infer_tags(title, description)
+    raw_source_tags = record.get("tag", [])
+    if isinstance(raw_source_tags, list):
+        source_tags = tuple(str(t).strip() for t in raw_source_tags if str(t).strip())
+    elif isinstance(raw_source_tags, str) and raw_source_tags.strip():
+        source_tags = (raw_source_tags.strip(),)
+    else:
+        source_tags = ()
     venues = infer_venues(location_name, title, description)
     features = {
         f"city:{city}",
@@ -220,6 +228,7 @@ def build_exhibition(record: dict) -> Exhibition:
         is_free=is_free,
         price_text=price_text,
         tags=tags,
+        source_tags=source_tags,
         venues=venues,
         features=tuple(sorted(features)),
         description=description,
@@ -455,6 +464,7 @@ def run_fallback_demo(
                 "date_range": f"{event.start_date.isoformat()} -> {event.end_date.isoformat()}",
                 "score": round(float(heuristic_score(persona, event, reference_date)), 4),
                 "reasons": build_reasons(persona, event, reference_date),
+                "source_tags": list(event.source_tags),
                 "description": event.description,
                 "image_url": event.image_url,
                 "all_images": list(event.all_images),
@@ -583,6 +593,7 @@ def run_lightfm_demo(
                     "date_range": f"{event.start_date.isoformat()} -> {event.end_date.isoformat()}",
                     "score": round(float(blended_scores[int(position)]), 4),
                     "reasons": build_reasons(persona, event, reference_date),
+                    "source_tags": list(event.source_tags),
                     "description": event.description,
                     "image_url": event.image_url,
                     "all_images": list(event.all_images),

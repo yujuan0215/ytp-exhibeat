@@ -582,6 +582,13 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         else []
     )
 
+    source_tags = rec.get("source_tags", [])
+    if isinstance(source_tags, list):
+        normalized_source_tags = [str(tag).strip() for tag in source_tags if str(tag).strip()]
+    else:
+        normalized_source_tags = []
+    display_tags = normalized_source_tags if normalized_source_tags else rec.get("reasons", ["推薦活動"])[:2]
+
     return {
         "id":         uid,
         "title":      title,
@@ -589,7 +596,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         "dateStr":    date_range,
         "location":   f"{rec['location_name']} • {rec['city']}",
         "aiSummary":  ai_summary,
-        "tags":       rec.get("reasons", ["推薦活動"])[:2],
+        "tags":       display_tags,
         "imageUrl":   image_url,
         "isFavorite": False,
         "_meta": {
