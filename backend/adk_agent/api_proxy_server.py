@@ -1019,6 +1019,160 @@ def _inject_reply_language_hint(body_bytes: bytes) -> bytes:
 
     return body_bytes
 
+
+def _extract_latest_user_text_from_run_request(body_bytes: bytes) -> str:
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except Exception:
+        return ""
+    message = payload.get("newMessage") or payload.get("new_message") or {}
+    if not isinstance(message, dict):
+        return ""
+    parts = message.get("parts")
+    if not isinstance(parts, list):
+        return ""
+    texts = [str(part.get("text", "")).strip() for part in parts if isinstance(part, dict)]
+    return "\n".join(text for text in texts if text).strip()
+
+
+def _is_recommendation_intent(text: str) -> bool:
+    normalized = (text or "").lower()
+    if not normalized:
+        return False
+    keywords = (
+        "推薦",
+        "推荐",
+        "rec",
+        "recommend",
+        "suggest",
+        "展覽",
+        "展演",
+        "活動",
+        "event",
+        "exhibition",
+    )
+    return any(keyword in normalized for keyword in keywords) and any(
+        keyword in normalized for keyword in ("推薦", "推荐", "rec", "recommend", "suggest")
+    )
+
+
+def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
+    try:
+        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
+    except Exception:
+        return []
+    events: list[dict] = []
+    for rec in recs:
+        event_id = str(rec.get("id") or "").strip()
+        title = str(rec.get("title") or "").strip()
+        if not event_id or not title:
+            continue
+        reason = ""
+        tags = rec.get("tags")
+        if isinstance(tags, list):
+            reason = "、".join(str(tag).strip() for tag in tags if str(tag).strip())
+        events.append(
+            {
+                "id": event_id,
+                "title": title,
+                "dateStr": str(rec.get("dateStr") or "日期待確認"),
+                "location": str(rec.get("location") or "地點待確認"),
+                "imageUrl": str(rec.get("imageUrl") or ""),
+                "reason": reason,
+            }
+        )
+    return events
+
+
+def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
+    collected: list[dict] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            events = node.get("events")
+            if isinstance(events, list):
+                for raw in events:
+                    if not isinstance(raw, dict):
+                        continue
+                    event_id = str(raw.get("uid") or raw.get("id") or "").strip()
+                    title = str(raw.get("title") or "").strip()
+                    if not event_id or not title:
+                        continue
+                    start = str(raw.get("start_date") or "").strip()
+                    end = str(raw.get("end_date") or "").strip()
+                    date_str = str(raw.get("dateStr") or "").strip() or (
+                        f"{start} -> {end}" if start and end else (start or end or "日期待確認")
+                    )
+                    venue = str(raw.get("venue_name") or "").strip()
+                    address = str(raw.get("address") or "").strip()
+                    location = str(raw.get("location") or "").strip()
+                    location_text = location or " • ".join([part for part in [venue, address] if part]) or "地點待確認"
+                    image_url = str(raw.get("imageUrl") or raw.get("image_url") or "").strip()
+                    reasons = raw.get("recommendation_reasons") or raw.get("reasons") or []
+                    reason_text = ""
+                    if isinstance(reasons, list):
+                        reason_text = "、".join(str(r).strip() for r in reasons if str(r).strip())
+                    elif isinstance(reasons, str):
+                        reason_text = reasons.strip()
+                    collected.append(
+                        {
+                            "id": event_id,
+                            "title": title,
+                            "dateStr": date_str,
+                            "location": location_text,
+                            "imageUrl": image_url,
+                            "reason": reason_text,
+                        }
+                    )
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(obj)
+    return collected
+
+
+def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_user_text: str = "") -> bytes:
+    try:
+        payload = json.loads(run_response_bytes.decode("utf-8"))
+    except Exception:
+        return run_response_bytes
+    if not isinstance(payload, list) or not payload:
+        return run_response_bytes
+
+    # Keep first occurrence order and avoid duplicates by event ID.
+    merged: list[dict] = []
+    seen_ids: set[str] = set()
+    for event in _extract_recommendation_events_from_obj(payload):
+        event_id = event.get("id")
+        if not isinstance(event_id, str) or not event_id or event_id in seen_ids:
+            continue
+        seen_ids.add(event_id)
+        merged.append(event)
+        if len(merged) >= 12:
+            break
+
+    if not merged and _is_recommendation_intent(latest_user_text):
+        merged = _fallback_recommendation_events(limit=6)
+
+    if not merged:
+        return run_response_bytes
+
+    recommendation_payload = {
+        "title": "推薦活動",
+        "introText": "以下是你可以直接瀏覽的推薦展演",
+        "events": merged,
+    }
+
+    target = next((item for item in reversed(payload) if isinstance(item, dict)), None)
+    if not isinstance(target, dict):
+        return run_response_bytes
+
+    target["recommendation_carousel"] = recommendation_payload
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_adk(request: Request, path: str):
     import urllib.parse
@@ -1059,6 +1213,7 @@ async def proxy_adk(request: Request, path: str):
         # chat UI doesn't fail on recoverable backend hiccups.
         if path == "run" and request.method == "POST":
             body_bytes = _inject_reply_language_hint(await request.body())
+            latest_user_text = _extract_latest_user_text_from_run_request(body_bytes)
             attempts = 2
             response = None
             for idx in range(attempts):
@@ -1105,7 +1260,10 @@ async def proxy_adk(request: Request, path: str):
                 for k, v in response.headers.items()
                 if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
             }
-            return Response(content=response.content, status_code=response.status_code, headers=headers)
+            transformed = response.content
+            if response.status_code < 400:
+                transformed = _inject_recommendation_carousel_payload(response.content, latest_user_text=latest_user_text)
+            return Response(content=transformed, status_code=response.status_code, headers=headers)
 
         req = client.build_request(
             request.method,

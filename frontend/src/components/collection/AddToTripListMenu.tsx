@@ -16,16 +16,19 @@ import {
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { ActionToast } from "@/components/ActionToast";
 import { useTheme } from "@/lib/theme";
+import { useAuth } from "@/lib/auth";
 
 type Props =
-  | { kind: "event"; exhibition: Exhibition; currentListId?: string | null; align?: "start" | "end" }
-  | { kind: "stay"; stay: LegalStay; currentListId?: string | null; align?: "start" | "end" };
+  | { kind: "event"; exhibition: Exhibition; currentListId?: string | null; align?: "start" | "end"; requireAuth?: boolean }
+  | { kind: "stay"; stay: LegalStay; currentListId?: string | null; align?: "start" | "end"; requireAuth?: boolean };
 
 export function AddToTripListMenu(props: Props) {
+  const { user } = useAuth();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const align = props.align ?? "end";
   const currentListId = props.currentListId ?? null;
+  const requireAuth = props.requireAuth ?? false;
   const [lists, setLists] = useState(getTripLists());
   const [open, setOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -102,14 +105,22 @@ export function AddToTripListMenu(props: Props) {
   const handleCreateNew = () => {
     const suggested =
       props.kind === "event" ? `清單：${props.exhibition.title.slice(0, 12)}…` : `清單：${props.stay.name.slice(0, 12)}…`;
-    const name = window.prompt("新行程清單名稱", suggested);
-    if (name === null) return;
-    const list = createTripListWithFirstItem(name.trim() || "新行程清單", item);
+    let input: string | null = null;
+    try {
+      input = window.prompt("新行程清單名稱", suggested);
+    } catch {
+      input = suggested;
+    }
+    // Some environments block native prompt; fall back to suggested name.
+    const name = (input ?? suggested).trim() || suggested;
+    const list = createTripListWithFirstItem(name, item);
     setLists(getTripLists());
     setToastMessage(`已建立並加入「${list.name}」`);
     setShowToast(true);
     setOpen(false);
   };
+
+  if (requireAuth && !user) return null;
 
   const handleRemoveFromCurrent = () => {
     if (!currentListId) return;

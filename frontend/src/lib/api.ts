@@ -14,6 +14,7 @@ export type AgentRecommendationItem = {
   dateStr: string;
   location: string;
   imageUrl: string;
+  reason?: string;
 };
 
 export type AgentMessagePayload =
@@ -105,20 +106,25 @@ export const sendMessageToAgent = async (message: string) => {
 
   let reply = "Sorry, I couldn't process that.";
   let payload: AgentMessagePayload = { kind: "text", text: reply };
-  if (Array.isArray(data)) {
-    const finalEvent = data.slice().reverse().find(
+  const eventStream = Array.isArray(data) ? data : [data];
+  if (Array.isArray(eventStream) && eventStream.length > 0) {
+    const carouselEvent = eventStream.slice().reverse().find(
       (e) =>
         e?.recommendation_carousel ||
         e?.output?.recommendation_carousel ||
         e?.message?.recommendation_carousel ||
         e?.content?.recommendation_carousel ||
-        e?.data?.recommendation_carousel ||
+        e?.data?.recommendation_carousel,
+    );
+    const textEvent = eventStream.slice().reverse().find(
+      (e) =>
         e?.message?.text ||
         e?.output?.text ||
         e?.content?.text ||
         e?.content?.parts?.[0]?.text,
     );
-    if (finalEvent) {
+    const finalEvent = carouselEvent ?? textEvent;
+    if (finalEvent && typeof finalEvent === "object") {
       reply = finalEvent.message?.text || finalEvent.output?.text || finalEvent.content?.text || finalEvent.content?.parts?.[0]?.text || JSON.stringify(finalEvent);
       const structured =
         finalEvent?.recommendation_carousel ||
@@ -137,6 +143,7 @@ export const sendMessageToAgent = async (message: string) => {
               dateStr: String(event.dateStr ?? event.date ?? "日期待確認"),
               location: String(event.location ?? "地點待確認"),
               imageUrl: String(event.imageUrl ?? event.image_url ?? ""),
+              reason: typeof event.reason === "string" ? event.reason : undefined,
             };
           })
           .filter((event: AgentRecommendationItem | null): event is AgentRecommendationItem => Boolean(event));
