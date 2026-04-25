@@ -37,6 +37,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   const [lists, setLists] = useState<TripList[]>(() => getTripLists());
   const [batchHint, setBatchHint] = useState("");
   const returnTo = `${location.pathname}${location.search}`;
+  const hasStayCards = events.some((event) => event.itemType === "stay");
 
   useEffect(() => {
     const sync = () => setLists(getTripLists());
@@ -45,6 +46,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   }, []);
 
   const addAllToList = (listId: string) => {
+    if (hasStayCards) return;
     for (const ev of events) {
       addEventToTripList(listId, agentRecommendationToExhibition(ev));
     }
@@ -55,7 +57,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   };
 
   const createNewListWithAll = () => {
-    if (!user) return;
+    if (!user || hasStayCards) return;
     const suggested = `${title || "AI 推薦清單"} ${new Date().toLocaleDateString("zh-TW")}`;
     let input: string | null = null;
     try {
@@ -80,7 +82,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
           {title && <p className="text-sm font-semibold text-white">{title}</p>}
           {introText && <p className="mt-1 text-xs text-white/65">{introText}</p>}
         </div>
-        {user ? (
+        {user && !hasStayCards ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               type="button"
@@ -127,12 +129,14 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
             className="relative min-w-[235px] max-w-[235px] snap-start overflow-hidden rounded-xl border border-white/10 bg-[#101019]"
           >
             <div className="absolute right-2 top-2 z-10" onClick={(e) => e.preventDefault()}>
-              <AddToTripListMenu
-                kind="event"
-                exhibition={agentRecommendationToExhibition(event)}
-                align="end"
-                requireAuth={true}
-              />
+              {event.itemType !== "stay" ? (
+                <AddToTripListMenu
+                  kind="event"
+                  exhibition={agentRecommendationToExhibition(event)}
+                  align="end"
+                  requireAuth={true}
+                />
+              ) : null}
             </div>
             <img
               src={event.imageUrl || FALLBACK_IMAGE}
@@ -156,11 +160,19 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
                 </p>
               )}
               <Link
-                to={`/map?eventId=${encodeURIComponent(event.id)}&returnTo=${encodeURIComponent(returnTo)}`}
-                state={{ prefillEvent: agentRecommendationToExhibition(event) }}
+                to={
+                  event.itemType === "stay" && Number.isFinite(event.stayLat) && Number.isFinite(event.stayLng)
+                    ? `/map?stayId=${encodeURIComponent(event.id)}&stayLat=${encodeURIComponent(String(event.stayLat))}&stayLng=${encodeURIComponent(String(event.stayLng))}&stayName=${encodeURIComponent(event.title)}&stayAddress=${encodeURIComponent(event.stayAddress || event.location)}&returnTo=${encodeURIComponent(returnTo)}`
+                    : `/map?eventId=${encodeURIComponent(event.id)}&returnTo=${encodeURIComponent(returnTo)}`
+                }
+                state={
+                  event.itemType === "stay"
+                    ? undefined
+                    : { prefillEvent: agentRecommendationToExhibition(event) }
+                }
                 className="mt-1 block border-t border-white/10 pt-2 text-center text-xs font-semibold text-cyan-200 hover:text-cyan-100"
               >
-                在地圖中查看
+                {event.itemType === "stay" ? "在地圖中查看住宿" : "在地圖中查看"}
               </Link>
             </div>
           </article>

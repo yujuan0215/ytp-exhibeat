@@ -1111,6 +1111,16 @@ def _is_recommendation_intent(text: str) -> bool:
     )
 
 
+def _is_accommodation_intent(text: str) -> bool:
+    normalized = (text or "").lower()
+    if not normalized:
+        return False
+    return any(
+        keyword in normalized
+        for keyword in ("住宿", "旅宿", "飯店", "酒店", "hotel", "accommodation", "stay", "hostel")
+    )
+
+
 def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
     try:
         recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
@@ -1137,6 +1147,52 @@ def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
             }
         )
     return events
+
+
+def _fallback_accommodation_cards(limit: int = 6) -> list[dict]:
+    try:
+        stays = filter_legal_stays(service_status=1)
+    except Exception:
+        return []
+    cards: list[dict] = []
+    for stay in stays[: max(limit, 1)]:
+        if not isinstance(stay, dict):
+            continue
+        stay_id = str(stay.get("id") or "").strip()
+        name = str(stay.get("name") or "").strip()
+        if not stay_id or not name:
+            continue
+        address = stay.get("address") or {}
+        if isinstance(address, dict):
+            location = str(address.get("full") or "").strip()
+        else:
+            location = ""
+        location_obj = stay.get("location") or {}
+        if isinstance(location_obj, dict):
+            lat = location_obj.get("lat")
+            lng = location_obj.get("lng")
+        else:
+            lat = None
+            lng = None
+        class_labels = stay.get("classLabels") or []
+        reason = ""
+        if isinstance(class_labels, list):
+            reason = "、".join(str(label).strip() for label in class_labels if str(label).strip())
+        cards.append(
+            {
+                "id": stay_id,
+                "title": name,
+                "dateStr": "合法旅宿",
+                "location": location or "地址待確認",
+                "imageUrl": "",
+                "reason": reason,
+                "itemType": "stay",
+                "stayLat": lat,
+                "stayLng": lng,
+                "stayAddress": location,
+            }
+        )
+    return cards
 
 
 def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
@@ -1177,6 +1233,43 @@ def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
                             "location": location_text,
                             "imageUrl": image_url,
                             "reason": reason_text,
+                            "itemType": "event",
+                        }
+                    )
+            hotels = node.get("hotels")
+            if isinstance(hotels, list):
+                for raw in hotels:
+                    if not isinstance(raw, dict):
+                        continue
+                    stay_id = str(raw.get("id") or raw.get("uid") or "").strip()
+                    title = str(raw.get("name") or raw.get("title") or "").strip()
+                    if not stay_id or not title:
+                        continue
+                    location_text = str(raw.get("address") or raw.get("location") or "").strip() or "地址待確認"
+                    lat = raw.get("latitude")
+                    lng = raw.get("longitude")
+                    class_labels = raw.get("class_labels") or raw.get("classLabels") or []
+                    reason_text = ""
+                    if isinstance(class_labels, list):
+                        reason_text = "、".join(str(label).strip() for label in class_labels if str(label).strip())
+                    distance = raw.get("distance_km")
+                    if distance is not None:
+                        try:
+                            reason_text = f"距離展演約 {float(distance):.1f} 公里" + (f"｜{reason_text}" if reason_text else "")
+                        except Exception:
+                            pass
+                    collected.append(
+                        {
+                            "id": stay_id,
+                            "title": title,
+                            "dateStr": "合法旅宿",
+                            "location": location_text,
+                            "imageUrl": "",
+                            "reason": reason_text,
+                            "itemType": "stay",
+                            "stayLat": lat,
+                            "stayLng": lng,
+                            "stayAddress": location_text,
                         }
                     )
             for value in node.values():
@@ -1210,14 +1303,24 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
             break
 
     if not merged and _is_recommendation_intent(latest_user_text):
-        merged = _fallback_recommendation_events(limit=6)
+        merged = (
+            _fallback_accommodation_cards(limit=6)
+            if _is_accommodation_intent(latest_user_text)
+            else _fallback_recommendation_events(limit=6)
+        )
 
     if not merged:
         return run_response_bytes
 
+    carousel_title = "住宿推薦" if _is_accommodation_intent(latest_user_text) else "推薦活動"
+    carousel_intro = (
+        "以下是你可以直接查看的住宿選項"
+        if _is_accommodation_intent(latest_user_text)
+        else "以下是你可以直接瀏覽的推薦展演"
+    )
     recommendation_payload = {
-        "title": "推薦活動",
-        "introText": "以下是你可以直接瀏覽的推薦展演",
+        "title": carousel_title,
+        "introText": carousel_intro,
         "events": merged,
     }
 

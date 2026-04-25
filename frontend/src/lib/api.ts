@@ -15,6 +15,10 @@ export type AgentRecommendationItem = {
   location: string;
   imageUrl: string;
   reason?: string;
+  itemType?: "event" | "stay";
+  stayLat?: number;
+  stayLng?: number;
+  stayAddress?: string;
 };
 
 export type AgentMessagePayload =
@@ -144,6 +148,10 @@ export const sendMessageToAgent = async (message: string) => {
               location: String(event.location ?? "地點待確認"),
               imageUrl: String(event.imageUrl ?? event.image_url ?? ""),
               reason: typeof event.reason === "string" ? event.reason : undefined,
+              itemType: event.itemType === "stay" ? "stay" : "event",
+              stayLat: typeof event.stayLat === "number" ? event.stayLat : undefined,
+              stayLng: typeof event.stayLng === "number" ? event.stayLng : undefined,
+              stayAddress: typeof event.stayAddress === "string" ? event.stayAddress : undefined,
             };
           })
           .filter((event: AgentRecommendationItem | null): event is AgentRecommendationItem => Boolean(event));
