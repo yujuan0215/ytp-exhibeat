@@ -432,7 +432,6 @@ export function ExhibitionDetail() {
                       type="button"
                       className="shrink-0 whitespace-nowrap rounded px-1 py-0.5 text-left text-[13px] leading-snug text-[#8eb4d4] transition-colors hover:bg-[#2a3244] hover:text-[#a8d4f0] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8eb4d4]/60"
                     >
-                      <span className="text-white/35">#</span>
                       {tag}
                     </button>
                   ))}
