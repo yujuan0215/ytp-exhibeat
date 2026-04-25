@@ -16,6 +16,7 @@ from urllib.parse import quote_plus, urlparse
 
 import requests
 import urllib3
+import time as time_module
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 if str(PROJECT_ROOT) not in sys.path:
@@ -116,10 +117,56 @@ TAIPEI_DISTRICTS = (
     "文山區",
 )
 
+# 行政區中心座標快取表 (避免 Nominatim 429 封鎖)
+TAIPEI_DISTRICT_COORDS = {
+    "中正": (25.0324, 121.5190),
+    "大同": (25.0631, 121.5133),
+    "中山": (25.0685, 121.5333),
+    "松山": (25.0599, 121.5574),
+    "大安": (25.0263, 121.5434),
+    "萬華": (25.0287, 121.4997),
+    "信義": (25.0331, 121.5670),
+    "士林": (25.0922, 121.5245),
+    "北投": (25.1321, 121.5015),
+    "內湖": (25.0835, 121.5894),
+    "南港": (25.0559, 121.6171),
+    "文山": (24.9881, 121.5701),
+}
+
+# 🎭 熱門文化場館座標快取表 (避免外部 API 延遲與 429)
+TAIPEI_VENUE_COORDS = {
+    "華山": (25.0444, 121.5298),
+    "華山1914": (25.0444, 121.5298),
+    "松山文創": (25.0453, 121.5606),
+    "松山文創園區": (25.0453, 121.5606),
+    "北美館": (25.0720, 121.5247),
+    "臺北市立美術館": (25.0720, 121.5247),
+    "台北市立美術館": (25.0720, 121.5247),
+    "故宮專院": (25.1023, 121.5484),
+    "故宮博物院": (25.1023, 121.5484),
+    "國立故宮博物院": (25.1023, 121.5484),
+    "故宮": (25.1023, 121.5484),
+    "國父紀念館": (25.0402, 121.5601),
+    "中正紀念堂": (25.0349, 121.5214),
+    "台北表演藝術中心": (25.0815, 121.5215),
+    "臺北表演藝術中心": (25.0815, 121.5215),
+    "當代藝術館": (25.0521, 121.5130),
+    "MOCA": (25.0521, 121.5130),
+    "南海學園": (25.0270, 121.5115),
+    "台北植物園": (25.0276, 121.5097),
+    "西門紅樓": (25.0427, 121.5061),
+    "寶藏巖": (25.0113, 121.5333),
+    "牯嶺街": (25.0310, 121.5123),
+    "迪化街": (25.0596, 121.5082),
+    "大稻埕": (25.0596, 121.5082),
+    "關渡美術館": (25.1318, 121.5339),
+    "台北藝術大學": (25.1318, 121.5339),
+}
+
 DEFAULT_OPEN_TIME = time(10, 0)
 DEFAULT_CLOSE_TIME = time(18, 0)
 NOMINATIM_HEADERS = {
-    "User-Agent": "ExhiBeat-Hackathon-Prototype/1.0",
+    "User-Agent": "ExhiBeat-Hackathon-Prototype/2.0 (Google-DeepMind-Assistant)",
     "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
 }
 WEB_FETCH_HEADERS = {
@@ -131,13 +178,39 @@ CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parent.parent
 DATA_DIR = REPO_ROOT / ".adk"
 DB_PATH = DATA_DIR / "exhibeat.sqlite3"
-ARTEMPEROR_EXHIBITIONS_PATH = PROJECT_ROOT / "data" / "artemperor_exhibitions.json"
+EXHIBITIONS_MERGED_PATH = PROJECT_ROOT / "data" / "exhibitions_merged.json"
 VECTOR_CHUNKS_PATH = PROJECT_ROOT / "data" / "exhibitions_merged_chunks.json"
+LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
+
 _TDX_TOKEN_CACHE: dict[str, datetime | str | None] = {
     "access_token": None,
     "expires_at": None,
 }
 
+@lru_cache(maxsize=1)
+def _load_legal_stays() -> list[dict[str, Any]]:
+    if not LEGAL_STAYS_PATH.exists():
+        return []
+    try:
+        data = json.loads(LEGAL_STAYS_PATH.read_text(encoding="utf-8"))
+        return data.get("stays", [])
+    except Exception:
+        return []
+
+def _get_distance_to_event(hotel: dict[str, Any], event_coords: list[tuple[float, float]]) -> float:
+    hotel_loc = hotel.get("location") or {}
+    h_lat = _parse_float(hotel_loc.get("lat"))
+    h_lon = _parse_float(hotel_loc.get("lng"))
+    if h_lat is None or h_lon is None:
+        return 999.0
+    
+    # Return distance to the nearest event in the list
+    min_dist = 999.0
+    for e_lat, e_lon in event_coords:
+        dist = _haversine_km(h_lat, h_lon, e_lat, e_lon)
+        if dist < min_dist:
+            min_dist = dist
+    return min_dist
 
 def _request_json(url: str, params: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
     try:
@@ -163,11 +236,11 @@ def _request_json(url: str, params: dict[str, Any], headers: dict[str, str] | No
 
 
 @lru_cache(maxsize=1)
-def _load_local_artemperor_events() -> list[dict[str, Any]]:
-    if not ARTEMPEROR_EXHIBITIONS_PATH.exists():
+def _load_local_merged_events() -> list[dict[str, Any]]:
+    if not EXHIBITIONS_MERGED_PATH.exists():
         return []
     try:
-        payload = json.loads(ARTEMPEROR_EXHIBITIONS_PATH.read_text(encoding="utf-8"))
+        payload = json.loads(EXHIBITIONS_MERGED_PATH.read_text(encoding="utf-8"))
     except Exception:
         return []
     if not isinstance(payload, list):
@@ -176,19 +249,8 @@ def _load_local_artemperor_events() -> list[dict[str, Any]]:
 
 
 def _events_for_category(category_code: str) -> list[dict[str, Any]]:
-    remote_items = _fetch_events_by_category(category_code)
-    if category_code != "6":
-        return remote_items
-
-    merged: list[dict[str, Any]] = []
-    seen_uids: set[str] = set()
-    for event in [*remote_items, *_load_local_artemperor_events()]:
-        uid = str(event.get("UID") or "").strip()
-        if not uid or uid in seen_uids:
-            continue
-        seen_uids.add(uid)
-        merged.append(event)
-    return merged
+    all_events = _load_local_merged_events()
+    return [e for e in all_events if str(e.get("category", "")).strip() == category_code]
 
 
 def _tokenize_for_rag(value: str) -> set[str]:
@@ -202,6 +264,7 @@ def _tokenize_for_rag(value: str) -> set[str]:
 
 
 def _deterministic_embed(text: str, dimensions: int = 256) -> list[float]:
+    """產生 deterministic hash embedding（作為 API 失敗時的 fallback）。"""
     values: list[float] = []
     text = text or ""
     for i in range(dimensions):
@@ -210,6 +273,32 @@ def _deterministic_embed(text: str, dimensions: int = 256) -> list[float]:
         num = int.from_bytes(digest[:4], byteorder="big", signed=False)
         values.append((num / 2**31) - 1.0)
     return values
+
+
+_EMBED_MODEL = "text-multilingual-embedding-002"
+
+
+def _gemini_embed(text: str) -> list[float]:
+    """
+    使用 Vertex AI text-multilingual-embedding-002 產生真正的語意 Embedding (768 維)。
+    失敗時 fallback 到 _deterministic_embed，確保系統不崩潰。
+    """
+    if not text:
+        return _deterministic_embed("", 768)
+    try:
+        import os as _os
+        _os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "1")
+        _os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "adept-region-493401-t5")
+        _os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "us-central1")
+        from google import genai as _genai
+        _client = _genai.Client()
+        resp = _client.models.embed_content(
+            model=_EMBED_MODEL,
+            contents=[text[:800]],
+        )
+        return list(resp.embeddings[0].values)
+    except Exception:
+        return _deterministic_embed(text, 768)
 
 
 @lru_cache(maxsize=1)
@@ -249,7 +338,8 @@ def _rag_supporting_snippets_vector(query: str, event_title: str, top_k: int = 2
     chunks = _load_vector_chunks()
     if not chunks:
         return []
-    query_vec = _deterministic_embed(f"{query} {event_title}")
+    # 使用真正的 Gemini Embedding 產生查詢向量（768 維語意空間）
+    query_vec = _gemini_embed(f"{query} {event_title}")
     scored: list[tuple[float, str]] = []
     for chunk in chunks:
         emb = chunk.get("embedding", [])
@@ -288,7 +378,7 @@ def _rag_supporting_snippets(query: str, event_title: str, event_description: st
         return []
 
     ranked: list[tuple[int, str]] = []
-    for item in _load_local_artemperor_events():
+    for item in _load_local_merged_events():
         title = _strip_html(str(item.get("title") or ""))
         description = _strip_html(str(item.get("descriptionFilterHtml") or ""))
         if not description:
@@ -644,25 +734,75 @@ def _directions_link(
     return f"https://www.google.com/maps/dir/?api=1&destination={quote_plus(dest_address)}&travelmode=transit"
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=1024)
 def _geocode_address(query: str) -> tuple[float | None, float | None]:
     if not query:
         return (None, None)
-    data = _request_json(
-        NOMINATIM_SEARCH_URL,
-        {
-            "q": query,
-            "format": "jsonv2",
-            "limit": 1,
-            "countrycodes": "tw",
-            "addressdetails": 1,
-        },
-        headers=NOMINATIM_HEADERS,
-    )
-    if not data:
-        return (None, None)
-    first = data[0]
-    return (_parse_float(first.get("lat")), _parse_float(first.get("lon")))
+        
+    # Clean up the query string to improve Nominatim success rate
+    # 1. Remove Taiwan postal codes (e.g. "104", "10491") at the beginning
+    clean_q = re.sub(r'^\d{3,5}\s*', '', query)
+    # 2. Extract address inside parentheses if it exists, otherwise remove parentheses content
+    # e.g. "臺北市立美術館（臺北市中山區中山北路三段181號）" -> "臺北市中山區中山北路三段181號"
+    match = re.search(r'[（(](.+?[路街巷弄號].*?)[)）]', clean_q)
+    if match:
+        clean_q = match.group(1)
+    else:
+        clean_q = re.sub(r'[（(].*?[)）]', '', clean_q)
+    # 3. Remove floor/room modifiers like "1F", "2樓", "B1" which confuse Nominatim
+    clean_q = re.sub(r'\d+[Ff]|B\d+|\d+樓室?|-\d+號|之\d+.*$', '', clean_q)
+    # 4. Remove common venue suffixes that aren't part of the street address if it ends with "號"
+    if "號" in clean_q:
+        clean_q = re.sub(r'號.*$', '號', clean_q)
+        
+    clean_q = clean_q.strip()
+    if not clean_q:
+        clean_q = query.strip() # fallback
+    
+    # 優先從本地快取表查找 (中山、大安、大同等行政區)
+    normalized_q = clean_q.replace("台北市", "").replace("臺北市", "").replace("區", "").strip()
+    if normalized_q in TAIPEI_DISTRICT_COORDS:
+        return TAIPEI_DISTRICT_COORDS[normalized_q]
+
+    # 2. 查場館名稱快取 (華山、松山文創、北美館等)
+    for venue_key, coords in TAIPEI_VENUE_COORDS.items():
+        if venue_key in query or venue_key in clean_q:
+            return coords
+    
+    # 遵守 Nominatim 使用政策：限制頻率並增加延遲
+    time_module.sleep(1.0) 
+
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            data = _request_json(
+                NOMINATIM_SEARCH_URL,
+                {
+                    "q": clean_q,
+                    "format": "jsonv2",
+                    "limit": 1,
+                    "countrycodes": "tw",
+                    "addressdetails": 1,
+                },
+                headers=NOMINATIM_HEADERS,
+            )
+            if not data:
+                return (None, None)
+            first = data[0]
+            return (_parse_float(first.get("lat")), _parse_float(first.get("lon")))
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                if attempt < max_retries:
+                    # 遇到 429 時等待更久後重試
+                    time_module.sleep(2.0 * (attempt + 1))
+                    continue
+                # 超過重試次數：靜默回傳 (None, None)，由呼叫端的行政區 fallback 接手
+                # 絕對不 raise，避免讓整個工具鏈崩潰
+                return (None, None)
+            return (None, None)  # 其他 HTTP 錯誤也不 raise
+        except Exception:
+            return (None, None)
+    return (None, None)
 
 
 def _get_db_connection() -> sqlite3.Connection:
@@ -727,9 +867,10 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS user_favorites (
             user_id TEXT NOT NULL,
-            event_uid TEXT NOT NULL,
+            item_type TEXT NOT NULL DEFAULT 'event',
+            item_id TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            PRIMARY KEY(user_id, event_uid)
+            PRIMARY KEY(user_id, item_type, item_id)
         );
 
         CREATE TABLE IF NOT EXISTS event_comments (
@@ -1024,6 +1165,11 @@ def _score_row(row: sqlite3.Row, query: str, district: str, target_date: date | 
         score += 2
     if row["latitude"] is not None and row["longitude"] is not None:
         score += 3
+    
+    # 📉 排名微調：降權「畢業展」，提升一般大眾興趣活動的曝光度
+    if "畢業展" in (row["title"] or ""):
+        score -= 20
+        
     return score
 
 
@@ -1185,17 +1331,33 @@ def _find_occurrence_rows(event_uid: str) -> list[sqlite3.Row]:
 def _ensure_event_exists(event_uid: str) -> None:
     if _find_event_row(event_uid):
         return
-    _ensure_categories_synced(list(CATEGORY_CODE_TO_LABEL.keys()), force=True)
+    # Temporarily disabled full force-sync on missing events because the culture API is unstable
+    # and throws JSONDecodeError. It's better to just act like the event is missing than to crash.
+    try:
+        _ensure_categories_synced(["6"], force=False) # Try a soft sync of exhibitions first
+    except Exception:
+        pass
 
 
 def _ensure_occurrence_coords(row: sqlite3.Row) -> tuple[float | None, float | None]:
     if row["latitude"] is not None and row["longitude"] is not None:
         return (row["latitude"], row["longitude"])
 
-    query = " ".join(part for part in [row["venue_name"] or "", row["address"] or ""] if part)
-    lat, lon = _geocode_address(query)
-    if lat is None or lon is None:
-        lat, lon = _geocode_address(row["address"] or "")
+    # 嘗試用地址 geocode
+    try:
+        query = " ".join(part for part in [row["venue_name"] or "", row["address"] or ""] if part)
+        lat, lon = _geocode_address(query)
+        if lat is None or lon is None:
+            lat, lon = _geocode_address(row["address"] or "")
+    except Exception:
+        lat, lon = None, None
+
+    # 若 geocode 失敗，改用行政區中心座標作為 fallback
+    if (lat is None or lon is None) and row["district"]:
+        district_key = (row["district"] or "").replace("臺北市", "").replace("台北市", "").replace("區", "").strip()
+        if district_key in TAIPEI_DISTRICT_COORDS:
+            lat, lon = TAIPEI_DISTRICT_COORDS[district_key]
+
     if lat is None or lon is None:
         return (None, None)
 
@@ -2056,3 +2218,272 @@ def plan_itinerary(
         "count": len(selected),
         "itinerary": selected,
     }
+
+def recommend_hotels(
+    event_ids: list[str],
+    budget_level: str = None,
+    limit: int = 5,
+    prefer_mrt: bool = True
+) -> dict[str, Any]:
+    """
+    根據已選定或感興趣的展演活動，推薦鄰近的合法旅宿。
+    
+    此工具只會從政府公開的合法旅宿白名單中挑選，確保住宿安全。
+    """
+    stays = _load_legal_stays()
+    if not stays:
+        return {"error": "目前系統中查無合法旅宿資料。", "count": 0, "hotels": []}
+
+    # 1. 取得所有指定活動的座標
+    event_coords = []
+    event_details = []
+    for uid in event_ids:
+        _ensure_event_exists(uid)
+        rows = _find_occurrence_rows(uid)
+        if rows:
+            row = rows[0]
+            lat, lon = _ensure_occurrence_coords(row)
+            if lat is not None and lon is not None:
+                event_coords.append((lat, lon))
+                event_details.append({"uid": uid, "title": row["title"], "venue": row["venue_name"]})
+
+    if not event_coords:
+        return {"error": "無法取得選定活動的座標，無法進行精確推薦。", "count": 0, "hotels": []}
+
+    # 2. 計算每個合法旅宿到展演點的距離
+    # 這裡我們只推薦在台北市境內的住宿 (簡單判斷)
+    taipei_stays = [
+        s for s in stays 
+        if "Taipei" in (s.get("address") or {}).get("city", "") or "台北" in (s.get("address") or {}).get("full", "")
+    ]
+    
+    if not taipei_stays:
+        # 如果沒過濾到台北，就用全部資料前 1000 筆來算 (demo 穩定)
+        taipei_stays = stays[:2000]
+
+    scored_stays = []
+    for hotel in taipei_stays:
+        dist = _get_distance_to_event(hotel, event_coords)
+        if dist > 10.0: # 太遠的就不推
+            continue
+        
+        # 簡單計算一個分數
+        score = 100 - (dist * 10)
+        if prefer_mrt:
+            # 這裡暫時沒有捷運資料欄位，先以距離展演點近為主
+            pass
+            
+        scored_stays.append((score, hotel, dist))
+
+    scored_stays.sort(key=lambda x: -x[0])
+    
+    results = []
+    for score, h, dist in scored_stays[:limit]:
+        results.append({
+            "id": h.get("id"),
+            "name": h.get("name"),
+            "license_number": h.get("licenseNumber"),
+            "address": (h.get("address") or {}).get("full"),
+            "district": (h.get("address") or {}).get("town"),
+            "description": h.get("description"),
+            "class_labels": h.get("classLabels"),
+            "distance_km": round(dist, 2),
+            "latitude": (h.get("location") or {}).get("lat"),
+            "longitude": (h.get("location") or {}).get("lng"),
+            "is_legal": True, # 來自白名單，保證合法
+            "map_url": _maps_link(h.get("name"), (h.get("location") or {}).get("lat"), (h.get("location") or {}).get("lng"))
+        })
+
+    return {
+        "source": "交通部觀光署合法旅宿白名單",
+        "anchors": event_details,
+        "count": len(results),
+        "hotels": results,
+        "note": "以上推薦皆收錄於政府合法旅宿資料庫，請安心選擇。"
+    }
+
+
+def check_hotel_legality(name: str, address: str = "") -> dict[str, Any]:
+    """
+    查核特定旅宿是否在政府的合法旅宿白名單中。
+    """
+    stays = _load_legal_stays()
+    name_clean = name.strip().lower()
+    addr_clean = address.strip().lower() if address else ""
+    
+    match = None
+    for h in stays:
+        h_name = h.get("name", "").lower()
+        h_addr = (h.get("address") or {}).get("full", "").lower()
+        if name_clean in h_name or (h_name and h_name in name_clean):
+            match = h
+            break
+        if addr_clean and (addr_clean in h_addr or h_addr in addr_clean):
+            match = h
+            break
+            
+    if match:
+        return {
+            "is_legal": True,
+            "name": match.get("name"),
+            "license_number": match.get("licenseNumber"),
+            "address": (match.get("address") or {}).get("full"),
+            "message": f"驗證通過：此旅宿為合法登記旅宿 (編號: {match.get('licenseNumber')})。"
+        }
+    else:
+        return {
+            "is_legal": False,
+            "message": "目前未在合法旅宿白名單中查得此資料，建議優先考慮其他政府核案的安心旅宿。",
+            "suggestion": "為了住宿安全，建議考慮我們為你準備的鄰近合法替代住宿。"
+        }
+
+
+def add_to_favorites(item_id: str, item_type: str = "event", user_id: str = "local-user") -> dict[str, Any]:
+    """
+    將展演活動或旅宿加入使用者的收藏清單。
+    
+    item_type 可為 'event' 或 'hotel'。
+    """
+    conn = _get_db_connection()
+    _ensure_schema(conn)
+    fetched_at = datetime.utcnow().isoformat()
+    
+    try:
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO user_favorites(user_id, item_type, item_id, created_at) VALUES (?, ?, ?, ?)",
+                (user_id, item_type, item_id, fetched_at)
+            )
+        return {"status": "success", "message": f"已成功將 {item_type} 收藏。", "item_id": item_id}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+
+def get_favorites(user_id: str = "local-user") -> dict[str, Any]:
+    """
+    讀取使用者目前的收藏清單，包含展演與旅宿。
+    """
+    conn = _get_db_connection()
+    _ensure_schema(conn)
+    
+    favs = conn.execute("SELECT * FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC", (user_id,)).fetchall()
+    conn.close()
+    
+    events = []
+    hotels = []
+    
+    # 用於查詢詳情
+    for f in favs:
+        i_type = f["item_type"]
+        i_id = f["item_id"]
+        
+        if i_type == "event":
+            # 取得活動詳情
+            _ensure_event_exists(i_id)
+            rows = _find_occurrence_rows(i_id)
+            if rows:
+                row = rows[0]
+                events.append({
+                    "uid": row["event_uid"],
+                    "title": row["title"],
+                    "venue": row["venue_name"],
+                    "start_date": row["start_date"],
+                    "address": row["address"],
+                    "latitude": row["latitude"],
+                    "longitude": row["longitude"]
+                })
+        elif i_type == "hotel":
+            # 從合法清單查找
+            stays = _load_legal_stays()
+            for h in stays:
+                if h.get("id") == i_id:
+                    hotels.append({
+                        "id": h.get("id"),
+                        "name": h.get("name"),
+                        "address": (h.get("address") or {}).get("full")
+                    })
+                    break
+                    
+    return {
+        "user_id": user_id,
+        "count_events": len(events),
+        "count_hotels": len(hotels),
+        "events": events,
+        "hotels": hotels
+    }
+
+
+def generate_itinerary(user_id: str = "local-user", date: str = "") -> dict[str, Any]:
+    """
+    根據使用者收藏的內容，生成一個完整的時間軸行程規劃。
+    """
+    fav_data = get_favorites(user_id)
+    events = fav_data["events"]
+    hotels = fav_data["hotels"]
+    
+    if not events:
+        return {"error": "你的收藏中目前沒有展演活動，無法生成行程。建議先收藏感興趣的展覽！"}
+
+    target_date = _parse_date(date) if date else _today()
+    
+    # 1. 依時間排序活動
+    # 這裡假設活動都在同一天，或者我們只取日期相符的
+    # 實際上簡化處理：取所有收藏的活動依開始時間排
+    scored_events = []
+    for ev in events:
+        rows = _find_occurrence_rows(ev["uid"])
+        if rows:
+            row = rows[0]
+            start_dt, end_dt = _time_window_from_row(row, target_date)
+            scored_events.append((start_dt, end_dt, row))
+            
+    scored_events.sort(key=lambda x: x[0])
+    
+    itinerary = []
+    current_time = scored_events[0][0] if scored_events else None
+    
+    for start_dt, end_dt, row in scored_events:
+        # 計算前一站到這一站的交通 (簡化，目前假設從上一站來)
+        # TODO: 可以加入交通緩衝
+        itinerary.append({
+            "type": "event",
+            "time_range": f"{start_dt.strftime('%H:%M')} - {end_dt.strftime('%H:%M')}",
+            "title": row["title"],
+            "venue": row["venue_name"],
+            "address": row["address"],
+            "map_url": row["map_url"]
+        })
+        
+    # 2. 如果有住宿，把它加到行程最後作為結束點
+    if hotels:
+        h = hotels[0] # 取第一個收藏的住宿
+        itinerary.append({
+            "type": "hotel",
+            "time_range": "21:30~",
+            "title": h["name"],
+            "address": h["address"],
+            "note": "行程結束，回到安心旅宿休息。"
+        })
+    else:
+        # 如果沒收藏住宿，推薦一個最近的
+        recommend = recommend_hotels([e["uid"] for e in events], limit=1)
+        if recommend.get("hotels"):
+            bh = recommend["hotels"][0]
+            itinerary.append({
+                "type": "hotel_recommend",
+                "time_range": "21:30~",
+                "title": bh["name"],
+                "address": bh["address"],
+                "note": "建議選擇鄰近合法旅宿休息。",
+                "id": bh["id"]
+            })
+
+    return {
+        "user_id": user_id,
+        "date": target_date.isoformat(),
+        "summary": f"為你規劃了這一天包含 {len(events)} 個展演點的探索行程。",
+        "timeline": itinerary
+    }
+
