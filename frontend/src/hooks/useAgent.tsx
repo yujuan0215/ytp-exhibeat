@@ -20,8 +20,7 @@ export function useAgent() {
     
     try {
       const result = await sendMessageToAgent(text);
-      // Fallback check depending on exactly how your ADK returns data
-      const replyText = result.reply || result.response || result.message || JSON.stringify(result);
+      const replyText = result.reply || JSON.stringify(result);
       setMessages(prev => [...prev, { role: 'agent', text: replyText }]);
     } catch (e: any) {
       console.error(e);

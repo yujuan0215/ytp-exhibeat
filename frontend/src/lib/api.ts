@@ -126,6 +126,111 @@ export const getMoreCollectionRecommendations = async () => {
   return data.recommendations as { id: string; title: string; tag: string; location: string; imageUrl: string }[];
 };
 
+// ─── Legal Stays Dataset ─────────────────────────────────────────────────────
+export interface LegalStay {
+  id: string;
+  licenseNumber: string;
+  name: string;
+  alternateNames: string[];
+  description: string;
+  operatorName: string;
+  address: {
+    city: string;
+    cityCode: string;
+    town: string;
+    townCode: string;
+    zipCode: string;
+    street: string;
+    full: string;
+  };
+  location: { lat: number; lng: number };
+  classCodes: number[];
+  classLabels: string[];
+  starRating: number;
+  taiwanHost: number;
+  serviceStatus: number;
+  serviceStatusLabel: string;
+  phones: string[];
+  urls: {
+    website: string;
+    reservation: string[];
+    map: string[];
+    sameAs: string[];
+    socialMedia: string[];
+  };
+  facilities: string[];
+  paymentMethods: string[];
+  parkingInfo: string;
+  roomInfo: string;
+  serviceInfo: string;
+  totalRooms: number;
+  totalCapacity: number;
+  priceRange: { lowest: number; ceiling: number };
+  accessibility: {
+    accessibleRooms: number;
+    toilets: number;
+    liftingEquipments: number;
+    parkingSpaces: number;
+  };
+  remarks: string;
+  updateTime: string;
+  source: string;
+  searchText: string;
+}
+
+export interface LegalStaysResponse {
+  metadata: Record<string, unknown>;
+  total: number;
+  offset: number;
+  limit: number;
+  stays: LegalStay[];
+}
+
+export interface LegalStaysGeoJson {
+  type: "FeatureCollection";
+  metadata?: Record<string, unknown>;
+  features: Array<{
+    type: "Feature";
+    id: string;
+    geometry: { type: "Point"; coordinates: [number, number] };
+    properties: Record<string, unknown>;
+  }>;
+}
+
+export const listLegalStays = async (params: {
+  q?: string;
+  city?: string;
+  town?: string;
+  class?: string;
+  service_status?: number;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<LegalStaysResponse> => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  });
+  const response = await fetch(`/api/legal-stays${search.size ? `?${search}` : ""}`);
+  return handleJson<LegalStaysResponse>(response, "Failed to load legal stays");
+};
+
+export const getLegalStaysGeoJson = async (params: {
+  q?: string;
+  city?: string;
+  town?: string;
+  class?: string;
+  service_status?: number;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<LegalStaysGeoJson> => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  });
+  const response = await fetch(`/api/legal-stays/geojson${search.size ? `?${search}` : ""}`);
+  return handleJson<LegalStaysGeoJson>(response, "Failed to load legal stays GeoJSON");
+};
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export interface AuthUser {
   id: string;

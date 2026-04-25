@@ -8,7 +8,7 @@ import sys
 import uuid
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import Response, StreamingResponse
 import httpx
 import uvicorn
@@ -68,6 +68,7 @@ def discover_exhibitions_path() -> Path:
 
 
 EXHIBITIONS_PATH = discover_exhibitions_path()
+LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
 logger.info(f"Project Root: {PROJECT_ROOT}")
 logger.info(f"Exhibitions Path: {EXHIBITIONS_PATH}")
 
@@ -77,6 +78,53 @@ if not EXHIBITIONS_PATH.exists():
 
 app = FastAPI(title="ExhiBeat Recommender & Proxy API")
 ensure_database_ready()
+
+_legal_stays_cache: dict | None = None
+
+
+def load_legal_stays_dataset() -> dict:
+    global _legal_stays_cache
+    if _legal_stays_cache is not None:
+        return _legal_stays_cache
+    if not LEGAL_STAYS_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Legal stays dataset is not generated. Run scripts/prepare_legal_stays_dataset.py first.",
+        )
+    _legal_stays_cache = json.loads(LEGAL_STAYS_PATH.read_text(encoding="utf-8"))
+    return _legal_stays_cache
+
+
+def filter_legal_stays(
+    *,
+    q: str = "",
+    city: str = "",
+    town: str = "",
+    class_label: str = "",
+    service_status: int | None = 1,
+) -> list[dict]:
+    payload = load_legal_stays_dataset()
+    stays = payload.get("stays", [])
+    q_norm = q.strip().lower()
+    city_norm = city.strip().lower()
+    town_norm = town.strip().lower()
+    class_norm = class_label.strip().lower()
+
+    filtered = []
+    for stay in stays:
+        address = stay.get("address", {})
+        if service_status is not None and stay.get("serviceStatus") != service_status:
+            continue
+        if city_norm and city_norm not in str(address.get("city", "")).lower():
+            continue
+        if town_norm and town_norm not in str(address.get("town", "")).lower():
+            continue
+        if class_norm and not any(class_norm in str(label).lower() for label in stay.get("classLabels", [])):
+            continue
+        if q_norm and q_norm not in str(stay.get("searchText", "")).lower():
+            continue
+        filtered.append(stay)
+    return filtered
 
 # ─── Image Pool ──────────────────────────────────────────────────────────────
 PLACEHOLDER_IMAGES = [
@@ -282,6 +330,90 @@ async def get_collection_recommendations():
             {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
              "location": s["location"], "imageUrl": s["imageUrl"]}
             for s in sidebar
+        ],
+    }
+
+
+@app.get("/api/legal-stays")
+async def list_legal_stays(
+    q: str = "",
+    city: str = "",
+    town: str = "",
+    class_label: str = Query("", alias="class"),
+    service_status: int = Query(1, ge=0, le=3),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    dataset = load_legal_stays_dataset()
+    filtered = filter_legal_stays(
+        q=q,
+        city=city,
+        town=town,
+        class_label=class_label,
+        service_status=None if service_status == 0 else service_status,
+    )
+    return {
+        "metadata": dataset.get("metadata", {}),
+        "total": len(filtered),
+        "offset": offset,
+        "limit": limit,
+        "stays": filtered[offset : offset + limit],
+    }
+
+
+@app.get("/api/legal-stays/geojson")
+async def list_legal_stays_geojson(
+    q: str = "",
+    city: str = "",
+    town: str = "",
+    class_label: str = Query("", alias="class"),
+    service_status: int = Query(1, ge=0, le=3),
+    limit: int = Query(1000, ge=1, le=5000),
+    offset: int = Query(0, ge=0),
+):
+    dataset = load_legal_stays_dataset()
+    filtered_all = filter_legal_stays(
+        q=q,
+        city=city,
+        town=town,
+        class_label=class_label,
+        service_status=None if service_status == 0 else service_status,
+    )
+    filtered = filtered_all[offset : offset + limit]
+    return {
+        "type": "FeatureCollection",
+        "metadata": {
+            **dataset.get("metadata", {}),
+            "total": len(filtered_all),
+            "offset": offset,
+            "limit": limit,
+        },
+        "features": [
+            {
+                "type": "Feature",
+                "id": stay["id"],
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [stay["location"]["lng"], stay["location"]["lat"]],
+                },
+                "properties": {
+                    "id": stay["id"],
+                    "licenseNumber": stay["licenseNumber"],
+                    "name": stay["name"],
+                    "classLabels": stay["classLabels"],
+                    "serviceStatus": stay["serviceStatus"],
+                    "serviceStatusLabel": stay["serviceStatusLabel"],
+                    "city": stay["address"]["city"],
+                    "town": stay["address"]["town"],
+                    "address": stay["address"]["full"],
+                    "lowestPrice": stay["priceRange"]["lowest"],
+                    "ceilingPrice": stay["priceRange"]["ceiling"],
+                    "totalRooms": stay["totalRooms"],
+                    "website": stay["urls"]["website"],
+                    "updateTime": stay["updateTime"],
+                },
+            }
+            for stay in filtered
         ],
     }
 

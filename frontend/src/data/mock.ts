@@ -14,6 +14,8 @@ export interface Exhibition {
     editModifyDate: string;
     score: number;
     allImages?: string[];
+    latitude?: number;
+    longitude?: number;
   };
 }
 
