@@ -1,8 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookmarkPlus, MapPin, CalendarDays } from "lucide-react";
+import { ListPlus, MapPin, CalendarDays } from "lucide-react";
 import type { AgentRecommendationItem } from "@/lib/api";
-import { saveRecommendationList } from "@/lib/recommendationLists";
+import {
+  addEventToTripList,
+  agentRecommendationToExhibition,
+  createTripList,
+  getTripLists,
+  TRIP_LISTS_CHANGE_EVENT,
+  type TripList,
+} from "@/lib/tripLists";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type RecommendationCarouselProps = {
   title?: string;
@@ -14,14 +30,36 @@ const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&auto=format&fit=crop&q=80";
 
 export function RecommendationCarousel({ title, introText, events }: RecommendationCarouselProps) {
-  const [savedName, setSavedName] = useState("");
+  const [lists, setLists] = useState<TripList[]>(() => getTripLists());
+  const [batchHint, setBatchHint] = useState("");
 
-  const handleSaveList = () => {
+  useEffect(() => {
+    const sync = () => setLists(getTripLists());
+    window.addEventListener(TRIP_LISTS_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(TRIP_LISTS_CHANGE_EVENT, sync);
+  }, []);
+
+  const addAllToList = (listId: string) => {
+    for (const ev of events) {
+      addEventToTripList(listId, agentRecommendationToExhibition(ev));
+    }
+    setLists(getTripLists());
+    const name = lists.find((l) => l.id === listId)?.name ?? "";
+    setBatchHint(`已將 ${events.length} 筆加入「${name}」`);
+    window.setTimeout(() => setBatchHint(""), 4000);
+  };
+
+  const createNewListWithAll = () => {
     const suggestedName = title || "AI 推薦清單";
-    const name = window.prompt("請輸入清單名稱", suggestedName);
+    const name = window.prompt("新行程清單名稱", suggestedName);
     if (name === null) return;
-    const saved = saveRecommendationList(name, events);
-    setSavedName(saved.name);
+    const list = createTripList(name);
+    for (const ev of events) {
+      addEventToTripList(list.id, agentRecommendationToExhibition(ev));
+    }
+    setLists(getTripLists());
+    setBatchHint(`已建立並加入「${list.name}」`);
+    window.setTimeout(() => setBatchHint(""), 4000);
   };
 
   return (
@@ -31,23 +69,51 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
           {title && <p className="text-sm font-semibold text-white">{title}</p>}
           {introText && <p className="mt-1 text-xs text-white/65">{introText}</p>}
         </div>
-        <button
-          type="button"
-          onClick={handleSaveList}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs text-white/85 hover:bg-white/10"
-        >
-          <BookmarkPlus className="h-3.5 w-3.5" /> 儲存為清單
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            type="button"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs text-white/85 hover:bg-white/10"
+          >
+            <ListPlus className="h-3.5 w-3.5" /> 加入行程清單
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px] border border-white/10 bg-[#1a1625] text-white">
+            <DropdownMenuLabel className="text-white/80">整批加入</DropdownMenuLabel>
+            {lists.length === 0 ? (
+              <DropdownMenuItem onClick={createNewListWithAll} className="text-white focus:bg-white/10">
+                建立新清單並加入全部…
+              </DropdownMenuItem>
+            ) : (
+              <>
+                {lists.map((list) => (
+                  <DropdownMenuItem
+                    key={list.id}
+                    onClick={() => addAllToList(list.id)}
+                    className="text-white focus:bg-white/10"
+                  >
+                    {list.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem onClick={createNewListWithAll} className="text-white focus:bg-white/10">
+                  新增清單並加入全部…
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {savedName && <p className="mb-3 text-xs text-emerald-300">已儲存推薦清單：{savedName}</p>}
+      {batchHint && <p className="mb-3 text-xs text-emerald-300">{batchHint}</p>}
 
       <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
         {events.map((event) => (
           <article
             key={event.id}
-            className="min-w-[235px] max-w-[235px] snap-start overflow-hidden rounded-xl border border-white/10 bg-[#101019]"
+            className="relative min-w-[235px] max-w-[235px] snap-start overflow-hidden rounded-xl border border-white/10 bg-[#101019]"
           >
+            <div className="absolute right-2 top-2 z-10" onClick={(e) => e.preventDefault()}>
+              <AddToTripListMenu kind="event" exhibition={agentRecommendationToExhibition(event)} align="end" />
+            </div>
             <img
               src={event.imageUrl || FALLBACK_IMAGE}
               alt={event.title}

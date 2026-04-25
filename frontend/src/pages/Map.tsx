@@ -9,6 +9,7 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 
 declare global {
   interface Window {
@@ -900,6 +901,9 @@ export function Map() {
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
+                <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                  <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
+                </div>
                 <div className="pt-8">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
@@ -944,7 +948,7 @@ export function Map() {
                 </a>
               ) : null}
             </div>
-          ) : (
+          ) : selectedItem ? (
             <div className="flex flex-col gap-5">
               <div className="relative">
                 <img
@@ -965,6 +969,9 @@ export function Map() {
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
+                <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                  <AddToTripListMenu kind="event" exhibition={selectedItem} align="end" />
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -1011,7 +1018,7 @@ export function Map() {
                 <ExternalLink className="h-4 w-4" /> 查看完整活動頁
               </a>
             </div>
-          )}
+          ) : null}
         </aside>
       </div>
       <SignInPrompt

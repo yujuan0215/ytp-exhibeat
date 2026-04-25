@@ -15,6 +15,7 @@ import {
   getAuthToken,
   listRemoteFavorites,
 } from "./api";
+import { syncFavoriteEventInDefaultList } from "./tripLists";
 
 const STORAGE_KEY = "exhibeat_favorites";
 const CHANGE_EVENT = "favorites-changed";
@@ -79,6 +80,7 @@ export async function toggleFavorite(exhibition: Exhibition): Promise<boolean> {
   if (currently) {
     const next = readCache().filter((e) => e.id !== exhibition.id);
     writeCache(next);
+    syncFavoriteEventInDefaultList(exhibition, false);
     if (authenticated) {
       try {
         await deleteRemoteFavorite(exhibition.id);
@@ -92,6 +94,7 @@ export async function toggleFavorite(exhibition: Exhibition): Promise<boolean> {
   const nextItem: Exhibition = { ...exhibition, isFavorite: true };
   const next = [...readCache().filter((e) => e.id !== exhibition.id), nextItem];
   writeCache(next);
+  syncFavoriteEventInDefaultList(nextItem, true);
   if (authenticated) {
     try {
       await addRemoteFavorite(nextItem);

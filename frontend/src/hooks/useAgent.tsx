@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { sendMessageToAgent } from '../lib/api';
-import type { AgentRecommendationItem } from '../lib/api';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { sendMessageToAgent } from "../lib/api";
+import type { AgentRecommendationItem } from "../lib/api";
+import { AGENT_PREFILL_STORAGE_KEY } from "../lib/tripLists";
 
 export type AgentUserMessage = {
   role: 'user';
@@ -36,40 +37,58 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     { role: 'agent', kind: 'text', text: 'Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const prefillConsumed = useRef(false);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
-    
+
     setIsLoading(true);
-    setMessages(prev => [...prev, { role: 'user', text }]);
-    
+    setMessages((prev) => [...prev, { role: "user", text }]);
+
     try {
       const result = await sendMessageToAgent(text);
-      if (result.kind === 'recommendation_carousel') {
+      if (result.kind === "recommendation_carousel") {
         setMessages((prev) => [
           ...prev,
           {
-            role: 'agent',
-            kind: 'recommendation_carousel',
+            role: "agent",
+            kind: "recommendation_carousel",
             title: result.title,
             introText: result.introText,
             events: result.events,
           },
         ]);
       } else {
-        setMessages((prev) => [...prev, { role: 'agent', kind: 'text', text: result.text }]);
+        setMessages((prev) => [...prev, { role: "agent", kind: "text", text: result.text }]);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setMessages(prev => [...prev, { role: 'agent', kind: 'text', text: `Connection Error: ${e.message}` }]);
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages((prev) => [...prev, { role: "agent", kind: "text", text: `Connection Error: ${msg}` }]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (prefillConsumed.current) return;
+    try {
+      const raw = sessionStorage.getItem(AGENT_PREFILL_STORAGE_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(AGENT_PREFILL_STORAGE_KEY);
+      const parsed = JSON.parse(raw) as { text?: string };
+      const text = typeof parsed.text === "string" ? parsed.text.trim() : "";
+      if (!text) return;
+      prefillConsumed.current = true;
+      void sendMessage(text);
+    } catch {
+      /* ignore */
+    }
+  }, [sendMessage]);
 
   const value = useMemo(
     () => ({ messages, isLoading, sendMessage }),
-    [messages, isLoading],
+    [messages, isLoading, sendMessage],
   );
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

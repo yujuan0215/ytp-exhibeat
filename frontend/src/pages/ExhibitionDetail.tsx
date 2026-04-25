@@ -20,6 +20,7 @@ import { getCollectionRecommendations, getHomeRecommendations } from "@/lib/api"
 import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 const SHOT_IMAGES = [
@@ -299,6 +300,10 @@ export function ExhibitionDetail() {
                 <><Lock className="w-4 h-4" /> 登入後即可收藏</>
               )}
             </button>
+            <div className="flex items-center justify-center gap-2 border-t border-[#48474d]/20 pt-4">
+              <span className="text-xs text-on-surface-variant">行程清單</span>
+              <AddToTripListMenu kind="event" exhibition={exhibition} align="end" />
+            </div>
             <div className="pt-6 border-t border-[#48474d]/20 space-y-3 text-sm">
               <InfoMini icon={<Clock3 className="w-3.5 h-3.5" />} label="預估停留時間" value="90 - 120 分鐘" />
               <InfoMini icon={<Ticket className="w-3.5 h-3.5" />} label="場次限制" value="每 30 分鐘進場" />

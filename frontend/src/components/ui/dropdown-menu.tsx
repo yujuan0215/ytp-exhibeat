@@ -4,8 +4,10 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
-  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+function DropdownMenu({ modal = false, ...props }: MenuPrimitive.Root.Props) {
+  // Base UI Menu defaults modal=true, which mounts a full-viewport InternalBackdrop
+  // (fixed inset-0). For dropdown menus we want non-modal behavior like Radix.
+  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} modal={modal} />
 }
 
 function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
