@@ -5,6 +5,7 @@ import { getHomeRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
 import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
@@ -175,6 +176,7 @@ function parseInitialPageSize(searchParams: URLSearchParams): number {
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const { user } = useAuth();
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
@@ -188,16 +190,18 @@ export function Home() {
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = rawQuery.trim();
   const isTagSearch = effectiveSearch.startsWith("#");
+  const preferenceKey = user?.preference_tags.join(",") ?? "";
 
 
   useEffect(() => {
+    setLoading(true);
     getHomeRecommendations({ limit: 5000, offset: 0 })
       .then(data => {
         setAllExhibitions(data);
         setLoading(false);
       })
       .catch(err => { console.error(err); setLoading(false); });
-  }, []);
+  }, [user?.id, preferenceKey]);
 
   useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
 

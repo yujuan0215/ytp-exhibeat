@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X, Languages } from "lucide-react";
+import { Search, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { listTagStats, type TagStat } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
