@@ -17,6 +17,7 @@ import {
   toggleStayFavorite,
 } from "@/lib/stayFavorites";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
+import { useI18n } from "@/lib/i18n";
 
 declare global {
   interface Window {
@@ -242,6 +243,7 @@ export function Map() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { locale } = useI18n();
   const { theme } = useTheme();
   const { locale } = useI18n();
   const isV1 = theme === "v1";
@@ -756,6 +758,7 @@ export function Map() {
         taipeiStayLoadingRef.current = false;
       });
   }, [loadedTaipeiStays, mapViewport, selectedStayIdState, locale]);
+  }, [loadedTaipeiStays, locale, mapViewport, selectedStayIdState]);
 
 
   useEffect(() => {
@@ -1046,6 +1049,13 @@ export function Map() {
                 </button>
               ) : null}
               <div className="relative border border-white/10 bg-[#111827] p-5">
+                {selectedStay.primaryImageUrl ? (
+                  <img
+                    src={selectedStay.primaryImageUrl}
+                    alt={selectedStay.name}
+                    className="mb-4 h-44 w-full rounded-xl object-cover"
+                  />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -1082,6 +1092,11 @@ export function Map() {
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || "點選地圖上的旅宿，可快速查看住宿資訊與位置。"}</p>
+                  {selectedStay.primaryImageUrl ? (
+                    <p className="mt-2 text-[11px] text-white/45">
+                      圖片來源：{selectedStay.imageSourcePolicy?.attribution || "資料來源網站"}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

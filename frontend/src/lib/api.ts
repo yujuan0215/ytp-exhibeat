@@ -189,25 +189,33 @@ export interface LegalStay {
   id: string;
   licenseNumber: string;
   name: string;
+  nameEn?: string;
   alternateNames: string[];
   description: string;
+  descriptionEn?: string;
   operatorName: string;
   address: {
     city: string;
+    cityEn?: string;
     cityCode: string;
     town: string;
+    townEn?: string;
     townCode: string;
     zipCode: string;
     street: string;
+    streetEn?: string;
     full: string;
+    fullEn?: string;
   };
   location: { lat: number; lng: number };
   classCodes: number[];
   classLabels: string[];
+  classLabelsEn?: string[];
   starRating: number;
   taiwanHost: number;
   serviceStatus: number;
   serviceStatusLabel: string;
+  serviceStatusLabelEn?: string;
   phones: string[];
   urls: {
     website: string;
@@ -215,6 +223,28 @@ export interface LegalStay {
     map: string[];
     sameAs: string[];
     socialMedia: string[];
+  };
+  images: Array<{
+    url: string;
+    name: string;
+    description: string;
+    width: number | null;
+    height: number | null;
+    keywords: string[];
+    source: string;
+    sourceLabel: string;
+    license: string;
+    attribution: string;
+    pageUrl?: string;
+    storagePolicy?: string;
+  }>;
+  primaryImageUrl: string;
+  mediaDetailUrl: string;
+  imageSourcePolicy: {
+    source: string;
+    license: string;
+    attribution: string;
+    storagePolicy?: string;
   };
   facilities: string[];
   paymentMethods: string[];
@@ -241,6 +271,7 @@ export interface LegalStaysResponse {
   total: number;
   offset: number;
   limit: number;
+  locale?: string;
   stays: LegalStay[];
 }
 

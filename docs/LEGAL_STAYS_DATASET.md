@@ -6,23 +6,29 @@ from Taiwan Stay / data.gov.tw dataset 7780.
 
 ## Source Files
 
-Raw files are stored in:
+Raw source files are stored side-by-side by language:
 
 ```text
-data/raw/hotel-json/
+data/raw/hotel-json/        # English source
+data/raw/hotel-json-zh-tw/  # Traditional Chinese source
 ```
 
-The main source file is:
+The main source files are:
 
 ```text
 data/raw/hotel-json/HotelList.json
+data/raw/hotel-json-zh-tw/HotelList.json
 ```
 
-Regenerate the usable dataset after replacing the raw file:
+Regenerate the usable dataset after replacing either raw file:
 
 ```powershell
 python scripts/prepare_legal_stays_dataset.py
 ```
+
+By default, the generated dataset uses Traditional Chinese fields as the primary
+display values and merges the English source into `*En` fields. If a record only
+exists in the English source, it is still included with English fallback values.
 
 ## Generated Outputs
 

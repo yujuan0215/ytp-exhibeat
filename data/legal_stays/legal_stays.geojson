@@ -2,16 +2,55 @@
   "type": "FeatureCollection",
   "metadata": {
     "source": "交通部觀光署旅宿網 / data.gov.tw dataset 7780",
-    "sourceFile": "data\\raw\\hotel-json\\HotelList.json",
+    "sourceFile": "data\\raw\\hotel-json-zh-tw\\HotelList.json",
+    "sourceFileZh": "data\\raw\\hotel-json-zh-tw\\HotelList.json",
+    "sourceFileEn": "data\\raw\\hotel-json\\HotelList.json",
     "sourceUpdateTime": "2026-04-25T14:31:18+08:00",
+    "sourceUpdateTimeEn": "2026-04-25T02:31:53+08:00",
     "sourceUpdateInterval": 86400,
     "language": "Zh_tw",
+    "languageEn": "En",
     "providerId": "A15010000H",
-    "generatedAt": "2026-04-25T08:04:59.417046+00:00",
+    "generatedAt": "2026-04-25T08:18:13.823593+00:00",
     "totalSourceRecords": 15584,
-    "totalGeocodedRecords": 15584
+    "totalSourceRecordsEn": 15585,
+    "totalGeocodedRecords": 15585,
+    "totalEnglishFallbackRecords": 1,
+    "imageCoverage": {
+      "recordsWithOfficialImages": 2805,
+      "recordsWithoutOfficialImages": 12780
+    }
   },
   "features": [
+    {
+      "type": "Feature",
+      "id": "Hotel_A15010000H_029760",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.305025,
+          24.402
+        ]
+      },
+      "properties": {
+        "id": "Hotel_A15010000H_029760",
+        "licenseNumber": "金門縣民宿607號",
+        "name": "Red Sorghum Homestay",
+        "classLabels": [
+          "民宿"
+        ],
+        "serviceStatus": 1,
+        "serviceStatusLabel": "營業中",
+        "city": "Kinmen County",
+        "town": "Jincheng Township",
+        "address": "No. 89, Jinmencheng, Jincheng Township, Kinmen County 893 , Taiwan (R.O.C.)",
+        "lowestPrice": 2000,
+        "ceilingPrice": 5000,
+        "totalRooms": 5,
+        "website": "",
+        "updateTime": "2025-03-06T08:17:45+08:00"
+      }
+    },
     {
       "type": "Feature",
       "id": "Hotel_A15010000H_016224",

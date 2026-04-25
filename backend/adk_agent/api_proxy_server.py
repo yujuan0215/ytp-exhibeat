@@ -139,7 +139,7 @@ def filter_legal_stays(
         address = stay.get("address", {})
         if service_status is not None and stay.get("serviceStatus") != service_status:
             continue
-        if city_norm and city_norm not in str(address.get("city", "")).lower():
+        if city_norm and not _city_matches(city_norm, [str(address.get("city", "")), str(address.get("cityEn", ""))]):
             continue
         if town_norm and town_norm not in str(address.get("town", "")).lower():
             continue
@@ -149,6 +149,52 @@ def filter_legal_stays(
             continue
         filtered.append(stay)
     return filtered
+
+
+def _is_chinese_locale(locale: str) -> bool:
+    return (locale or "").lower().startswith("zh")
+
+
+def _normalize_city_keyword(text: str) -> str:
+    return str(text or "").strip().lower().replace("台", "臺")
+
+
+def _city_matches(query: str, candidates: list[str]) -> bool:
+    q = _normalize_city_keyword(query)
+    if not q:
+        return True
+
+    normalized = [_normalize_city_keyword(item) for item in candidates if item]
+    if any(q in item for item in normalized):
+        return True
+
+    taipei_aliases = {"taipei", "taipei city", "臺北市", "台北市"}
+    if q in taipei_aliases and any(city in taipei_aliases for city in normalized):
+        return True
+    return False
+
+
+def localize_legal_stay(stay: dict, locale: str) -> dict:
+    """
+    zh* locales keep Chinese fields.
+    en and all other non-zh locales fallback to English fields.
+    """
+    if _is_chinese_locale(locale):
+        return stay
+
+    localized = dict(stay)
+    address = dict(stay.get("address", {}))
+
+    localized["name"] = stay.get("nameEn") or stay.get("name", "")
+    localized["description"] = stay.get("descriptionEn") or stay.get("description", "")
+    localized["classLabels"] = stay.get("classLabelsEn") or stay.get("classLabels", [])
+    localized["serviceStatusLabel"] = stay.get("serviceStatusLabelEn") or stay.get("serviceStatusLabel", "")
+    address["city"] = address.get("cityEn") or address.get("city", "")
+    address["town"] = address.get("townEn") or address.get("town", "")
+    address["street"] = address.get("streetEn") or address.get("street", "")
+    address["full"] = address.get("fullEn") or address.get("full", "")
+    localized["address"] = address
+    return localized
 
 
 def _translation_cache_key(text: str, target_locale: str, source_locale: str) -> str:
@@ -689,6 +735,7 @@ async def list_legal_stays(
     town: str = "",
     class_label: str = Query("", alias="class"),
     service_status: int = Query(1, ge=0, le=3),
+    locale: str = Query("zh-TW"),
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
@@ -700,12 +747,14 @@ async def list_legal_stays(
         class_label=class_label,
         service_status=None if service_status == 0 else service_status,
     )
+    localized = [localize_legal_stay(stay, locale) for stay in filtered[offset : offset + limit]]
     return {
         "metadata": dataset.get("metadata", {}),
         "total": len(filtered),
         "offset": offset,
         "limit": limit,
-        "stays": filtered[offset : offset + limit],
+        "locale": locale,
+        "stays": localized,
     }
 
 
@@ -716,6 +765,7 @@ async def list_legal_stays_geojson(
     town: str = "",
     class_label: str = Query("", alias="class"),
     service_status: int = Query(1, ge=0, le=3),
+    locale: str = Query("zh-TW"),
     limit: int = Query(1000, ge=1, le=5000),
     offset: int = Query(0, ge=0),
 ):
@@ -727,7 +777,7 @@ async def list_legal_stays_geojson(
         class_label=class_label,
         service_status=None if service_status == 0 else service_status,
     )
-    filtered = filtered_all[offset : offset + limit]
+    filtered = [localize_legal_stay(stay, locale) for stay in filtered_all[offset : offset + limit]]
     return {
         "type": "FeatureCollection",
         "metadata": {
@@ -735,6 +785,7 @@ async def list_legal_stays_geojson(
             "total": len(filtered_all),
             "offset": offset,
             "limit": limit,
+            "locale": locale,
         },
         "features": [
             {
