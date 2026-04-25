@@ -4,7 +4,7 @@ import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
+import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp } from "lucide-react";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -73,20 +73,11 @@ const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
 
 // Sort definitions — operate on filtered array
 type SortKey = "relevancy" | "newest" | "oldest" | "ending_soon";
-type HomeFilterKey = "all" | "free" | "family" | "digital" | "photo" | "museum";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "relevancy", label: "相關度優先" },
   { key: "newest", label: "最新發布" },
   { key: "oldest", label: "最舊發布" },
   { key: "ending_soon", label: "即將結束" },
-];
-const HOME_FILTERS: Array<{ key: HomeFilterKey; label: string }> = [
-  { key: "all", label: "全部推薦" },
-  { key: "free", label: "免費入場" },
-  { key: "family", label: "親子友善" },
-  { key: "digital", label: "數位/互動" },
-  { key: "photo", label: "攝影影像" },
-  { key: "museum", label: "美術館/博物館" },
 ];
 
 function parseBackendDate(str: string): number {
@@ -152,23 +143,6 @@ function matchTagSearch(exhibition: Exhibition, query: string) {
   const tags = (exhibition.tags ?? []).map((tag) => normalizeSearchText(String(tag).replace(/^#+/, "")));
   return tags.some((tag) => tag.includes(keyword));
 }
-function matchesHomeFilter(exhibition: Exhibition, filter: HomeFilterKey): boolean {
-  if (filter === "all") return true;
-  const haystack = [
-    exhibition.title,
-    exhibition.location,
-    exhibition.aiSummary ?? "",
-    exhibition.price ?? "",
-    ...exhibition.tags,
-  ].join(" ").toLowerCase();
-
-  if (filter === "free") return exhibition._meta?.isFree === true || haystack.includes("free") || haystack.includes("免費");
-  if (filter === "family") return /親子|兒童|孩子|family|child/.test(haystack);
-  if (filter === "digital") return /數位|互動|沉浸|科技|光影|digital|interactive/.test(haystack);
-  if (filter === "photo") return /攝影|影像|photo|film|image/.test(haystack);
-  if (filter === "museum") return /美術館|博物館|museum|gallery/.test(haystack);
-  return true;
-}
 
 function buildPageTokens(totalPages: number, currentPage: number): PageToken[] {
   if (totalPages <= 9) {
@@ -209,18 +183,16 @@ export function Home() {
   const [pageInput, setPageInput] = useState(() => String(parseInitialPage(searchParams)));
   const [pageInputError, setPageInputError] = useState("");
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
-  const [activeFilter, setActiveFilter] = useState<HomeFilterKey>("all");
-  const [searchTerm, setSearchTerm] = useState("");
   const [sortOpen, setSortOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [activeInstagramHandle, setActiveInstagramHandle] = useState(INSTAGRAM_ACCOUNTS[0].handle);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
-  const effectiveSearch = searchTerm.trim() || rawQuery.trim();
+  const effectiveSearch = rawQuery.trim();
   const isTagSearch = effectiveSearch.startsWith("#");
 
 
   useEffect(() => {
-    getHomeRecommendations({ limit: 1000, offset: 0 })
+    getHomeRecommendations({ limit: 5000, offset: 0 })
       .then(data => {
         setAllExhibitions(data);
         setLoading(false);
@@ -228,7 +200,7 @@ export function Home() {
       .catch(err => { console.error(err); setLoading(false); });
   }, []);
 
-  useEffect(() => { setCurrentPage(1); }, [activeSort, activeFilter, searchTerm]);
+  useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
 
   const filtered = useMemo(() => {
     const searched = !effectiveSearch
@@ -238,9 +210,8 @@ export function Home() {
             ? matchTagSearch(exhibition, effectiveSearch)
             : matchKeywordSearch(exhibition, effectiveSearch),
         );
-    const matched = searched.filter((item) => matchesHomeFilter(item, activeFilter));
-    return sortExhibitions(matched, activeSort);
-  }, [activeFilter, activeSort, allExhibitions, effectiveSearch, isTagSearch]);
+    return sortExhibitions(searched, activeSort);
+  }, [activeSort, allExhibitions, effectiveSearch, isTagSearch]);
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
@@ -409,36 +380,7 @@ export function Home() {
 
       <section className="max-w-7xl mx-auto px-8 py-12">
         <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div className="space-y-4">
-            <div className="relative w-full md:max-w-xl">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                type="search"
-                placeholder="搜尋展覽名稱、地點或需求（例：免費、親子、攝影）"
-                className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {HOME_FILTERS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setActiveFilter(option.key)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    activeFilter === option.key
-                      ? "bg-[#00d6ff] text-[#042028]"
-                      : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
+          <div />
           <button
             onClick={() => setSortOpen(o => !o)}
             className="flex items-center gap-2 justify-self-start text-sm text-white/65 hover:text-white transition-colors lg:justify-self-end"

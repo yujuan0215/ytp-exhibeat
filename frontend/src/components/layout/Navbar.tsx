@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X, Languages } from "lucide-react";
+import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { listTagStats, type TagStat } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { LOCALE_OPTIONS, useI18n } from "@/lib/i18n";
 
 const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
 
@@ -42,7 +41,6 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { locale, setLocale } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -294,23 +292,6 @@ export function Navbar() {
                 <p className="text-sm font-semibold text-white">設定</p>
               </div>
               <div className="px-4 py-3 space-y-3">
-                <div>
-                  <label htmlFor="locale-select" className="mb-2 flex items-center gap-1.5 text-xs text-white/50">
-                    <Languages className="h-3.5 w-3.5" /> 介面語言
-                  </label>
-                  <select
-                    id="locale-select"
-                    value={locale}
-                    onChange={(event) => setLocale(event.target.value as typeof locale)}
-                    className="h-9 w-full rounded-md border border-white/10 bg-[#111827] px-2 text-sm text-white outline-none focus:border-primary"
-                  >
-                    {LOCALE_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.nativeLabel}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <Link to="/map" className="block text-sm text-white/80 hover:text-white">前往地圖探索</Link>
                 <Link to="/accommodations" className="block text-sm text-white/80 hover:text-white">前往找住宿</Link>
                 <Link to="/agent" className="block text-sm text-white/80 hover:text-white">前往 AI 助手</Link>

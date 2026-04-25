@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { listLegalStays, type LegalStay } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
-import { useI18n } from "@/lib/i18n";
 import {
   getStayFavoriteIds,
   STAY_FAVORITES_CHANGE_EVENT,
@@ -167,7 +166,6 @@ export function Accommodations() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
-  const { locale } = useI18n();
   const isV1 = theme === "v1";
   const [stays, setStays] = useState<LegalStay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,11 +184,11 @@ export function Accommodations() {
     let cancelled = false;
     setLoading(true);
     async function loadTaipeiStays() {
-      const first = await listLegalStays({ city: "Taipei City", locale, lang: locale, limit: API_PAGE_SIZE, offset: 0 });
+      const first = await listLegalStays({ city: "Taipei City", locale: "zh-TW", lang: "zh-TW", limit: API_PAGE_SIZE, offset: 0 });
       let combined = first.stays;
       let offset = first.stays.length;
       while (offset < first.total && offset < 3000) {
-        const next = await listLegalStays({ city: "Taipei City", locale, lang: locale, limit: API_PAGE_SIZE, offset });
+        const next = await listLegalStays({ city: "Taipei City", locale: "zh-TW", lang: "zh-TW", limit: API_PAGE_SIZE, offset });
         combined = [...combined, ...next.stays];
         offset += next.stays.length;
         if (next.stays.length === 0) break;
@@ -213,7 +211,7 @@ export function Accommodations() {
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, []);
 
   useEffect(() => {
     const sync = () => setFavoriteStayIds(new Set(getStayFavoriteIds()));

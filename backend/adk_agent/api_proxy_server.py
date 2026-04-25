@@ -710,6 +710,63 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         },
     }
 
+
+def _extract_show_info(event: dict) -> dict:
+    show_info = event.get("showInfo", [])
+    if isinstance(show_info, list) and show_info and isinstance(show_info[0], dict):
+        return show_info[0]
+    return {}
+
+
+def _format_raw_event_date(event: dict) -> str:
+    start = str(event.get("startDate", "")).strip()
+    end = str(event.get("endDate", "")).strip()
+    if start and end:
+        return f"{start} -> {end}"
+    return start or end or "日期待確認"
+
+
+def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
+    uid = str(event.get("UID", "")).strip()
+    title = str(event.get("title", "")).strip() or "未命名展演"
+    show = _extract_show_info(event)
+    location_name = str(show.get("locationName", "")).strip() or str(show.get("location", "")).strip()
+    location = location_name or "地點待確認"
+    date_range = _format_raw_event_date(event)
+    description = str(event.get("descriptionFilterHtml", "")).strip()
+    price_raw = str(show.get("price", "")).strip() or str(event.get("price", "")).strip()
+    normalized_tags = []
+    raw_tags = event.get("tag", [])
+    if isinstance(raw_tags, list):
+        normalized_tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
+    elif isinstance(raw_tags, str) and raw_tags.strip():
+        normalized_tags = [raw_tags.strip()]
+
+    image_url = _pick_image(uid or title, str(event.get("imageUrl", "")).strip())
+    all_images = [image_url] if image_url else []
+    is_free = any(k in price_raw.lower() for k in ["free", "免費", "免票", "免收費"])
+    ai_summary = _naive_summary(description)
+    end_date = str(event.get("endDate", "")).strip()
+
+    return {
+        "id": uid or hashlib.md5(title.encode("utf-8")).hexdigest(),
+        "title": title,
+        "price": _format_price(price_raw, is_free),
+        "dateStr": date_range,
+        "location": location,
+        "aiSummary": ai_summary,
+        "tags": normalized_tags,
+        "imageUrl": image_url,
+        "isFavorite": False,
+        "_meta": {
+            "isFree": is_free,
+            "endDate": end_date,
+            "editModifyDate": str(event.get("editModifyDate", "")).strip(),
+            "score": 0,
+            "allImages": all_images,
+        },
+    }
+
 # ─── Recommender ─────────────────────────────────────────────────────────────
 def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dict]:
     persona_map = {
@@ -747,17 +804,17 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
-    limit: int = Query(18, ge=1, le=1000),
+    limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
 ):
-    requested = offset + limit
-    exhibitions = get_recommendations_for_persona("taipei_after_work", requested)
+    all_events = load_exhibitions_dataset()
+    exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
     return {
         "exhibitions": exhibitions[offset : offset + limit],
         "offset": offset,
         "limit": limit,
         "total": len(exhibitions),
-        "hasMore": len(exhibitions) >= requested,
+        "hasMore": offset + limit < len(exhibitions),
     }
 
 
