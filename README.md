@@ -1,59 +1,82 @@
-# YTP-ExhiBeat 展覽整合平台
+# ExhiBeat | 台北展演整合平台
 
-## 專案簡介
-
-ExhiBeat 是一個整合「展覽探索、推薦、地圖與 AI 助手」的都會藝文平台。  
-目前專案採前後端分離架構，主要模組如下：
-
-- `frontend/`：React + Vite 前端介面
-- `backend/adk_agent/api_proxy_server.py`：FastAPI API Proxy
-- `backend/adk_agent/gemini_agent/`：AI Agent 與工具
-- `backend/app/recommender/`：推薦邏輯與資料處理
-- `crawler/`：展演資料擷取與彙整
-
-使用者可透過首頁與地圖瀏覽展覽、查看展覽詳情、加入收藏，並用 AI 助手做行程探索與推薦。
+把「分散在不同網站、社群、票務頁面」的展演資訊，整合成一個可搜尋、可比較、可推薦、可規劃的體驗。
 
 ---
 
-## 為什麼使用我們的服務
+## 先看重點（3 分鐘快速理解）
 
-- **一站式展覽入口**：把分散在不同來源的活動資訊集中管理
-- **快速決策**：整合推薦與地圖視角，減少找活動的時間成本
-- **互動式探索**：可依地點、時間與偏好更直覺地篩選展演
-- **可擴充架構**：前端只打 `/api/*`，後端可持續擴充資料來源與服務
-- **開發友善**：本機開發流程簡單，適合快速迭代與展示 Demo
+ExhiBeat 在做什麼？
+
+- **展演整合**：集中多來源活動內容，降低找活動的時間成本
+- **多元探索**：用關鍵字、標籤、地圖三種視角快速篩選
+- **AI 增強推薦**：透過 AI Agent 與推薦邏輯，協助你找到更符合偏好的活動
+- **從發現到決策**：不只看清單，還能收藏、比較、規劃行程
+
+如果你是使用者：
+
+1. 打開首頁看推薦
+2. 用搜尋 + `#標籤` 篩選
+3. 進詳情頁看內容與地圖
+4. 用收藏與 AI 助手做下一步決策
+
+---
+
+## 為什麼需要 ExhiBeat
+
+在台北，展演資訊並不缺，但「好用的整合」很少。
+
+常見痛點：
+
+- 資訊分散在官方網站、售票平台、社群貼文
+- 使用者需要反覆切頁比對內容、地點、時間
+- 很難在短時間內找到「真的適合自己」的活動
+
+ExhiBeat 的價值是把這條路徑縮短：
+
+**彙整資料 → 快速探索 → 個人化推薦 → 直接決策**
+
+---
+
+## Live View
+
+[You can liveview at http://placeholder.com](http://placeholder.com)
 
 ---
 
 ## Quick Start
 
-### Requirement install
+### 1) Requirement install
 
-請先安裝：
+建議環境：
 
-- Python 3.11 或 3.12（建議）
+- Python 3.11 / 3.12
 - Node.js 22+
-- npm（隨 Node 安裝）
+- npm
 
-可選（若你想用容器啟動）：
+依賴檔位置：
 
-- Docker Desktop
+- 前端：`frontend/package.json`
+- 後端：`backend/adk_agent/requirements.txt`
+- 推薦模組（可選）：`backend/app/recommender/requirements.txt`
+
+> 前端可以用 npm；但後端是 Python 服務，仍需安裝 `requirements.txt`，不建議全面改成 npm。
 
 ---
 
-### Get API key
+### 2) Get API key
 
-本專案使用 Gemini 相關能力時，需要 Google API Key。
+若要啟用 Gemini 相關功能，請先準備 Google API Key：
 
 1. 前往 [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. 建立並複製 API Key
+2. 建立 API Key
 3. 建立環境檔：
 
 ```bash
 cp backend/adk_agent/gemini_agent/.env.sample backend/adk_agent/gemini_agent/.env
 ```
 
-4. 打開 `backend/adk_agent/gemini_agent/.env`，填入：
+4. 在 `backend/adk_agent/gemini_agent/.env` 填入：
 
 ```env
 GOOGLE_API_KEY=your_api_key_here
@@ -61,33 +84,43 @@ GOOGLE_API_KEY=your_api_key_here
 
 ---
 
-### Quick start
+### 3) Quick start
 
-在專案根目錄依序執行：
+在專案根目錄執行：
 
 ```bash
-# 1) 安裝前端依賴
+# Frontend install
 cd frontend
 npm install
 cd ..
 
-# 2) 建立後端虛擬環境與依賴（macOS/Linux）
+# Backend setup (Python venv + requirements)
 bash scripts/setup_backend.sh
 
-# 3) 啟動後端
+# Start backend services
 bash scripts/start_backend.sh
 ```
 
 另開一個 terminal：
 
 ```bash
-# 4) 啟動前端
+# Start frontend
 bash scripts/start_frontend.sh
 ```
 
-啟動後可使用：
+啟動後入口：
 
 - Frontend: <http://127.0.0.1:5173>
 - Backend API: <http://127.0.0.1:8000>
 - ADK Agent UI: <http://127.0.0.1:8001>
+
+---
+
+## 技術架構（簡版）
+
+- `frontend/`：React + Vite
+- `backend/adk_agent/api_proxy_server.py`：FastAPI API Proxy
+- `backend/adk_agent/gemini_agent/`：AI Agent + tool chain
+- `backend/app/recommender/`：推薦邏輯
+- `crawler/`：展演資料擷取與整合
 
