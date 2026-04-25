@@ -1149,6 +1149,35 @@ def _is_accommodation_intent(text: str) -> bool:
     )
 
 
+def _extract_taipei_town_from_text(text: str) -> str:
+    normalized = str(text or "").strip().lower().replace("臺", "台")
+    if not normalized:
+        return ""
+    town_aliases: dict[str, tuple[str, ...]] = {
+        "中正區": ("中正區", "zhongzheng", "zhong zheng"),
+        "大同區": ("大同區", "datong", "da tong"),
+        "中山區": ("中山區", "zhongshan", "zhong shan"),
+        "松山區": ("松山區", "songshan", "song shan"),
+        "大安區": ("大安區", "daan", "da an"),
+        "萬華區": ("萬華區", "wanhua", "wan hua"),
+        "信義區": ("信義區", "xinyi", "xin yi"),
+        "士林區": ("士林區", "shilin", "shi lin"),
+        "北投區": ("北投區", "beitou", "bei tou"),
+        "內湖區": ("內湖區", "neihu", "nei hu"),
+        "南港區": ("南港區", "nangang", "nan gang"),
+        "文山區": ("文山區", "wenshan", "wen shan"),
+    }
+    for town, aliases in town_aliases.items():
+        if any(alias in normalized for alias in aliases):
+            return town
+    return ""
+
+
+def _is_taipei_location_text(text: str) -> bool:
+    normalized = str(text or "").lower().replace("臺", "台")
+    return "台北" in normalized or "taipei" in normalized
+
+
 def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
     try:
         recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
@@ -1177,9 +1206,12 @@ def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
     return events
 
 
-def _fallback_accommodation_cards(limit: int = 6) -> list[dict]:
+def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
+    target_town = _extract_taipei_town_from_text(text)
     try:
-        stays = filter_legal_stays(service_status=1)
+        stays = filter_legal_stays(city="台北市", town=target_town, service_status=1)
+        if not stays and target_town:
+            stays = filter_legal_stays(city="台北市", service_status=1)
     except Exception:
         return []
     cards: list[dict] = []
@@ -1218,6 +1250,7 @@ def _fallback_accommodation_cards(limit: int = 6) -> list[dict]:
                 "stayLat": lat,
                 "stayLng": lng,
                 "stayAddress": location,
+                "stayData": stay,
             }
         )
     return cards
@@ -1318,6 +1351,9 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
     if not isinstance(payload, list) or not payload:
         return run_response_bytes
 
+    wants_accommodation = _is_accommodation_intent(latest_user_text)
+    target_town = _extract_taipei_town_from_text(latest_user_text)
+
     # Keep first occurrence order and avoid duplicates by event ID.
     merged: list[dict] = []
     seen_ids: set[str] = set()
@@ -1325,6 +1361,14 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
         event_id = event.get("id")
         if not isinstance(event_id, str) or not event_id or event_id in seen_ids:
             continue
+        if wants_accommodation:
+            if str(event.get("itemType") or "") != "stay":
+                continue
+            location_text = str(event.get("location") or event.get("stayAddress") or "")
+            if location_text and not _is_taipei_location_text(location_text):
+                continue
+            if target_town and target_town not in location_text:
+                continue
         seen_ids.add(event_id)
         merged.append(event)
         if len(merged) >= 12:
@@ -1332,18 +1376,18 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
 
     if not merged and _is_recommendation_intent(latest_user_text):
         merged = (
-            _fallback_accommodation_cards(limit=6)
-            if _is_accommodation_intent(latest_user_text)
+            _fallback_accommodation_cards(text=latest_user_text, limit=6)
+            if wants_accommodation
             else _fallback_recommendation_events(limit=6)
         )
 
     if not merged:
         return run_response_bytes
 
-    carousel_title = "住宿推薦" if _is_accommodation_intent(latest_user_text) else "推薦活動"
+    carousel_title = "住宿推薦" if wants_accommodation else "推薦活動"
     carousel_intro = (
         "以下是你可以直接查看的住宿選項"
-        if _is_accommodation_intent(latest_user_text)
+        if wants_accommodation
         else "以下是你可以直接瀏覽的推薦展演"
     )
     recommendation_payload = {

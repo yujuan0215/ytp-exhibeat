@@ -3,14 +3,14 @@ It will be compatible before version 2.0.0.
   from authlib.jose import ECKey
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/features/_feature_decorator.py:72: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
   check_feature_enabled()
-2026-04-25 16:59:59,864 - INFO - service_factory.py:266 - Using in-memory memory service
-2026-04-25 16:59:59,865 - INFO - local_storage.py:84 - Using per-agent session storage rooted at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
-2026-04-25 16:59:59,868 - INFO - local_storage.py:110 - Using file artifact service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.adk/artifacts
+2026-04-25 17:58:30,110 - INFO - service_factory.py:266 - Using in-memory memory service
+2026-04-25 17:58:30,111 - INFO - local_storage.py:84 - Using per-agent session storage rooted at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+2026-04-25 17:58:30,116 - INFO - local_storage.py:110 - Using file artifact service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.adk/artifacts
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/cli/fast_api.py:198: UserWarning: [EXPERIMENTAL] InMemoryCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   credential_service = InMemoryCredentialService()
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/auth/credential_service/in_memory_credential_service.py:33: UserWarning: [EXPERIMENTAL] BaseCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   super().__init__()
-INFO:     Started server process [8534]
+INFO:     Started server process [9671]
 INFO:     Waiting for application startup.
 
 +-----------------------------------------------------------------------------+
@@ -21,28 +21,14 @@ INFO:     Waiting for application startup.
 
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-2026-04-25 17:00:03,965 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
-2026-04-25 17:00:03,970 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
-2026-04-25 17:00:04,069 - INFO - agent_loader.py:131 - Found root_agent in gemini_agent.agent
-2026-04-25 17:00:04,117 - INFO - local_storage.py:60 - Creating local session service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.adk/session.db
-2026-04-25 17:00:04,649 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 17:00:13,504 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 17:00:13,505 - WARNING - types.py:7966 - Warning: there are non-text parts in the response: ['function_call'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.
-2026-04-25 17:00:18,679 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:21,962 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:24,969 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:28,844 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:32,788 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:36,631 - INFO - _client.py:1025 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/ytp-exhibeat-493810/locations/us-central1/publishers/google/models/text-multilingual-embedding-002:predict "HTTP/1.1 200 OK"
-2026-04-25 17:00:37,127 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 17:00:51,392 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 17:00:51,447 - INFO - adk_web_server.py:1907 - Generated 3 events in agent run
-INFO:     127.0.0.1:43814 - "POST /run HTTP/1.1" 200 OK
-2026-04-25 17:10:54,640 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 17:11:03,718 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 17:11:03,771 - INFO - adk_web_server.py:1907 - Generated 1 events in agent run
-INFO:     127.0.0.1:52428 - "POST /run HTTP/1.1" 200 OK
-2026-04-25 17:15:02,288 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 17:15:11,862 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 17:15:11,901 - INFO - adk_web_server.py:1907 - Generated 1 events in agent run
-INFO:     127.0.0.1:52484 - "POST /run HTTP/1.1" 200 OK
+2026-04-25 17:59:04,404 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
+2026-04-25 17:59:04,409 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
+2026-04-25 17:59:04,505 - INFO - agent_loader.py:131 - Found root_agent in gemini_agent.agent
+2026-04-25 17:59:04,554 - INFO - local_storage.py:60 - Creating local session service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.adk/session.db
+2026-04-25 17:59:05,075 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2026-04-25 17:59:14,774 - INFO - google_llm.py:250 - Response received from the model.
+2026-04-25 17:59:14,774 - WARNING - types.py:7966 - Warning: there are non-text parts in the response: ['function_call'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.
+2026-04-25 17:59:16,040 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2026-04-25 17:59:22,262 - INFO - google_llm.py:250 - Response received from the model.
+2026-04-25 17:59:22,356 - INFO - adk_web_server.py:1907 - Generated 3 events in agent run
+INFO:     127.0.0.1:40262 - "POST /run HTTP/1.1" 200 OK

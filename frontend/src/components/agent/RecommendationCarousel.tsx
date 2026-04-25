@@ -4,8 +4,10 @@ import { ListPlus, MapPin, CalendarDays } from "lucide-react";
 import type { AgentRecommendationItem } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
+  addStayToTripList,
   addEventToTripList,
   agentRecommendationToExhibition,
+  agentRecommendationToStay,
   createTripList,
   getTripLists,
   TRIP_LISTS_CHANGE_EVENT,
@@ -37,7 +39,6 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   const [lists, setLists] = useState<TripList[]>(() => getTripLists());
   const [batchHint, setBatchHint] = useState("");
   const returnTo = `${location.pathname}${location.search}`;
-  const hasStayCards = events.some((event) => event.itemType === "stay");
 
   useEffect(() => {
     const sync = () => setLists(getTripLists());
@@ -46,9 +47,9 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   }, []);
 
   const addAllToList = (listId: string) => {
-    if (hasStayCards) return;
     for (const ev of events) {
-      addEventToTripList(listId, agentRecommendationToExhibition(ev));
+      if (ev.itemType === "stay") addStayToTripList(listId, agentRecommendationToStay(ev));
+      else addEventToTripList(listId, agentRecommendationToExhibition(ev));
     }
     setLists(getTripLists());
     const name = lists.find((l) => l.id === listId)?.name ?? "";
@@ -57,7 +58,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   };
 
   const createNewListWithAll = () => {
-    if (!user || hasStayCards) return;
+    if (!user) return;
     const suggested = `${title || "AI 推薦清單"} ${new Date().toLocaleDateString("zh-TW")}`;
     let input: string | null = null;
     try {
@@ -68,7 +69,8 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
     // If prompt is blocked by environment, still create list with suggested name.
     const list = createTripList((input ?? suggested).trim() || suggested);
     for (const ev of events) {
-      addEventToTripList(list.id, agentRecommendationToExhibition(ev));
+      if (ev.itemType === "stay") addStayToTripList(list.id, agentRecommendationToStay(ev));
+      else addEventToTripList(list.id, agentRecommendationToExhibition(ev));
     }
     setLists(getTripLists());
     setBatchHint(`已建立並加入「${list.name}」`);
@@ -82,7 +84,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
           {title && <p className="text-sm font-semibold text-white">{title}</p>}
           {introText && <p className="mt-1 text-xs text-white/65">{introText}</p>}
         </div>
-        {user && !hasStayCards ? (
+        {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               type="button"
@@ -136,7 +138,14 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
                   align="end"
                   requireAuth={true}
                 />
-              ) : null}
+              ) : (
+                <AddToTripListMenu
+                  kind="stay"
+                  stay={agentRecommendationToStay(event)}
+                  align="end"
+                  requireAuth={true}
+                />
+              )}
             </div>
             <img
               src={event.imageUrl || FALLBACK_IMAGE}
@@ -167,7 +176,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
                 }
                 state={
                   event.itemType === "stay"
-                    ? undefined
+                    ? { prefillStay: agentRecommendationToStay(event) }
                     : { prefillEvent: agentRecommendationToExhibition(event) }
                 }
                 className="mt-1 block border-t border-white/10 pt-2 text-center text-xs font-semibold text-cyan-200 hover:text-cyan-100"

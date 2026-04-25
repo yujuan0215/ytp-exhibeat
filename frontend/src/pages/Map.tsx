@@ -1057,7 +1057,7 @@ export function Map() {
                   onClick={() => navigate(queryReturnTo)}
                   className={`inline-flex w-fit items-center gap-1.5 border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/25 ${isV1 ? "rounded-md" : "rounded-full"}`}
                 >
-                  返回找住宿結果
+                  返回聊天
                 </button>
               ) : null}
               <div className="relative border border-white/10 bg-[#111827] p-5">

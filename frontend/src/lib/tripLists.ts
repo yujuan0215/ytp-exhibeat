@@ -83,6 +83,57 @@ export function agentRecommendationToExhibition(item: AgentRecommendationItem): 
   };
 }
 
+export function agentRecommendationToStay(item: AgentRecommendationItem): LegalStay {
+  if (item.stayData) return item.stayData;
+  const now = new Date().toISOString();
+  const lat = typeof item.stayLat === "number" ? item.stayLat : 25.033;
+  const lng = typeof item.stayLng === "number" ? item.stayLng : 121.5654;
+  const address = item.stayAddress || item.location || "台北市";
+  return {
+    id: item.id,
+    licenseNumber: "",
+    name: item.title,
+    alternateNames: [],
+    description: item.reason || "",
+    operatorName: "",
+    address: {
+      city: "台北市",
+      cityCode: "",
+      town: "",
+      townCode: "",
+      zipCode: "",
+      street: "",
+      full: address,
+    },
+    location: { lat, lng },
+    classCodes: [],
+    classLabels: ["合法旅宿"],
+    starRating: 0,
+    taiwanHost: 0,
+    serviceStatus: 1,
+    serviceStatusLabel: "營業中",
+    phones: [],
+    urls: { website: "", reservation: [], map: [], sameAs: [], socialMedia: [] },
+    images: [],
+    primaryImageUrl: item.imageUrl || "",
+    mediaDetailUrl: "",
+    imageSourcePolicy: { source: "agent", license: "", attribution: "" },
+    facilities: [],
+    paymentMethods: [],
+    parkingInfo: "",
+    roomInfo: "",
+    serviceInfo: "",
+    totalRooms: 0,
+    totalCapacity: 0,
+    priceRange: { lowest: 0, ceiling: 0 },
+    accessibility: { accessibleRooms: 0, toilets: 0, liftingEquipments: 0, parkingSpaces: 0 },
+    remarks: "",
+    updateTime: now,
+    source: "agent-carousel",
+    searchText: `${item.title} ${address}`,
+  };
+}
+
 function migrateLegacyRecommendationLists(): TripList[] {
   const existing = readRaw();
   if (existing.length > 0) return existing;

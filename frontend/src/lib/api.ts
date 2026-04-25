@@ -19,6 +19,7 @@ export type AgentRecommendationItem = {
   stayLat?: number;
   stayLng?: number;
   stayAddress?: string;
+  stayData?: LegalStay;
 };
 
 export type AgentMessagePayload =
@@ -152,6 +153,7 @@ export const sendMessageToAgent = async (message: string) => {
               stayLat: typeof event.stayLat === "number" ? event.stayLat : undefined,
               stayLng: typeof event.stayLng === "number" ? event.stayLng : undefined,
               stayAddress: typeof event.stayAddress === "string" ? event.stayAddress : undefined,
+              stayData: event?.stayData && typeof event.stayData === "object" ? (event.stayData as LegalStay) : undefined,
             };
           })
           .filter((event: AgentRecommendationItem | null): event is AgentRecommendationItem => Boolean(event));
