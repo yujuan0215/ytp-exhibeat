@@ -538,7 +538,7 @@ export function ExhibitionDetail() {
             {exhibition.title}
           </h1>
           <div className="mt-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
+            <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
               <button
                 type="button"
                 onClick={() => setRatingTrendOpen(true)}
@@ -590,6 +590,23 @@ export function ExhibitionDetail() {
                   </div>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/map?eventId=${encodeURIComponent(exhibition.id)}`, {
+                    state: { prefillEvent: exhibition },
+                  })
+                }
+                className="h-11 min-w-[148px] rounded-lg border border-white/10 bg-[#1f1f26] px-3 text-left transition-colors hover:border-secondary/40 hover:bg-[#252532] focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                title="查看地圖"
+                aria-label="查看地圖"
+              >
+                <div className="flex h-full items-center justify-center gap-2 text-white/90">
+                
+                  <span className="text-sm font-semibold">查看地圖</span>  
+                  <MapPin className="h-4 w-4 text-secondary" />
+                </div>
+              </button>
             </div>
             <div className="flex items-center gap-3">
               <button
