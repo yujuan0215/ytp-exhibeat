@@ -54,7 +54,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     return [{ role: "agent", kind: "text", text: "Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?" }];
   });
   const [isLoading, setIsLoading] = useState(false);
-  const prefillConsumed = useRef(false);
   const seenPrefillNonces = useRef(new Set<string>());
   const [failedPrefill, setFailedPrefill] = useState<{ text: string; label: string } | null>(null);
 
@@ -137,7 +136,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (prefillConsumed.current) return;
     try {
       const raw = sessionStorage.getItem(AGENT_PREFILL_STORAGE_KEY);
       if (!raw) return;
@@ -146,7 +144,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       if (!parsed) return;
       if (seenPrefillNonces.current.has(parsed.nonce)) return;
       seenPrefillNonces.current.add(parsed.nonce);
-      prefillConsumed.current = true;
       void sendPrefillMessage(parsed.text, parsed.label);
     } catch {
       /* ignore */
