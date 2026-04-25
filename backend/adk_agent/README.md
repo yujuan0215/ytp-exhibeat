@@ -1,52 +1,44 @@
 # ExhiBeat ADK Agent Backend
 
-這個資料夾是 `ytp-exhibeat` 目前已落地的 AI Agent backend prototype。
+完整安裝與啟動流程請以根目錄 [README.md](../../README.md) 為準。
 
-它提供的不是純範例，而是可直接執行、可查真資料、可部署的 Google ADK 模組，重點能力包含：
+這個資料夾提供：
 
-- 查詢台北展演活動
-- 依地點搜尋附近展覽
-- 取得展覽詳情、地圖與導航連結
-- 根據時間與區域安排簡化版展覽行程
-- 結合即時天氣做情境式回覆
-- 將活動資料同步進本地 SQLite，提升搜尋穩定度
+- `api_proxy_server.py`：FastAPI API proxy，對前端提供 `/api/*`
+- `gemini_agent/`：Google ADK agent
+- `gemini_agent/tools/`：文化部活動、天氣、地理、Google Places、TDX 等工具
+- `requirements.txt`：後端 Python 依賴
 
-## 目錄重點
+## 本機開發主線
 
-- `gemini_agent/`
-  - ADK Agent 主程式、system prompt 與工具
-- `Makefile`
-  - 本地啟動、GCP 認證、Cloud Run 部署
-- `requirements.txt`
-  - Python 依賴
-- `Dockerfile`
-  - Cloud Run / Docker 部署用映像檔設定
+本機開發使用 Google AI Studio API key：
 
-## 目前串接的外部 API
-
-- 文化部藝文活動 OpenAPI
-- Open-Meteo
-- Nominatim / OpenStreetMap Search API
-
-## 快速開始
-
-```bash
-cd backend/adk_agent
-make setup
-source .venv/bin/activate
-make run
+```env
+GOOGLE_GENAI_USE_VERTEXAI=0
+GOOGLE_API_KEY=你的_Google_AI_Studio_API_key
 ```
 
-若要部署到 Cloud Run：
+從 repo 根目錄執行：
 
 ```bash
-make auth PROJECT=your-project-id
-make enable-apis
-make deploy PROJECT=your-project-id
+bash scripts/setup_backend.sh
+bash scripts/start_backend.sh
 ```
 
-## 注意
+Windows PowerShell 請看根目錄 README 的 `.ps1` 指令。
 
-- `gemini_agent/.env` 不應提交到版本庫
-- `.adk/` 與 `*.sqlite3` 屬於執行期產物，已由 repo `.gitignore` 排除
-- 目前行程規劃使用簡化交通估算，尚未接入 TDX 真實路線資料
+## 服務
+
+啟動後會有兩個服務：
+
+- FastAPI proxy：<http://127.0.0.1:8000>
+- ADK Web UI：<http://127.0.0.1:8001>
+
+前端只需要呼叫 `/api/*`，不需要直接打 ADK port。
+
+## 選填外部 API
+
+- `GOOGLE_MAPS_API_KEY`：Google Places API (New)，用於場館評分與評論
+- `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`：TDX 交通資料
+
+沒有選填 key 時，相關工具會降級或略過，不影響基本啟動。

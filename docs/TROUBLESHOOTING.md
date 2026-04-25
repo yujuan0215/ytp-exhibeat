@@ -4,20 +4,20 @@
 
 Backend (port 8000) is not running. Start backend first in another terminal, then retry frontend.
 
-## Backend keeps logging `Gemini summarisation failed ... credentials were not found`
+## Backend keeps logging `Gemini summarisation failed`
 
-Your `.env` is using Vertex AI but Application Default Credentials (ADC) are missing.
+First check `backend/adk_agent/gemini_agent/.env`.
 
-After the first failure, backend automatically disables AI summary for this process and falls back to naive truncation for faster responses.
-
-If you want real Gemini summaries, switch to AI Studio key mode:
+本機開發應該使用 AI Studio API key mode：
 
 ```env
 GOOGLE_GENAI_USE_VERTEXAI=0
-GOOGLE_API_KEY=AI...
+GOOGLE_API_KEY=你的_Google_AI_Studio_API_key
 ```
 
-Then restart backend.
+Then restart backend. If `GOOGLE_API_KEY` is missing or invalid, backend may fall back to naive truncation for summaries.
+
+If the log mentions Application Default Credentials (ADC), the env was likely changed to Vertex AI mode. Switch it back to `GOOGLE_GENAI_USE_VERTEXAI=0` unless you intentionally configured Vertex AI credentials.
 
 ## Windows cannot run PS1 scripts (`...系統上已停用指令碼執行`)
 

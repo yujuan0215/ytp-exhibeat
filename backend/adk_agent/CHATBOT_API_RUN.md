@@ -1,67 +1,69 @@
-# Chatbot API Backend Run Guide (WSL)
+# Chatbot API Run Notes
 
-This guide is specifically for the chatbot API flow used by the frontend:
+完整安裝與啟動流程請以根目錄 [README.md](../../README.md) 為準。
+
+這份文件只保留 chatbot API 的手動驗證方式。
+
+## 相關端點
+
+前端聊天會透過 FastAPI proxy 呼叫：
 
 - `POST /api/apps/{app}/users/{user}/sessions`
 - `POST /api/run`
 
-These endpoints are served through `api_proxy_server.py` on port `8000`, which forwards to ADK on `8001`.
+FastAPI proxy 跑在 `8000`，ADK Web UI 跑在 `8001`。
 
-## 1) Start ADK server (Terminal A)
+## 手動啟動
+
+通常請直接使用：
 
 ```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+bash scripts/start_backend.sh
+```
+
+若需要分開看 log，才手動開兩個 terminal。
+
+Terminal A：
+
+```bash
+cd backend/adk_agent
 source .venv/bin/activate
 adk web --host 0.0.0.0 --port 8001 --allow_origins "*"
 ```
 
-## 2) Start proxy API server (Terminal B)
+Terminal B：
 
 ```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+cd backend/adk_agent
 source .venv/bin/activate
 ADK_PORT=8001 uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000
 ```
 
-## 3) Verify chatbot endpoints
+## 驗證
 
-From Windows PowerShell or terminal:
-
-```bash
-python -c "import json,urllib.request;req=urllib.request.Request('http://127.0.0.1:8000/api/apps/gemini_agent/users/local-dev-user/sessions',data=b'{}',headers={'Content-Type':'application/json'},method='POST');print(json.loads(urllib.request.urlopen(req).read().decode()))"
-```
-
-You should get a JSON object containing an `id`.
-
-## 4) Frontend expectations
-
-The frontend currently uses:
-
-- `appName = gemini_agent`
-- `userId = local-dev-user`
-
-So your ADK app list must include `gemini_agent`.
-
-Quick check:
+建立 session：
 
 ```bash
-python -c "import json,urllib.request;print(json.load(urllib.request.urlopen('http://127.0.0.1:8001/list-apps')))"
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8000/api/apps/gemini_agent/users/local-dev-user/sessions
 ```
 
-Expected output includes:
+確認 app 存在：
+
+```bash
+curl http://127.0.0.1:8000/api/list-apps
+```
+
+預期回應包含：
 
 ```text
-['gemini_agent']
+gemini_agent
 ```
 
-## Troubleshooting
+## 常見錯誤
 
-- `Connection Error: Failed to create ADK session`
-  - Usually means one of:
-    - ADK server (`8001`) is not running
-    - Proxy server (`8000`) is not running
-    - Proxy forwarding path is wrong
-- `Not Found` when creating session
-  - Confirm app name is `gemini_agent` and `/list-apps` includes it.
-- Session issues after restarting backend
-  - Clear `localStorage.adk_session` in browser and retry.
+- `Failed to create ADK session`：通常是 `8000` 或 `8001` 沒啟動
+- `Not Found`：確認 app name 是 `gemini_agent`
+- 重啟後 session 異常：清掉 browser 裡的 `localStorage.adk_session`

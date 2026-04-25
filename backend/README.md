@@ -1,84 +1,72 @@
-# Backend Run Guide (WSL)
+# Backend
 
-This backend is currently configured to run inside a Linux/WSL Python environment (`.venv/bin/...`).
+完整安裝流程請以根目錄 [README.md](../README.md) 為準。
 
-## Prerequisites
+本資料夾包含：
 
-- WSL installed (Ubuntu or similar)
-- Python 3.11+ in WSL
-- Node.js installed for frontend (optional for backend-only tests)
+- `adk_agent/`：FastAPI API proxy、Google ADK agent、Gemini 工具
+- `app/recommender/`：推薦系統原型
+- `shared/`：agent 與 recommender 共用的推薦規則
 
-## 1) Open WSL and go to backend
+## 本機啟動
+
+從 repo 根目錄執行：
 
 ```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+bash scripts/setup_backend.sh
 ```
 
-## 2) Create or reuse virtual environment
+編輯：
 
-If `.venv` already exists, skip creation and only activate it.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+```text
+backend/adk_agent/gemini_agent/.env
 ```
 
-## 3) Configure environment variables
+至少設定：
 
-```bash
-cp gemini_agent/.env.sample gemini_agent/.env
+```env
+GOOGLE_GENAI_USE_VERTEXAI=0
+GOOGLE_API_KEY=你的_Google_AI_Studio_API_key
 ```
 
-Edit `gemini_agent/.env` and set required values, such as:
-
-- `GOOGLE_GENAI_USE_VERTEXAI`
-- `GOOGLE_CLOUD_PROJECT`
-- `GOOGLE_CLOUD_LOCATION`
-- `GEMINI_MODEL`
-
-Optional:
-
-- `GOOGLE_MAPS_API_KEY`
-- `TDX_CLIENT_ID`
-- `TDX_CLIENT_SECRET`
-
-## 4) Start backend services (two terminals)
-
-Run both services in parallel.
-
-### Terminal A: ADK service on 8001
+啟動：
 
 ```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+bash scripts/start_backend.sh
+```
+
+Windows PowerShell 請使用根目錄 README 裡的 `.ps1` 指令。
+
+## 手動啟動兩個後端服務
+
+只有需要看更細 log 時才手動跑。
+
+Terminal A：
+
+```bash
+cd backend/adk_agent
 source .venv/bin/activate
 adk web --host 0.0.0.0 --port 8001 --allow_origins "*"
 ```
 
-### Terminal B: FastAPI proxy + recommender on 8000
+Terminal B：
 
 ```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+cd backend/adk_agent
 source .venv/bin/activate
 ADK_PORT=8001 uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000
 ```
 
-## 5) Start frontend (optional, from another terminal)
+## API key
 
-```bash
-cd /mnt/c/Programming/Project/ytp-exhibeat/frontend
-npm install
-npm run dev
-```
+本機開發預設使用 Google AI Studio API key，不使用 Vertex AI 憑證檔。
 
-Make sure frontend proxy target points to your backend address in `frontend/vite.config.ts`.
+必填：
 
-## Troubleshooting
+- `GOOGLE_GENAI_USE_VERTEXAI=0`
+- `GOOGLE_API_KEY`
 
-- `uvicorn: not found`:
-  - You are likely not in the WSL virtualenv. Run `source .venv/bin/activate`.
-- PowerShell cannot run backend venv:
-  - This project currently has a Linux-style venv (`.venv/bin`). Use WSL terminal.
-- `make run` fails unexpectedly:
-  - Start the two services manually using the commands in Step 4 for clearer logs.
+選填：
+
+- `GOOGLE_MAPS_API_KEY`：Places API (New)，用於場館評分與評論
+- `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET`：TDX 交通資料

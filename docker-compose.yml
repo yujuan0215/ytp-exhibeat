@@ -21,6 +21,10 @@ services:
     environment:
       # 容器內 vite 要呼叫 backend 容器
       VITE_API_PROXY_TARGET: http://backend:8000
+      # 選填：地圖頁需要。可在執行 docker compose 前用 shell env 傳入。
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+      VITE_GOOGLE_MAP_ID: ${VITE_GOOGLE_MAP_ID:-}
+      VITE_GOOGLE_MAP_STYLE_MODE: ${VITE_GOOGLE_MAP_STYLE_MODE:-local}
     depends_on:
       - backend
     restart: unless-stopped
