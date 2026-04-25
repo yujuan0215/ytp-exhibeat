@@ -11,9 +11,10 @@ from playwright.sync_api import sync_playwright
 
 BASE_URL = "https://artemperor.tw/tidbits"
 TARGET_LOCATION = "台北市"
-MAX_ITEMS = 5
-OUTPUT_PATH = Path("artemperor_tidbits_taipei_top5.json")
-MAX_SCROLL_ROUNDS = 10
+# 0 = no cap (collect until scroll budget exhausted).
+MAX_ITEMS = 0
+OUTPUT_PATH = Path("data/artemperor_tidbits.json")
+MAX_SCROLL_ROUNDS = 80
 
 
 @dataclass
@@ -289,7 +290,7 @@ def collect_taipei_items_from_boxes(
                     "link": href,
                 }
             )
-            if len(items) >= max_items:
+            if max_items and len(items) >= max_items:
                 return items
         page.mouse.wheel(0, 2600)
         page.wait_for_timeout(1100)
@@ -298,7 +299,12 @@ def collect_taipei_items_from_boxes(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Crawl Artemperor tidbits in Taipei.")
-    parser.add_argument("--max-items", type=int, default=MAX_ITEMS, help="Maximum items to extract.")
+    parser.add_argument(
+        "--max-items",
+        type=int,
+        default=MAX_ITEMS,
+        help="Maximum items to extract (0 = all links found within scroll rounds).",
+    )
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output JSON path.")
     parser.add_argument("--location", type=str, default=TARGET_LOCATION, help="Location keyword filter.")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode.")
@@ -313,7 +319,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    max_items = max(1, args.max_items)
+    max_items = max(0, args.max_items)
     max_scroll_rounds = max(1, args.max_scroll_rounds)
     target_location = args.location.strip()
     if target_location.lower() in {"all", "*", "any"}:
@@ -334,7 +340,8 @@ def main() -> None:
 
         box_items = collect_taipei_items_from_boxes(page, max_items, max_scroll_rounds, target_location)
         scope_label = target_location if target_location else "(no location filter)"
-        print(f"Found {len(box_items)} tidbits with location containing '{scope_label}'.")
+        cap_note = f" (cap {max_items})" if max_items else " (no cap)"
+        print(f"Found {len(box_items)} tidbits with location filter '{scope_label}'{cap_note}.")
 
         results: List[TidbitData] = []
         failures = []
