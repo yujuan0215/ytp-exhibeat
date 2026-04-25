@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
-import { getHomeRecommendations } from "@/lib/api";
+import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp } from "lucide-react";
+import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -13,6 +13,37 @@ type PageToken = number | "...";
 const ENABLE_IG_WIDGET = import.meta.env.VITE_ENABLE_IG_WIDGET === "true";
 const IG_WIDGET_SCRIPT_SRC = "https://cdn.commoninja.com/sdk/latest/commonninja.js";
 const IG_WIDGET_PID = "76c8d05c-85f6-4953-bb5b-f7e5cfd50c99";
+const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
+
+function normalizeHashtag(value: string): string {
+  const stripped = String(value ?? "").trim().replace(/^#+/, "").replace(/\s+/g, "");
+  if (!stripped) return "";
+  return `#${stripped}`;
+}
+
+function loadCustomTagCounts(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TAG_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const counts: Record<string, number> = {};
+    Object.values(parsed).forEach((value) => {
+      if (!Array.isArray(value)) return;
+      const deduped = new Set<string>();
+      value.forEach((item) => {
+        const normalized = normalizeHashtag(String(item ?? ""));
+        if (normalized) deduped.add(normalized);
+      });
+      deduped.forEach((tag) => {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      });
+    });
+    return counts;
+  } catch {
+    return {};
+  }
+}
 
 type InstagramAccount = {
   handle: string;
@@ -184,11 +215,16 @@ export function Home() {
   const [pageInputError, setPageInputError] = useState("");
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
   const [sortOpen, setSortOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [activeInstagramHandle, setActiveInstagramHandle] = useState(INSTAGRAM_ACCOUNTS[0].handle);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = rawQuery.trim();
   const isTagSearch = effectiveSearch.startsWith("#");
+  const searchRef = useRef<HTMLFormElement | null>(null);
 
 
   useEffect(() => {
@@ -201,6 +237,33 @@ export function Home() {
   }, []);
 
   useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
+
+  useEffect(() => {
+    setSearchQuery(rawQuery);
+    setActiveSuggestionIndex(-1);
+  }, [rawQuery]);
+
+  useEffect(() => {
+    listTagStats()
+      .then((data) => {
+        setAvailableTagStats(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        console.warn("Failed to load search suggestions", error);
+        setAvailableTagStats([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) {
+        setSearchSuggestionsOpen(false);
+      }
+    };
+    if (!searchSuggestionsOpen) return;
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [searchSuggestionsOpen]);
 
   const filtered = useMemo(() => {
     const searched = !effectiveSearch
@@ -231,6 +294,36 @@ export function Home() {
   const translateHomeText = useDynamicTranslation(sharedHomeTexts, "home shared exhibition content");
   const activeInstagramAccount =
     INSTAGRAM_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? INSTAGRAM_ACCOUNTS[0];
+  const normalizedQuery = searchQuery.trim();
+  const isTagInput = normalizedQuery.startsWith("#");
+  const bareTagQuery = normalizedQuery.replace(/^#+/, "").trim().toLowerCase();
+  const mergedTagStats = useMemo(() => {
+    const merged = new Map<string, number>();
+    availableTagStats.forEach((row) => {
+      const tag = normalizeHashtag(row.tag);
+      if (!tag) return;
+      merged.set(tag, Math.max(0, Math.floor(Number(row.count) || 0)));
+    });
+    const customCounts = loadCustomTagCounts();
+    Object.entries(customCounts).forEach(([tag, count]) => {
+      const normalized = normalizeHashtag(tag);
+      if (!normalized) return;
+      merged.set(normalized, (merged.get(normalized) ?? 0) + Math.max(0, count));
+    });
+    return Array.from(merged.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => (b.count - a.count) || a.tag.localeCompare(b.tag, "zh-Hant"));
+  }, [availableTagStats, rawQuery]);
+  const searchSuggestions = useMemo(() => {
+    if (!isTagInput) return [] as Array<{ tag: string; count: number }>;
+    const rows: Array<{ tag: string; count: number }> = [];
+    for (const row of mergedTagStats) {
+      const cleanTag = row.tag.replace(/^#+/, "").toLowerCase();
+      if (bareTagQuery && !cleanTag.startsWith(bareTagQuery)) continue;
+      rows.push(row);
+    }
+    return rows.slice(0, 30);
+  }, [bareTagQuery, isTagInput, mergedTagStats]);
 
   useEffect(() => {
     if (!ENABLE_IG_WIDGET) return;
@@ -274,6 +367,29 @@ export function Home() {
     setCurrentPage(nextPage);
     setPageInput(String(nextPage));
     setPageInputError("");
+  };
+
+  const applySearchQuery = (value: string) => {
+    const q = value.trim();
+    const next = new URLSearchParams(searchParams);
+    if (q) next.set("q", q);
+    else next.delete("q");
+    next.delete("page");
+    setSearchParams(next, { replace: true });
+    setSearchSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedSuggestion =
+      activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex]?.tag : null;
+    applySearchQuery(selectedSuggestion ?? searchQuery);
+  };
+
+  const handleSuggestionClick = (suggestion: { tag: string; count: number }) => {
+    setSearchQuery(suggestion.tag);
+    applySearchQuery(suggestion.tag);
   };
 
   useEffect(() => {
@@ -380,7 +496,67 @@ export function Home() {
 
       <section className="max-w-7xl mx-auto px-8 py-12">
         <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div />
+          <form className="relative w-full md:max-w-xl" onSubmit={handleSearchSubmit} ref={searchRef}>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchQuery(value);
+                setActiveSuggestionIndex(-1);
+                const trimmed = value.trim();
+                setSearchSuggestionsOpen(trimmed.startsWith("#"));
+              }}
+              onFocus={() => {
+                const trimmed = searchQuery.trim();
+                setSearchSuggestionsOpen(trimmed.startsWith("#"));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSearchSuggestionsOpen(false);
+                  setActiveSuggestionIndex(-1);
+                  return;
+                }
+                if (!searchSuggestionsOpen || searchSuggestions.length === 0) return;
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) => (prev + 1) % searchSuggestions.length);
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) =>
+                    prev <= 0 ? searchSuggestions.length - 1 : prev - 1,
+                  );
+                }
+              }}
+              placeholder="搜尋展覽、藝術家...（#標籤）"
+              className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            {searchSuggestionsOpen && (
+              <div className="absolute left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1625] shadow-xl z-30">
+                {searchSuggestions.length > 0 ? (
+                  searchSuggestions.map((suggestion, index) => (
+                    <button
+                      key={`${suggestion.tag}-${index}`}
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      onMouseEnter={() => setActiveSuggestionIndex(index)}
+                      className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors ${
+                        index === activeSuggestionIndex
+                          ? "bg-white/10 text-white"
+                          : "text-white/80 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span>{suggestion.tag}</span>
+                      <span className="text-xs text-white/50">{suggestion.count}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2.5 text-sm text-white/45">無符合標籤</div>
+                )}
+              </div>
+            )}
+          </form>
           <button
             onClick={() => setSortOpen(o => !o)}
             className="flex items-center gap-2 justify-self-start text-sm text-white/65 hover:text-white transition-colors lg:justify-self-end"
