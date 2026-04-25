@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
 import { Heart, Calendar, MapPin, ArrowRight, Lock } from "lucide-react";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 import { Card, CardContent } from "./ui/card";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
@@ -9,7 +10,16 @@ import { useTheme } from "@/lib/theme";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 
-export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { exhibition: Exhibition; isCollectionVariant?: boolean }) {
+export function ExhibitionCard({
+  exhibition,
+  isCollectionVariant = false,
+  tripListContextId = null,
+}: {
+  exhibition: Exhibition;
+  isCollectionVariant?: boolean;
+  /** When set (e.g. viewing a list), menu can remove item from this list. */
+  tripListContextId?: string | null;
+}) {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const [favorited, setFavorited] = useState(false);
@@ -65,8 +75,21 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
               (e.target as HTMLImageElement).src = imgs[exhibition.title.length % imgs.length];
             }}
           />
+          <div
+            className="absolute top-4 left-4 z-20"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <AddToTripListMenu kind="event" exhibition={exhibition} currentListId={tripListContextId} align="start" />
+          </div>
           <button
-            onClick={handleToggleFavorite}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void handleToggleFavorite(e);
+            }}
             title={user ? (favorited ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
             className={`absolute top-4 right-4 z-20 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors`}
           >

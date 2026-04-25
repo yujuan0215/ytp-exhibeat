@@ -3,14 +3,14 @@ It will be compatible before version 2.0.0.
   from authlib.jose import ECKey
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/features/_feature_decorator.py:72: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
   check_feature_enabled()
-2026-04-25 09:34:10,082 - INFO - service_factory.py:266 - Using in-memory memory service
-2026-04-25 09:34:10,082 - INFO - local_storage.py:84 - Using per-agent session storage rooted at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
-2026-04-25 09:34:10,087 - INFO - local_storage.py:110 - Using file artifact service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.adk/artifacts
+2026-04-25 12:26:46,421 - INFO - service_factory.py:266 - Using in-memory memory service
+2026-04-25 12:26:46,421 - INFO - local_storage.py:84 - Using per-agent session storage rooted at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent
+2026-04-25 12:26:46,425 - INFO - local_storage.py:110 - Using file artifact service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.adk/artifacts
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/cli/fast_api.py:198: UserWarning: [EXPERIMENTAL] InMemoryCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   credential_service = InMemoryCredentialService()
 /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/.venv/lib/python3.12/site-packages/google/adk/auth/credential_service/in_memory_credential_service.py:33: UserWarning: [EXPERIMENTAL] BaseCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
   super().__init__()
-INFO:     Started server process [4619]
+INFO:     Started server process [5667]
 INFO:     Waiting for application startup.
 
 +-----------------------------------------------------------------------------+
@@ -21,28 +21,3 @@ INFO:     Waiting for application startup.
 
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-2026-04-25 09:46:01,432 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
-2026-04-25 09:46:01,437 - INFO - envs.py:83 - Loaded .env file for gemini_agent at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.env
-2026-04-25 09:46:01,615 - INFO - agent_loader.py:131 - Found root_agent in gemini_agent.agent
-2026-04-25 09:46:01,709 - INFO - local_storage.py:60 - Creating local session service at /mnt/c/Programming/Project/ytp-exhibeat/backend/adk_agent/gemini_agent/.adk/session.db
-2026-04-25 09:46:02,226 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 09:46:09,275 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 09:46:09,304 - INFO - adk_web_server.py:1907 - Generated 1 events in agent run
-INFO:     127.0.0.1:46998 - "POST /run HTTP/1.1" 200 OK
-2026-04-25 09:46:27,886 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 09:46:34,189 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 09:46:34,230 - INFO - adk_web_server.py:1907 - Generated 1 events in agent run
-INFO:     127.0.0.1:37546 - "POST /run HTTP/1.1" 200 OK
-2026-04-25 11:31:49,730 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 11:32:05,159 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 11:32:05,166 - WARNING - types.py:7966 - Warning: there are non-text parts in the response: ['function_call'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.
-2026-04-25 11:32:10,623 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 11:32:17,991 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 11:32:18,178 - INFO - adk_web_server.py:1907 - Generated 3 events in agent run
-INFO:     127.0.0.1:34884 - "POST /run HTTP/1.1" 200 OK
-2026-04-25 11:34:11,266 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 11:34:23,974 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 11:34:33,873 - INFO - google_llm.py:185 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
-2026-04-25 11:34:56,230 - INFO - google_llm.py:250 - Response received from the model.
-2026-04-25 11:34:56,402 - INFO - adk_web_server.py:1907 - Generated 3 events in agent run
-INFO:     127.0.0.1:49300 - "POST /run HTTP/1.1" 200 OK

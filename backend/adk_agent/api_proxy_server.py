@@ -648,9 +648,22 @@ async def proxy_adk(request: Request, path: str):
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Backend agent service is temporarily unavailable.",
             ) from exc
-        headers = {k: v for k, v in response.headers.items()
-                   if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
-        return StreamingResponse(response.aiter_bytes(), status_code=response.status_code, headers=headers)
+        headers = {
+            k: v
+            for k, v in response.headers.items()
+            if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
+        }
+
+        async def relay_stream():
+            try:
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+            except httpx.ReadError as exc:
+                logger.warning("Upstream read error while proxying /api/%s: %s", path, exc)
+            finally:
+                await response.aclose()
+
+        return StreamingResponse(relay_stream(), status_code=response.status_code, headers=headers)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

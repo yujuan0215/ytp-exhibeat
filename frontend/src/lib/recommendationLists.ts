@@ -1,6 +1,12 @@
 import type { AgentRecommendationItem } from "./api";
-
-const STORAGE_KEY = "exhibeat_recommendation_lists";
+import type { Exhibition } from "@/data/mock";
+import {
+  addItemToTripList,
+  agentRecommendationToExhibition,
+  createTripList,
+  getTripListById,
+  getTripLists,
+} from "./tripLists";
 
 export type RecommendationList = {
   id: string;
@@ -10,36 +16,39 @@ export type RecommendationList = {
   events: AgentRecommendationItem[];
 };
 
-function readLists(): RecommendationList[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLists(lists: RecommendationList[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+/** @deprecated Use trip lists via `getTripLists` from `@/lib/tripLists`. */
+export function getRecommendationLists(): RecommendationList[] {
+  return getTripLists().map((list) => ({
+    id: list.id,
+    name: list.name,
+    createdAt: list.createdAt,
+    eventIds: list.items.filter((i) => i.kind === "event").map((i) => i.payload.id),
+    events: list.items
+      .filter((i): i is { kind: "event"; payload: Exhibition } => i.kind === "event")
+      .map((i) => ({
+        id: i.payload.id,
+        title: i.payload.title,
+        dateStr: i.payload.dateStr,
+        location: i.payload.location,
+        imageUrl: i.payload.imageUrl,
+      })),
+  }));
 }
 
 export function saveRecommendationList(name: string, events: AgentRecommendationItem[]): RecommendationList {
-  const trimmed = name.trim();
-  const finalName = trimmed || `推薦清單 ${new Date().toLocaleDateString()}`;
-  const list: RecommendationList = {
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    name: finalName,
-    createdAt: new Date().toISOString(),
-    eventIds: events.map((event) => event.id),
+  const list = createTripList(name);
+  for (const event of events) {
+    addItemToTripList(list.id, {
+      kind: "event",
+      payload: agentRecommendationToExhibition(event),
+    });
+  }
+  const updated = getTripListById(list.id)!;
+  return {
+    id: updated.id,
+    name: updated.name,
+    createdAt: updated.createdAt,
+    eventIds: events.map((e) => e.id),
     events,
   };
-  const prev = readLists();
-  writeLists([list, ...prev]);
-  return list;
-}
-
-export function getRecommendationLists(): RecommendationList[] {
-  return readLists();
 }

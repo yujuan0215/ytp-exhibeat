@@ -20,6 +20,7 @@ import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 
@@ -478,6 +479,10 @@ export function ExhibitionDetail() {
                 >
                   {actionLabel} <ArrowRight className="w-4 h-4" />
                 </button>
+              </div>
+              <div className="flex items-center justify-center gap-2 border-t border-[#48474d]/20 pt-4">
+                <span className="text-xs text-on-surface-variant">行程清單</span>
+                <AddToTripListMenu kind="event" exhibition={exhibition} align="end" />
               </div>
             </div>
           </section>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Exhibition } from "@/data/mock";
-import { getHomeRecommendations } from "@/lib/api";
+import { getHomeRecommendations, listLegalStays } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -8,6 +8,8 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
+import type { LegalStay } from "@/lib/api";
+import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 
 declare global {
   interface Window {
@@ -17,6 +19,9 @@ declare global {
 }
 
 const FALLBACK_CENTER = { lat: 25.0478, lng: 121.5319 };
+const MIN_STAY_ZOOM = 12;
+const STAY_PAGE_SIZE = 250;
+const MAX_VISIBLE_STAY_MARKERS = 80;
 
 const DARK_MAP_STYLES = [
   {
@@ -103,6 +108,7 @@ const DARK_MAP_STYLES = [
 
 type LatLng = { lat: number; lng: number };
 type MarkerSeed = { item: Exhibition; coord: LatLng | null; geocodeQuery: string };
+type MapSelection = { kind: "event" | "stay"; id: string } | null;
 
 const CITY_COORDS: Record<string, LatLng> = {
   "台北市": { lat: 25.033, lng: 121.5654 },
@@ -202,6 +208,20 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
   });
 }
 
+function buildMarkerIcon(maps: any, kind: "event" | "stay", selected = false) {
+  const isStay = kind === "stay";
+  const fillColor = isStay ? "#00d6ff" : "#a855f7";
+  const strokeColor = isStay ? "#005f73" : "#4c1d95";
+  return {
+    path: maps.SymbolPath.CIRCLE,
+    scale: selected ? (isStay ? 10 : 11) : isStay ? 8 : 9,
+    fillColor,
+    fillOpacity: 0.98,
+    strokeColor,
+    strokeWeight: selected ? 4 : 2,
+  };
+}
+
 export function Map() {
   const { user } = useAuth();
   const location = useLocation();
@@ -214,10 +234,20 @@ export function Map() {
   const useCloudStyle = styleMode === "cloud" && !!mapId;
 
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
+  const [legalStays, setLegalStays] = useState<LegalStay[]>([]);
+  const [loadedTaipeiStays, setLoadedTaipeiStays] = useState<LegalStay[]>([]);
+  const [mapViewport, setMapViewport] = useState<{
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+    zoom: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "nearby" | "free" | "ending">("all");
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<MapSelection>(null);
+  const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
@@ -228,7 +258,15 @@ export function Map() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
-  const markerLookupRef = useRef<Record<string, { marker: any; content: string }>>({});
+  const markerLookupRef = useRef<
+    Record<string, { marker: any; content: string; selection: MapSelection; stayData?: LegalStay }>
+  >({});
+  const stayMarkerKeysRef = useRef<string[]>([]);
+  const taipeiStayCacheRef = useRef<LegalStay[]>([]);
+  const taipeiStayOffsetRef = useRef(0);
+  const taipeiStayHasMoreRef = useRef(true);
+  const taipeiStayLoadingRef = useRef(false);
+  const latestViewportRef = useRef<NonNullable<typeof mapViewport> | null>(null);
 
   useEffect(() => {
     const styleId = "map-info-window-theme";
@@ -255,9 +293,13 @@ export function Map() {
 
   useEffect(() => {
     getHomeRecommendations()
-      .then((data) => setExhibitions(data))
+      .then((exhibitionsData) => {
+        setExhibitions(exhibitionsData);
+        setError(null);
+      })
       .catch((err) => {
         console.error(err);
+        setExhibitions([]);
         setError("Failed to load exhibitions");
       })
       .finally(() => setLoading(false));
@@ -303,10 +345,12 @@ export function Map() {
   }, [activeFilter, exhibitions]);
 
   const hasMore = sidebarItems.length < totalFilteredCount;
+  const selectedEventId = selection?.kind === "event" ? selection.id : null;
   const selectedItem = useMemo(
     () => (selectedEventId ? exhibitions.find((item) => item.id === selectedEventId) ?? null : null),
     [exhibitions, selectedEventId],
   );
+  const selectedStayIdState = selectedStay?.id ?? null;
   const selectedTicketPrice = selectedItem
     ? selectedItem.price === "FREE" || selectedItem._meta?.isFree
       ? "FREE"
@@ -316,6 +360,36 @@ export function Map() {
     selectedItem?.aiSummary ||
     "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
   const queryEventId = searchParams.get("eventId");
+
+  function isTaipeiStay(stay: LegalStay): boolean {
+    const city = stay.address.city.trim().toLowerCase().replace("台", "臺");
+    return city === "臺北市" || city === "taipei city" || city === "taipei";
+  }
+
+  function isInViewport(stay: LegalStay, viewport: NonNullable<typeof mapViewport>): boolean {
+    const lat = stay.location.lat;
+    const lng = stay.location.lng;
+    const inLat = lat <= viewport.north && lat >= viewport.south;
+    const inLng = lng <= viewport.east && lng >= viewport.west;
+    return inLat && inLng;
+  }
+
+  function pickVisibleStays(stays: LegalStay[], viewport: NonNullable<typeof mapViewport>): LegalStay[] {
+    const centerLat = (viewport.north + viewport.south) / 2;
+    const centerLng = (viewport.east + viewport.west) / 2;
+    return stays
+      .filter((stay) => isInViewport(stay, viewport))
+      .sort((a, b) => {
+        const aDist =
+          (a.location.lat - centerLat) * (a.location.lat - centerLat) +
+          (a.location.lng - centerLng) * (a.location.lng - centerLng);
+        const bDist =
+          (b.location.lat - centerLat) * (b.location.lat - centerLat) +
+          (b.location.lng - centerLng) * (b.location.lng - centerLng);
+        return aDist - bDist;
+      })
+      .slice(0, MAX_VISIBLE_STAY_MARKERS);
+  }
 
   useEffect(() => {
     setVisibleCount(5);
@@ -368,23 +442,33 @@ export function Map() {
     };
   }, []);
 
-  const focusEventOnMap = (eventId: string, syncQuery = true) => {
+  const focusMarkerOnMap = (lookupKey: string, syncEventQuery = true, recenter = true) => {
     const map = mapInstanceRef.current;
     const infoWindow = infoWindowRef.current;
-    const entry = markerLookupRef.current[eventId];
+    const entry = markerLookupRef.current[lookupKey];
     if (!map || !infoWindow || !entry) return;
 
     const pos = entry.marker.getPosition?.();
-    if (pos) {
+    if (recenter && pos) {
       map.panTo(pos);
       map.setZoom(Math.max(map.getZoom?.() ?? 11, 13));
     }
     infoWindow.setContent(entry.content);
     infoWindow.open({ anchor: entry.marker, map });
-    setSelectedEventId(eventId);
-    if (syncQuery) {
-      const next = new URLSearchParams(searchParams);
-      next.set("eventId", eventId);
+    setSelection(entry.selection);
+    if (entry.selection?.kind === "stay" && entry.stayData) {
+      setSelectedStay(entry.stayData);
+    } else if (entry.selection?.kind === "event") {
+      setSelectedStay(null);
+    }
+    const next = new URLSearchParams(searchParams);
+    if (entry.selection?.kind === "event" && entry.selection.id) {
+      if (syncEventQuery) {
+        next.set("eventId", entry.selection.id);
+        setSearchParams(next, { replace: true });
+      }
+    } else if (next.has("eventId")) {
+      next.delete("eventId");
       setSearchParams(next, { replace: true });
     }
   };
@@ -395,7 +479,8 @@ export function Map() {
     if (!mapRef.current || !apiKey) return;
 
     let detached = false;
-    let markers: any[] = [];
+    let eventMarkers: any[] = [];
+    let idleListener: any = null;
 
     loadGoogleMaps(apiKey)
       .then(async () => {
@@ -456,24 +541,18 @@ export function Map() {
         markerLookupRef.current = {};
         const bounds = new maps.LatLngBounds();
 
-        markers = resolvedData.map(({ item, coord }) => {
+        eventMarkers = resolvedData.map(({ item, coord }) => {
           const safeTitle = escapeHtml(item.title);
           const safeLocation = escapeHtml(item.location);
           const safeDate = escapeHtml(item.dateStr);
           const eventUrl = buildEventPageUrl(item);
+          const lookupKey = `event:${item.id}`;
 
           const marker = new maps.Marker({
             position: coord,
             map,
             title: item.title,
-            icon: {
-              path: maps.SymbolPath.CIRCLE,
-              scale: 9,
-              fillColor: "#a855f7",
-              fillOpacity: 0.95,
-              strokeColor: "#4c1d95",
-              strokeWeight: 2,
-            },
+            icon: buildMarkerIcon(maps, "event", false),
           });
 
           const popupContent = `<div style="max-width:240px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
@@ -485,14 +564,32 @@ export function Map() {
                 </a>
               </div>`;
 
-          markerLookupRef.current[item.id] = { marker, content: popupContent };
-          marker.addListener("click", () => focusEventOnMap(item.id));
+          markerLookupRef.current[lookupKey] = {
+            marker,
+            content: popupContent,
+            selection: { kind: "event", id: item.id },
+          };
+          marker.addListener("click", () => focusMarkerOnMap(lookupKey));
 
           bounds.extend(coord);
           return marker;
         });
 
         if (resolvedData.length > 1) map.fitBounds(bounds);
+        idleListener = map.addListener("idle", () => {
+          const b = map.getBounds?.();
+          if (!b) return;
+          const ne = b.getNorthEast?.();
+          const sw = b.getSouthWest?.();
+          if (!ne || !sw) return;
+          setMapViewport({
+            north: ne.lat(),
+            east: ne.lng(),
+            south: sw.lat(),
+            west: sw.lng(),
+            zoom: map.getZoom?.() ?? 0,
+          });
+        });
         setMapReadyVersion((prev) => prev + 1);
       })
       .catch((e) => {
@@ -503,7 +600,8 @@ export function Map() {
 
     return () => {
       detached = true;
-      markers.forEach((m) => m.setMap(null));
+      if (idleListener) idleListener.remove?.();
+      eventMarkers.forEach((m) => m.setMap(null));
       markerLookupRef.current = {};
       mapInstanceRef.current = null;
       infoWindowRef.current = null;
@@ -511,17 +609,157 @@ export function Map() {
   }, [apiKey, mapId, markerData, useCloudStyle]);
 
   useEffect(() => {
+    if (!mapViewport || mapViewport.zoom < MIN_STAY_ZOOM) {
+      latestViewportRef.current = null;
+      setLegalStays([]);
+      return;
+    }
+    latestViewportRef.current = mapViewport;
+
+    const cachedVisible = pickVisibleStays(taipeiStayCacheRef.current, mapViewport);
+    const nextVisible = [...cachedVisible];
+    if (selectedStayIdState) {
+      const pinned =
+        taipeiStayCacheRef.current.find((stay) => stay.id === selectedStayIdState) ??
+        loadedTaipeiStays.find((stay) => stay.id === selectedStayIdState) ??
+        null;
+      if (pinned && !nextVisible.some((stay) => stay.id === pinned.id)) {
+        nextVisible.unshift(pinned);
+      }
+    }
+    setLegalStays(nextVisible.slice(0, MAX_VISIBLE_STAY_MARKERS));
+
+    if (cachedVisible.length >= MAX_VISIBLE_STAY_MARKERS) return;
+    if (!taipeiStayHasMoreRef.current || taipeiStayLoadingRef.current) return;
+
+    taipeiStayLoadingRef.current = true;
+    listLegalStays({
+      city: "Taipei City",
+      limit: STAY_PAGE_SIZE,
+      offset: taipeiStayOffsetRef.current,
+    })
+      .then((result) => {
+        const normalized = result.stays.filter(isTaipeiStay);
+        const seen = new Set(taipeiStayCacheRef.current.map((stay) => stay.id));
+        const additions = normalized.filter((stay) => !seen.has(stay.id));
+        taipeiStayCacheRef.current = [...taipeiStayCacheRef.current, ...additions];
+        setLoadedTaipeiStays(taipeiStayCacheRef.current);
+        taipeiStayOffsetRef.current += result.stays.length;
+        taipeiStayHasMoreRef.current =
+          taipeiStayOffsetRef.current < result.total && result.stays.length > 0;
+
+        const latestViewport = latestViewportRef.current;
+        if (!latestViewport || latestViewport.zoom < MIN_STAY_ZOOM) return;
+        const visibleAfterLoad = pickVisibleStays(taipeiStayCacheRef.current, latestViewport);
+        const nextVisibleAfterLoad = [...visibleAfterLoad];
+        if (selectedStayIdState) {
+          const pinned = taipeiStayCacheRef.current.find((stay) => stay.id === selectedStayIdState) ?? null;
+          if (pinned && !nextVisibleAfterLoad.some((stay) => stay.id === pinned.id)) {
+            nextVisibleAfterLoad.unshift(pinned);
+          }
+        }
+        setLegalStays(nextVisibleAfterLoad.slice(0, MAX_VISIBLE_STAY_MARKERS));
+      })
+      .catch((err) => {
+        console.error(err);
+        setError((prev) => prev ?? "Accommodations are temporarily unavailable");
+      })
+      .finally(() => {
+        taipeiStayLoadingRef.current = false;
+      });
+  }, [loadedTaipeiStays, mapViewport, selectedStayIdState]);
+
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const maps = window.google?.maps;
+    if (!map || !maps) return;
+
+    for (const key of stayMarkerKeysRef.current) {
+      const entry = markerLookupRef.current[key];
+      if (entry?.marker) entry.marker.setMap(null);
+      delete markerLookupRef.current[key];
+    }
+    stayMarkerKeysRef.current = [];
+
+    legalStays.forEach((stay) => {
+      const coord = { lat: stay.location.lat, lng: stay.location.lng };
+      const lookupKey = `stay:${stay.id}`;
+      const safeName = escapeHtml(stay.name);
+      const safeAddress = escapeHtml(stay.address.full);
+      const safeClass = escapeHtml(stay.classLabels.join(" / ") || "合法旅宿");
+      const safePhone = escapeHtml(stay.phones[0] || "電話待補");
+      const mapUrl =
+        stay.urls.map[0] ||
+        `https://www.google.com/maps/search/?api=1&query=${stay.location.lat},${stay.location.lng}`;
+
+      const marker = new maps.Marker({
+        position: coord,
+        map,
+        title: stay.name,
+        icon: buildMarkerIcon(maps, "stay", false),
+      });
+
+      const popupContent = `<div style="max-width:260px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
+            <strong style="display:block;color:#d8f8ff;margin-bottom:4px;">${safeName}</strong>
+            <span style="display:block;color:#9be7f8;">${safeClass}</span>
+            <span style="display:block;color:#cbd5e1;margin-top:2px;">${safeAddress}</span>
+            <span style="display:block;color:#94a3b8;margin-top:2px;">${safePhone}</span>
+            <a href="${mapUrl}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:10px;color:#cffafe;text-decoration:none;border:1px solid #0891b2;background:#155e75;padding:5px 9px;border-radius:999px;font-size:12px;">
+              在 Google Maps 開啟
+            </a>
+          </div>`;
+
+      markerLookupRef.current[lookupKey] = {
+        marker,
+        content: popupContent,
+        selection: { kind: "stay", id: stay.id },
+        stayData: stay,
+      };
+      stayMarkerKeysRef.current.push(lookupKey);
+      marker.addListener("click", () => focusMarkerOnMap(lookupKey));
+    });
+
+    // Unlike event markers (created once), stay markers are viewport-driven and
+    // get recreated on pan/zoom. Re-anchor the popup to the new marker instance
+    // so it doesn't disappear right after first click.
+    if (selection?.kind === "stay") {
+      const selectedKey = `stay:${selection.id}`;
+      const selectedEntry = markerLookupRef.current[selectedKey];
+      const infoWindow = infoWindowRef.current;
+      if (selectedEntry && infoWindow) {
+        infoWindow.setContent(selectedEntry.content);
+        infoWindow.open({ anchor: selectedEntry.marker, map });
+      }
+    }
+  }, [legalStays]);
+
+  useEffect(() => {
+    const maps = window.google?.maps;
+    if (!maps) return;
+
+    Object.entries(markerLookupRef.current).forEach(([lookupKey, entry]) => {
+      const markerKind: "event" | "stay" = lookupKey.startsWith("stay:") ? "stay" : "event";
+      const isSelected =
+        selection?.kind === markerKind &&
+        lookupKey === `${markerKind === "stay" ? "stay" : "event"}:${selection.id}`;
+      entry.marker.setIcon(buildMarkerIcon(maps, markerKind, isSelected));
+      entry.marker.setZIndex(isSelected ? 1000 : undefined);
+    });
+  }, [selection, mapReadyVersion, legalStays]);
+
+  useEffect(() => {
     if (!queryEventId) {
-      setSelectedEventId(null);
+      setSelection((prev) => (prev?.kind === "event" ? null : prev));
       return;
     }
     const exists = exhibitions.some((item) => item.id === queryEventId);
     if (!exists) return;
-    if (markerLookupRef.current[queryEventId]) {
-      focusEventOnMap(queryEventId, false);
+    if (markerLookupRef.current[`event:${queryEventId}`]) {
+      focusMarkerOnMap(`event:${queryEventId}`, false);
       return;
     }
-    setSelectedEventId(queryEventId);
+    setSelection({ kind: "event", id: queryEventId });
   }, [queryEventId, exhibitions, mapReadyVersion]);
 
   if (!apiKey) {
@@ -557,7 +795,7 @@ export function Map() {
         </div>
 
         <aside className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#0f0f1a] p-6">
-          {!selectedItem ? (
+          {!selectedItem && !selectedStay ? (
             <>
               <header className="mb-5">
                 <h1 className="text-4xl font-bold text-white">台北展演地圖</h1>
@@ -597,7 +835,7 @@ export function Map() {
                 {sidebarItems.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => focusEventOnMap(item.id)}
+                    onClick={() => focusMarkerOnMap(`event:${item.id}`)}
                     className={`w-full border p-3 text-left transition-colors ${
                       selectedEventId === item.id
                         ? "border-cyan-300/60 bg-[#1c1f35]"
@@ -608,7 +846,7 @@ export function Map() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        focusEventOnMap(item.id);
+                        focusMarkerOnMap(`event:${item.id}`);
                       }
                     }}
                   >
@@ -647,7 +885,70 @@ export function Map() {
                 <Navigation className="h-4 w-4" /> 探索更多展覽
               </button>
             </>
-          ) : (
+          ) : selectedStay ? (
+            <div className="flex flex-col gap-5">
+              <div className="relative border border-white/10 bg-[#111827] p-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("eventId");
+                    setSearchParams(next, { replace: true });
+                    setSelectedStay(null);
+                    setSelection(null);
+                  }}
+                  className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+                <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                  <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
+                </div>
+                <div className="pt-8">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
+                  <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || "點選地圖上的旅宿，可快速查看住宿資訊與位置。"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-y border-white/10 py-4">
+                <p className="flex items-center gap-2 text-sm text-white/80">
+                  <MapPin className="h-4 w-4 text-cyan-200" /> {selectedStay.address.full}
+                </p>
+                <p className="flex items-center gap-2 text-sm text-white/75">
+                  <Clock3 className="h-4 w-4 text-cyan-200" /> 星級評等：{selectedStay.starRating ? `${selectedStay.starRating} 星` : "未提供"}
+                </p>
+                <p className="text-sm text-white/85">
+                  <span className="mr-2 text-white/50">旅宿類型</span>
+                  <span className="font-semibold text-[#00d6ff]">{selectedStay.classLabels.join(" / ") || "合法旅宿"}</span>
+                </p>
+                <p className="text-sm text-white/85">
+                  <span className="mr-2 text-white/50">聯絡電話</span>
+                  <span>{selectedStay.phones.join("、") || "待補"}</span>
+                </p>
+              </div>
+
+              <a
+                href={selectedStay.urls.map[0] || `https://www.google.com/maps/search/?api=1&query=${selectedStay.location.lat},${selectedStay.location.lng}`}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
+              >
+                <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
+              </a>
+
+              {selectedStay.urls.website ? (
+                <a
+                  href={selectedStay.urls.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex items-center justify-center gap-2 bg-[#00d6ff] px-4 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  <ExternalLink className="h-4 w-4" /> 查看官方網站
+                </a>
+              ) : null}
+            </div>
+          ) : selectedItem ? (
             <div className="flex flex-col gap-5">
               <div className="relative">
                 <img
@@ -661,12 +962,16 @@ export function Map() {
                     const next = new URLSearchParams(searchParams);
                     next.delete("eventId");
                     setSearchParams(next, { replace: true });
-                    setSelectedEventId(null);
+                    setSelectedStay(null);
+                    setSelection(null);
                   }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
+                <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                  <AddToTripListMenu kind="event" exhibition={selectedItem} align="end" />
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -713,7 +1018,7 @@ export function Map() {
                 <ExternalLink className="h-4 w-4" /> 查看完整活動頁
               </a>
             </div>
-          )}
+          ) : null}
         </aside>
       </div>
       <SignInPrompt
