@@ -1,1554 +1,6 @@
 [
   {
     "version": "1.4",
-    "UID": "9e6400f9535e2d3b4c4d0ef68d8476a4",
-    "title": "【2026華山/齊東繪本之森】5月限定•特開課程•力邀業界知名老師&熱門課程 *上課地點請見課程名稱",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.03 (Sun) 12:30 - 05.31 (Sun) 17:50 【2026華山/齊東繪本之森】5月限定•特開課程•力邀業界知名老師&熱門課程 *上課地點請見課程名稱 台北市 #手作輕黏土",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603230933411426570220.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603170319262347928620",
-    "sourceWebPromote": "https://www.accupass.com/event/2603170319262347928620",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "91ba107bd9063ff2289c3099423e080d",
-    "title": "【ECHO偶戲下午茶】物件的靈魂轉生術：從日常用品到舞台主角",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/24 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/24 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.24 (Sun) 14:00 - 16:00 【ECHO偶戲下午茶】物件的靈魂轉生術：從日常用品到舞台主角 台北市 #物件",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604211440219069928400.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604140847541142530466",
-    "sourceWebPromote": "https://www.accupass.com/event/2604140847541142530466",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/24",
-    "endDate": "2026/05/24",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "597bf623643dbdc0db16081c0fab1884",
-    "title": "【速寫台北。插畫家帶路】來去典藏植物園",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/30 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/30 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.30 (Sat) 13:00 - 16:00 【速寫台北。插畫家帶路】來去典藏植物園 台北市 #插畫",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604170841381131376826.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604151314381928557452",
-    "sourceWebPromote": "https://www.accupass.com/event/2604151314381928557452",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/30",
-    "endDate": "2026/05/30",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "ea982ea4ad5a29a7269ba727a50b4906",
-    "title": "「好戲市場學・懂市場推好戲！」－2026 劇場行銷論壇",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.30 (Sat) 09:30 - 05.31 (Sun) 18:00 「好戲市場學・懂市場推好戲！」－2026 劇場行銷論壇 台北市 #行銷",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604071356471341674473.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604071403031441900500",
-    "sourceWebPromote": "https://www.accupass.com/event/2604071403031441900500",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "6a1285539e533cb7a9bca3cd9a4f8d06",
-    "title": "浪漫禾聲 03《香舍午後｜黃莉錦 × 翁重華的法式香頌》",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/31 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/31 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.31 (Sun) 15:00 - 17:00 浪漫禾聲 03《香舍午後｜黃莉錦 × 翁重華的法式香頌》 台北市 #音樂會",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604130328101446556266.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603300751323229924930",
-    "sourceWebPromote": "https://www.accupass.com/event/2603300751323229924930",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/31",
-    "endDate": "2026/05/31",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "b9438479c7ae95f3ca0fcd0196917559",
-    "title": "桃園埤塘與消失中的鬼稻講座",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/05 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/05 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.05 (Tue) 12:00 - 14:30 桃園埤塘與消失中的鬼稻講座 台北市 #全香堂刀煮",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604130346391163564570.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604031057303069423520",
-    "sourceWebPromote": "https://www.accupass.com/event/2604031057303069423520",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/05",
-    "endDate": "2026/05/05",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "650b82bced282248f3733b3efa8dceaf",
-    "title": "【音樂律動工作坊】維也納人最愛的進行曲",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/10 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/10 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.10 (Sun) 10:00 - 16:30 【音樂律動工作坊】維也納人最愛的進行曲 台北市 #音樂會 1548 21",
-    "imageUrl": "https://static.accupass.com/eventbanner/2602250901011972285880_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2602230910252023647203",
-    "sourceWebPromote": "https://www.accupass.com/event/2602230910252023647203",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/10",
-    "endDate": "2026/05/10",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "0e012006b4154eadf8100d881af74b86",
-    "title": "劇舞即Party「五月份場次」",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/16 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/16 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.16 (Sat) 19:30 - 21:30 劇舞即Party「五月份場次」 台北市 #輕鬆交友 95 2",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604100956163213769870_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604100950441300757502",
-    "sourceWebPromote": "https://www.accupass.com/event/2604100950441300757502",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/16",
-    "endDate": "2026/05/16",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "cfb44e4f3426a0a6eee3ede63f1dd061",
-    "title": "微光國際古樂節｜4/25-28《1450-1600 西班牙文藝復興宮廷舞宴》｜Ozan Karagöz舞蹈工作坊與舞會",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.25 (Sat) 14:30 - 04.28 (Tue) 21:30 微光國際古樂節｜4/25-28《1450-1600 西班牙文藝復興宮廷舞宴》｜Ozan Karagöz舞蹈工作坊與舞會 台北市 #國際古樂節 2645 37",
-    "imageUrl": "https://static.accupass.com/eventbanner/2601041316507550048600_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2601021209011831401154",
-    "sourceWebPromote": "https://www.accupass.com/event/2601021209011831401154",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "4d69225cf17b2be4ffab849c83140008",
-    "title": "i-dle舞蹈零基礎班",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/02 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/02 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.02 (Sat) 15:00 - 16:30 i-dle舞蹈零基礎班 台北市 #零基礎班 699 6",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604170107182122056539_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604060305371889497777",
-    "sourceWebPromote": "https://www.accupass.com/event/2604060305371889497777",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/02",
-    "endDate": "2026/05/02",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "d26dd56ddd17bb11c79479436ed634ad",
-    "title": "【旅遊攝影課程】攝影漫旅：不留遺憾的旅拍指南-5月班",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/09 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/09 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.09 (Sat) 09:30 - 12:00 【旅遊攝影課程】攝影漫旅：不留遺憾的旅拍指南-5月班 台北市 #學習 193 10",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603080253342963243490_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603080250591913171034",
-    "sourceWebPromote": "https://www.accupass.com/event/2603080250591913171034",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/09",
-    "endDate": "2026/05/09",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "f6b863703ece10fb8ba24423f1f3a5c7",
-    "title": "2026《獨自跳舞 Solo Dance》第三屆舞蹈創作平台演出",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.29 (Fri) 19:00 - 05.31 (Sun) 17:00 2026《獨自跳舞 Solo Dance》第三屆舞蹈創作平台演出 台北市 #華山拱廳 637 6",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603310419081690227575_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603180324051775023880",
-    "sourceWebPromote": "https://www.accupass.com/event/2603180324051775023880",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "7953915401ab88d6ef0e5c234a92e822",
-    "title": "〚小小音樂大師課〛雙木管╳睡美人｜台北",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.25 (Sat) 11:00 - 04.26 (Sun) 18:00 〚小小音樂大師課〛雙木管╳睡美人｜台北 台北市 #幼兒音樂啟蒙 1214 3",
-    "imageUrl": "https://static.accupass.com/eventbanner/2601172034411010132530_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2512191708355175791300",
-    "sourceWebPromote": "https://www.accupass.com/event/2512191708355175791300",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "6d76be2f3d8b3d015175fbe1487da7df",
-    "title": "TDI 鏡頭表演 × 戲劇試鏡基礎班",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.17 (Sun) 17:00 - 06.07 (Sun) 19:00 TDI 鏡頭表演 × 戲劇試鏡基礎班 台北市 #學習 66 0",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604070850266191554810_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604070847291615165534",
-    "sourceWebPromote": "https://www.accupass.com/event/2604070847291615165534",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "68778ea889fd13700f517a9d542439d5",
-    "title": "2026/6/7 (日）下午14:00-16:30「夕陽主題」油畫體驗 日夕藝術 X 亞尼克陽明山門市（附甜點）",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/06/07 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/06/07 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.06.07 (Sun) 14:00 - 16:30 2026/6/7 (日）下午14:00-16:30「夕陽主題」油畫體驗 日夕藝術 X 亞尼克陽明山門市（附甜點） 台北市 #美術 236 4",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604180257131666314894_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604091257383246735800",
-    "sourceWebPromote": "https://www.accupass.com/event/2604091257383246735800",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/06/07",
-    "endDate": "2026/06/07",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "2695ee4916ba5b375145b2fa6fb15601",
-    "title": "鳴石樂集樂壇新秀 Tayovan Trio室內樂團音樂會",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/30 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/30 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.30 (Sat) 19:30 - 21:00 鳴石樂集樂壇新秀 Tayovan Trio室內樂團音樂會 台北市 #Tayovan Trio 234 7",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603180217222118565920_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2507160422411929159475",
-    "sourceWebPromote": "https://www.accupass.com/event/2507160422411929159475",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/30",
-    "endDate": "2026/05/30",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "c1fc82ba0cbf424c26cb319e3e58ff61",
-    "title": "今年最chill母親節饗宴：星空電影院 × 500甜夢幻甜點 × 冠軍調酒",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.08 (Fri) 18:30 - 05.10 (Sun) 23:30 今年最chill母親節饗宴：星空電影院 × 500甜夢幻甜點 × 冠軍調酒 台北市 #DreamPlaza 34490 20",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604090226551906322361_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604020535359451211390",
-    "sourceWebPromote": "https://www.accupass.com/event/2604020535359451211390",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "4d5c97987a20912c4d4ef996514a8219",
-    "title": "Soundtracks for Human 環境音樂聆聽會",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/09 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/09 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.09 (Sat) 15:00 - 18:00 Soundtracks for Human 環境音樂聆聽會 台北市 #放鬆 1476 14",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604140530481265086440_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604070606551488016956",
-    "sourceWebPromote": "https://www.accupass.com/event/2604070606551488016956",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/09",
-    "endDate": "2026/05/09",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "8bf05fcffca3923448943e66c195645a",
-    "title": "藝集電影線上講堂｜閱影展策展人楊元鈴:【逃不出的維納斯：透視文學與電影裡的集體宿命與肉身記憶】",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.06.11 (Thu) 19:00 - 08.20 (Thu) 21:00 藝集電影線上講堂｜閱影展策展人楊元鈴:【逃不出的維納斯：透視文學與電影裡的集體宿命與肉身記憶】 台北市 #日本電影 65 6",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604220706056714511770_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604220613071852890765",
-    "sourceWebPromote": "https://www.accupass.com/event/2604220613071852890765",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "954211be8cdb8274ebcdd423e3319c1a",
-    "title": "2026手刻印章美學",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.20 (Wed) 13:00 - 07.20 (Mon) 16:30 2026手刻印章美學 台北市 #篆刻 305 2",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603201258158371360520_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603201228538575450000",
-    "sourceWebPromote": "https://www.accupass.com/event/2603201228538575450000",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "5deecd71580454e4b506838a16e4dc30",
-    "title": "2026 四月｜音樂喜劇 Open Mic｜主持：怡岑",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/26 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/04/26 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.26 (日) 20:00 - 21:15 2026 四月｜音樂喜劇 Open Mic｜主持：怡岑 台北市 #音樂喜劇 1370 30",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603160045084376680870_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603160044233279215100",
-    "sourceWebPromote": "https://www.accupass.com/event/2603160044233279215100",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/04/26",
-    "endDate": "2026/04/26",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "20d9aa1cdcc50069c601ca9d3383b711",
-    "title": "YOUC⎪曼陀羅藝術療癒工作坊",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/09 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/09 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.09 (六) 15:30 - 17:30 YOUC⎪曼陀羅藝術療癒工作坊 台北市 #曼陀羅藝術 147 0",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604100700322196210350_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604100252031130409076",
-    "sourceWebPromote": "https://www.accupass.com/event/2604100252031130409076",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/09",
-    "endDate": "2026/05/09",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "32f07260c352d12f4c076ad4e0e645bc",
-    "title": "藝術小聚 | 跟著藝文服務生去旅行—Travel with Art 2026",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.25 (六) 10:30 - 07.04 (六) 12:30 藝術小聚 | 跟著藝文服務生去旅行—Travel with Art 2026 台北市 #繪畫 1635 56",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604041550407689961830_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604041550162027419372",
-    "sourceWebPromote": "https://www.accupass.com/event/2604041550162027419372",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "0f7cf8e9ad70b4b95c624f621a41d080",
-    "title": "九方田｜母親節預約有禮《以愛入席．藝術致敬》",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.02 (六) 11:30 - 05.10 (日) 18:00 九方田｜母親節預約有禮《以愛入席．藝術致敬》 台北市 #法式料理 71 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604211130235974588850_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604180744189853459010",
-    "sourceWebPromote": "https://www.accupass.com/event/2604180744189853459010",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "787dfe7b1ce9774dba7ae48bbb8303cc",
-    "title": "《不死甘露》（Amrita）戲劇公演",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.16 (六) 14:30 - 05.17 (日) 16:30 《不死甘露》（Amrita）戲劇公演 台北市 #瑜伽體位法 1202 12",
-    "imageUrl": "https://static.accupass.com/eventbanner/2602230417301023379407_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2602041530331872916043",
-    "sourceWebPromote": "https://www.accupass.com/event/2602041530331872916043",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "a83c12cefa5a954ad2d94b76a5fc3fb3",
-    "title": "市民對話｜歌自遠方來：聽見印尼移工的地下音樂與身體吶喊",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/25 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/04/25 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.25 (六) 14:00 - 18:00 市民對話｜歌自遠方來：聽見印尼移工的地下音樂與身體吶喊 台北市 #印尼 316 13",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604091023089343908030_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604091024551966656094",
-    "sourceWebPromote": "https://www.accupass.com/event/2604091024551966656094",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/04/25",
-    "endDate": "2026/04/25",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "f40ea8e71683f4b2372c72fb553962dd",
-    "title": "藝術療癒課｜為自己留一個位置",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/20 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/20 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.20 (三) 19:00 - 21:00 藝術療癒課｜為自己留一個位置 台北市 #藝術療癒課 139 3",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604110706567138198210_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604110711371455175630",
-    "sourceWebPromote": "https://www.accupass.com/event/2604110711371455175630",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/20",
-    "endDate": "2026/05/20",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "25f03eeaad1205071edcbc213ff0fa6d",
-    "title": "寵物毛小孩肖像畫-- 水彩繪畫課程(5月場次）",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/10 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/10 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.10 (日) 18:00 - 20:30 寵物毛小孩肖像畫-- 水彩繪畫課程(5月場次） 台北市 #肖像畫 65 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2602260603553317736170_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2602260603431776884215",
-    "sourceWebPromote": "https://www.accupass.com/event/2602260603431776884215",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/10",
-    "endDate": "2026/05/10",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "7692b811497bf4f403edf0a4c8d67e3f",
-    "title": "藝術療癒工作坊｜透過繪畫，看見你此刻的內在狀態；讓情緒被看見，讓內在慢慢浮現",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/16 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/16 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.16 (六) 13:30 - 16:10 藝術療癒工作坊｜透過繪畫，看見你此刻的內在狀態；讓情緒被看見，讓內在慢慢浮現 台北市 #自由書寫 228 10",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604250219073827377970_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604160012443380624180",
-    "sourceWebPromote": "https://www.accupass.com/event/2604160012443380624180",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/16",
-    "endDate": "2026/05/16",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "e9ab51a56e154126af3da13db519bf49",
-    "title": "製作人親選優質演員養成班－2026第二期（進階班）",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.08 (五) 14:00 - 06.05 (五) 22:00 製作人親選優質演員養成班－2026第二期（進階班） 台北市 #表演 836 15",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603051452552108215127_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603050254366631157570",
-    "sourceWebPromote": "https://www.accupass.com/event/2603050254366631157570",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "e362333ec99f9378fbffb74ea83bf982",
-    "title": "藝集講堂 ｜ 張育嘉 : 【劇場與現象】從劇本到現場 全十二講+附兩場體驗工作坊 ( 現場課程 + 線上課程）",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.06.09 (二) 19:30 - 09.05 (六) 15:30 藝集講堂 ｜ 張育嘉 : 【劇場與現象】從劇本到現場 全十二講+附兩場體驗工作坊 ( 現場課程 + 線上課程） 台北市 #劇場 1095 17",
-    "imageUrl": "https://static.accupass.com/eventbanner/2602140217451843665702_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2510010409371127901961",
-    "sourceWebPromote": "https://www.accupass.com/event/2510010409371127901961",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "3bf8163eba1b4d20141be5c8a2621c35",
-    "title": "2026福爾摩沙國際管風琴藝術節｜5/3 建築與藝術對話：城市的聲音地標——高雄火車站「聽蒸氣」管風琴｜侯林設計 沙龍講座",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/03 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/03 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.03 (日) 15:30 - 17:00 2026福爾摩沙國際管風琴藝術節｜5/3 建築與藝術對話：城市的聲音地標——高雄火車站「聽蒸氣」管風琴｜侯林設計 沙龍講座 台北市 #福爾摩沙國際管風琴藝術節 169 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604010607211059376597_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604010609084977227050",
-    "sourceWebPromote": "https://www.accupass.com/event/2604010609084977227050",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/03",
-    "endDate": "2026/05/03",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "9a98ba82695245ff81b563ba0fd1e2a4",
-    "title": "微醺流光｜酒精墨水藝術療癒體驗",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/26 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/04/26 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.26 (日) 14:30 - 16:30 微醺流光｜酒精墨水藝術療癒體驗 台北市 #藝術療癒課 228 6",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603261235282066446719_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603261240211553421406",
-    "sourceWebPromote": "https://www.accupass.com/event/2603261240211553421406",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/04/26",
-    "endDate": "2026/04/26",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "127e0cbc515298321b0bb2974eea06f4",
-    "title": "【玩熟齡】入門質感體驗｜ZUMBA ＿5月｜陳冠傑 Jimi",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.06 (三) 10:30 - 05.11 (一) 16:30 【玩熟齡】入門質感體驗｜ZUMBA ＿5月｜陳冠傑 Jimi 台北市 #韓流舞蹈 70 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2411080332021194845911_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604230600091715849560",
-    "sourceWebPromote": "https://www.accupass.com/event/2604230600091715849560",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "2bfdaea657abf3dad65c62927cf06934",
-    "title": "即興大共創｜讓藝術，在我們之間流動",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/22 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/22 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.22 (五) 19:30 - 21:30 即興大共創｜讓藝術，在我們之間流動 台北市 #自由即興 49 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604110244451105590065_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604110247205731688520",
-    "sourceWebPromote": "https://www.accupass.com/event/2604110247205731688520",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/22",
-    "endDate": "2026/05/22",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "a4d16159b45319fd69f1bb3211d50915",
-    "title": "畫家王傑帶路：城市速寫講座",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/20 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/20 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.20 (三) 14:00 - 16:00 畫家王傑帶路：城市速寫講座 台北市 #建築速寫 840 11",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604200651341844347385_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604010926568438734900",
-    "sourceWebPromote": "https://www.accupass.com/event/2604010926568438734900",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/20",
-    "endDate": "2026/05/20",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "58562ea0781192bf9642d9629d0e34b2",
-    "title": "【即興同樂會】 B08期短篇班成發｜ 4/25（六）15:00 飛客劇樂部｜夏大寶 /涵涵 /余胖 /金可 /紹瑀 /冠宏 /Sean",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/25 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/04/25 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.25 (六) 15:00 - 16:30 【即興同樂會】 B08期短篇班成發｜ 4/25（六）15:00 飛客劇樂部｜夏大寶 /涵涵 /余胖 /金可 /紹瑀 /冠宏 /Sean 台北市 #劇場 473 7",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603241656453465339670_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603241623468975126870",
-    "sourceWebPromote": "https://www.accupass.com/event/2603241623468975126870",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/04/25",
-    "endDate": "2026/04/25",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "aec1ad3adbd41a167aeb78a7ef65e888",
-    "title": "《Photo Walk 赤峰街》街拍工作坊",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/16 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/16 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.16 (六) 16:00 - 18:00 《Photo Walk 赤峰街》街拍工作坊 台北市 #街頭攝影 120 4",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603221701172041046598_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603221707569724299500",
-    "sourceWebPromote": "https://www.accupass.com/event/2603221707569724299500",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/16",
-    "endDate": "2026/05/16",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "2c4e63629d437aa2dafe10b6abd68266",
-    "title": "五月份藍海之夜-「解憂牌卡店」：在牌卡中遇見真實的自己",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/22 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/22 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.22 (五) 19:00 - 21:00 五月份藍海之夜-「解憂牌卡店」：在牌卡中遇見真實的自己 台北市 #舒壓, 62 5",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603290335065125586390_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603290335131469960180",
-    "sourceWebPromote": "https://www.accupass.com/event/2603290335131469960180",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/22",
-    "endDate": "2026/05/22",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "4e398de9d834e1501ef05383da03ed61",
-    "title": "《溫馨的5月植物手繪課》 Feeling illustration 給自己或給媽媽一份愛的禮物♥",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/05/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.01 (五) 14:00 - 16:30 《溫馨的5月植物手繪課》 Feeling illustration 給自己或給媽媽一份愛的禮物♥ 台北市 #花卉 292 6",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604160728042105222630_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604160730282217591490",
-    "sourceWebPromote": "https://www.accupass.com/event/2604160730282217591490",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/05/01",
-    "endDate": "2026/05/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "3dc2ec99f1ea28916777e912a5a6737f",
-    "title": "4/30 (四) 內在粉彩療語畫-給自己的一份禮物 《繪出你的內在粉彩畫X希塔療癒冥想X書寫解讀》",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/30 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/04/30 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.04.30 (四) 10:00 - 15:00 4/30 (四) 內在粉彩療語畫-給自己的一份禮物 《繪出你的內在粉彩畫X希塔療癒冥想X書寫解讀》 台北市 #＃希塔療癒 50 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604201211271224003261_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604201200231148723212",
-    "sourceWebPromote": "https://www.accupass.com/event/2604201200231148723212",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/04/30",
-    "endDate": "2026/04/30",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "28ec593dc8e411f2e752a74a9feffc2d",
-    "title": "2026輕鬆打造5、7月場【第一印象．個人魅力】質感形象照",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.16 (六) 00:00 - 07.20 (一) 00:00 2026輕鬆打造5、7月場【第一印象．個人魅力】質感形象照 台北市 #自我形象 85 1",
-    "imageUrl": "https://static.accupass.com/eventbanner/2603200410251629073640_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2603200321516776617750",
-    "sourceWebPromote": "https://www.accupass.com/event/2603200321516776617750",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
-    "UID": "81156cbadc7c22e747ea4c8dfc4179a4",
-    "title": "《人人都可以是印象派大師》油畫棒體驗課✨",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/01/01 00:00:00",
-        "location": "台北市",
-        "locationName": "台北市",
-        "onSales": "Y",
-        "price": "",
-        "latitude": 25.0375198,
-        "longitude": 121.5636796,
-        "endTime": "2026/01/01 23:59:59"
-      }
-    ],
-    "showUnit": "ACCUPASS",
-    "discountInfo": "",
-    "descriptionFilterHtml": "2026.05.02 (六) 14:00 - 05.16 (六) 17:00 《人人都可以是印象派大師》油畫棒體驗課✨ 台北市 #繪畫 53 4",
-    "imageUrl": "https://static.accupass.com/eventbanner/2604181357549581782300_P520x260.jpg",
-    "masterUnit": [
-      "ACCUPASS"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "https://www.accupass.com/event/2604181352362380461070",
-    "sourceWebPromote": "https://www.accupass.com/event/2604181352362380461070",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "ACCUPASS",
-    "startDate": "2026/01/01",
-    "endDate": "2026/01/01",
-    "hitRate": 0
-  },
-  {
-    "version": "1.4",
     "UID": "24f8f69a0c050a845e5c15c5",
     "title": "2026TIFA 柏林德意志劇院 ✕ 克里斯多福．魯賓《不過就是世界末日》",
     "category": "6",
@@ -1559,8 +11,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、900、1,200、1,600、2,000、2,500",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/03 23:59:59"
       }
     ],
@@ -1581,7 +33,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/01",
     "endDate": "2026/05/03",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1595,8 +53,8 @@
         "locationName": "國家音樂廳",
         "onSales": "Y",
         "price": "800、1,200、1,600、2,000、2,600、3,200、3,600",
-        "latitude": 25.0370519,
-        "longitude": 121.5192521,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2025/12/01 23:59:59"
       }
     ],
@@ -1617,7 +75,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/09",
     "endDate": "2025/12/01",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室外",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1631,8 +95,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、800、1,000、1,200、1,500",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/04/26 23:59:59"
       }
     ],
@@ -1653,7 +117,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/04/25",
     "endDate": "2026/04/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1689,7 +159,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/03/07",
     "endDate": "2026/05/30",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -1725,7 +201,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/04/25",
     "endDate": "2026/05/10",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -1761,7 +243,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/04/26",
     "endDate": "2026/05/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室外",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -1797,7 +285,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/04/28",
     "endDate": "2026/05/18",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1833,7 +327,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/04/29",
     "endDate": "2026/01/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1847,8 +347,8 @@
         "locationName": "國家音樂廳",
         "onSales": "Y",
         "price": "250",
-        "latitude": 25.0370519,
-        "longitude": 121.5192521,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/11 23:59:59"
       }
     ],
@@ -1869,7 +369,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/01",
     "endDate": "2026/06/11",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -1905,7 +411,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/01",
     "endDate": "2026/05/30",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -1941,7 +453,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/02",
     "endDate": "2026/02/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -1955,8 +473,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "650",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/08 23:59:59"
       }
     ],
@@ -1977,7 +495,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/03",
     "endDate": "2026/05/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#中價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -1991,8 +515,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "700、900、1,200、1,800、2,400、3,000、3,600",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/11 23:59:59"
       }
     ],
@@ -2013,7 +537,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/08",
     "endDate": "2026/05/11",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2027,8 +557,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "650",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/08 23:59:59"
       }
     ],
@@ -2049,7 +579,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/09",
     "endDate": "2026/05/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#中價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2063,8 +599,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、900、1,200、1,600、2,000、2,500",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/16 23:59:59"
       }
     ],
@@ -2085,7 +621,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/15",
     "endDate": "2026/05/16",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2121,7 +663,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/20",
     "endDate": "2026/03/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2135,8 +683,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、900、1,200、1,600、2,000",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/23 23:59:59"
       }
     ],
@@ -2157,7 +705,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/22",
     "endDate": "2026/05/23",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2171,8 +725,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、800、1,200、1,600、2,000、2,500",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/30 23:59:59"
       }
     ],
@@ -2193,7 +747,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/05/28",
     "endDate": "2026/05/30",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2207,8 +767,8 @@
         "locationName": "國家音樂廳",
         "onSales": "Y",
         "price": "250",
-        "latitude": 25.0370519,
-        "longitude": 121.5192521,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/01 23:59:59"
       }
     ],
@@ -2229,7 +789,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/11",
     "endDate": "2026/05/01",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -2243,8 +809,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "800、1,200、1,800、2,400、2,800、3,200、3,600",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/13 23:59:59"
       }
     ],
@@ -2265,7 +831,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/11",
     "endDate": "2026/06/13",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2301,7 +873,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/12",
     "endDate": "2026/06/14",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2337,7 +915,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/17",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2351,8 +935,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "600、900、1,200、1,600、2,000、2,500",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/28 23:59:59"
       }
     ],
@@ -2373,7 +957,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/25",
     "endDate": "2026/06/28",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2409,7 +999,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/26",
     "endDate": "2026/06/28",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2423,8 +1019,8 @@
         "locationName": "國家戲劇院",
         "onSales": "Y",
         "price": "800、2026、6、28、12、00",
-        "latitude": 25.0352728,
-        "longitude": 121.5181971,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/28 23:59:59"
       }
     ],
@@ -2445,7 +1041,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/27",
     "endDate": "2026/06/28",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2481,7 +1083,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/27",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2517,7 +1125,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/28",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2553,7 +1167,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/06/29",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2589,7 +1209,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/02",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2625,7 +1251,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/03",
     "endDate": "2026/07/05",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2661,7 +1293,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/10",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2697,7 +1335,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/10",
     "endDate": "2026/07/12",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2733,7 +1377,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/18",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2769,7 +1419,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/23",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -2805,7 +1461,13 @@
     "sourceWebName": "OPENTIX",
     "startDate": "2026/07/25",
     "endDate": "2026/04/08",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2841,7 +1503,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/25",
     "endDate": "2026/04/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#中價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2855,8 +1523,8 @@
         "locationName": "臺北表演藝術中心",
         "onSales": "Y",
         "price": "200、2026、5、9、15、00",
-        "latitude": 25.0851051,
-        "longitude": 121.5242462,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/05/23 23:59:59"
       }
     ],
@@ -2877,7 +1545,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/25",
     "endDate": "2026/05/23",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2891,8 +1565,8 @@
         "locationName": "臺北表演藝術中心",
         "onSales": "Y",
         "price": "",
-        "latitude": 25.0851051,
-        "longitude": 121.5242462,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/30 23:59:59"
       }
     ],
@@ -2913,7 +1587,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/28",
     "endDate": "2026/06/30",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室外",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2927,8 +1607,8 @@
         "locationName": "臺北表演藝術中心",
         "onSales": "Y",
         "price": "",
-        "latitude": 25.0851051,
-        "longitude": 121.5242462,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/30 23:59:59"
       }
     ],
@@ -2949,7 +1629,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/28",
     "endDate": "2026/06/30",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -2985,7 +1671,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/30",
     "endDate": "2026/02/02",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3021,7 +1713,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/02",
     "endDate": "2026/05/03",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3057,7 +1755,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/02",
     "endDate": "2026/05/03",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3093,7 +1797,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/07",
     "endDate": "2026/05/12",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3129,7 +1839,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/08",
     "endDate": "2026/05/10",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3165,7 +1881,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/22",
     "endDate": "2026/05/24",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3179,8 +1901,8 @@
         "locationName": "臺北表演藝術中心",
         "onSales": "Y",
         "price": "1,800",
-        "latitude": 25.0851051,
-        "longitude": 121.5242462,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/13 23:59:59"
       }
     ],
@@ -3201,7 +1923,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/27",
     "endDate": "2026/06/13",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3237,7 +1965,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/05/29",
     "endDate": "2026/05/31",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#中價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3273,7 +2007,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/02",
     "endDate": "2026/06/04",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3287,8 +2027,8 @@
         "locationName": "臺北表演藝術中心",
         "onSales": "Y",
         "price": "600、2026、6、13、30",
-        "latitude": 25.0851051,
-        "longitude": 121.5242462,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/06/07 23:59:59"
       }
     ],
@@ -3309,7 +2049,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/06",
     "endDate": "2026/06/07",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3345,7 +2091,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/13",
     "endDate": "2026/05/04",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3381,7 +2133,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/13",
     "endDate": "2026/06/14",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3417,7 +2175,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/19",
     "endDate": "2026/06/27",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#中價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3453,7 +2217,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/19",
     "endDate": "2026/06/20",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3489,7 +2259,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/19",
     "endDate": "2026/06/20",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3525,7 +2301,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/04/13",
     "endDate": "2026/05/17",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#低價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3561,7 +2343,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/19",
     "endDate": "2026/06/21",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3597,7 +2385,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/20",
     "endDate": "2026/06/23",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3633,7 +2427,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/20",
     "endDate": "2026/06/24",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3669,7 +2469,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/21",
     "endDate": "2026/06/25",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室外",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3705,7 +2511,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/21",
     "endDate": "2026/06/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3741,7 +2553,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/23",
     "endDate": "2026/06/24",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3777,7 +2595,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/25",
     "endDate": "2026/06/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3813,7 +2637,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/26",
     "endDate": "2026/06/28",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
     "version": "1.4",
@@ -3849,7 +2679,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/27",
     "endDate": "2026/04/13",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3885,7 +2721,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/06/27",
     "endDate": "2026/04/13",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -3899,8 +2741,8 @@
         "locationName": "水源劇場",
         "onSales": "Y",
         "price": "700、900、2026、5、4、12、00",
-        "latitude": 25.0135925,
-        "longitude": 121.5349787,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/07/05 23:59:59"
       }
     ],
@@ -3921,7 +2763,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/02",
     "endDate": "2026/07/05",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3957,7 +2805,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/10",
     "endDate": "2026/07/12",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -3971,8 +2825,8 @@
         "locationName": "水源劇場",
         "onSales": "Y",
         "price": "500、2026、5、4、12、00、7、11、14、30",
-        "latitude": 25.0135925,
-        "longitude": 121.5349787,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/07/12 23:59:59"
       }
     ],
@@ -3993,7 +2847,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/11",
     "endDate": "2026/07/12",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -4029,7 +2889,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/17",
     "endDate": "2026/07/19",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -4043,8 +2909,8 @@
         "locationName": "水源劇場",
         "onSales": "Y",
         "price": "900、2026、5、4、12、00、7、18、15",
-        "latitude": 25.0135925,
-        "longitude": 121.5349787,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/07/19 23:59:59"
       }
     ],
@@ -4065,7 +2931,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/18",
     "endDate": "2026/07/19",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -4101,7 +2973,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/18",
     "endDate": "2026/07/19",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -4137,7 +3015,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/18",
     "endDate": "2026/07/19",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -4151,8 +3035,8 @@
         "locationName": "水源劇場",
         "onSales": "Y",
         "price": "700、900、2026、5、4、12、00",
-        "latitude": 25.0135925,
-        "longitude": 121.5349787,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/07/26 23:59:59"
       }
     ],
@@ -4173,7 +3057,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/25",
     "endDate": "2026/07/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
     "version": "1.4",
@@ -4209,7 +3099,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/25",
     "endDate": "2026/07/26",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -4245,7 +3141,13 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/07/31",
     "endDate": "2026/08/02",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
     "version": "1.4",
@@ -4259,8 +3161,8 @@
         "locationName": "水源劇場",
         "onSales": "Y",
         "price": "500、2026、5、4、12、00、8、1、15",
-        "latitude": 25.0135925,
-        "longitude": 121.5349787,
+        "latitude": null,
+        "longitude": null,
         "endTime": "2026/08/02 23:59:59"
       }
     ],
@@ -4281,11 +3183,17 @@
     "sourceWebName": "OPENTIX2",
     "startDate": "2026/08/01",
     "endDate": "2026/08/02",
-    "hitRate": 0
+    "hitRate": 0,
+    "tag": [
+      "#台北市中正區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "9175fbfe53fd10597267f2ce193eda28",
+    "version": "artemperor-1.0",
+    "UID": "9e500da41f7a26627df5da8f17882aea",
     "title": "【遙視】Remote Viewing",
     "category": "6",
     "showInfo": [
@@ -4329,11 +3237,17 @@
         "https://montue.ntue.edu.tw/"
       ],
       "rawDate": "日期：2026-04-18 ~ 2026-06-28"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "d39130b4051f2406af6e4a4e7debf112",
+    "version": "artemperor-1.0",
+    "UID": "54e21d84c6348fc10ce61cdc296b342b",
     "title": "【我們正成為】WE Are Becoming",
     "category": "6",
     "showInfo": [
@@ -4376,11 +3290,17 @@
         "https://clab.org.tw/project/we-are-becoming-events/"
       ],
       "rawDate": "日期：2026-05-08 ~ 2026-07-12"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "d0b3a3cf399bbe44fe59a122a37a5554",
+    "version": "artemperor-1.0",
+    "UID": "381661e1a6c3f8678aad4d14dfabccbf",
     "title": "【澗水松風 : 李茂成個展】Mountain Stream and Whispering Pines: Solo Exhibition of LEE Mau-cheng",
     "category": "6",
     "showInfo": [
@@ -4438,11 +3358,69 @@
       ],
       "relatedLinks": [],
       "rawDate": "日期：2026-04-11 ~ 2026-05-31"
-    }
+    },
+    "tag": [
+      "#台北市",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "a66229a4fe66548a640d410fc471e91f",
+    "version": "artemperor-1.0",
+    "UID": "6381254c196a2945e38724fb5fa5c32c",
+    "title": "【光成為海｜作品作為場】賴純純個展",
+    "category": "6",
+    "showInfo": [
+      {
+        "time": "2026/04/30 00:00:00",
+        "location": "臺東美術館（臺東市浙江路350號）",
+        "locationName": "臺東美術館（臺東市浙江路350號）",
+        "onSales": "",
+        "price": "",
+        "latitude": null,
+        "longitude": null,
+        "endTime": "2026/06/14 23:59:59"
+      }
+    ],
+    "showUnit": "賴純純",
+    "discountInfo": "",
+    "descriptionFilterHtml": "賴純純個展將於臺東美術館登場—在光與空間之中，展開一個可被進入的生成場！ 藝術家賴純純個展《光成為海｜作品作為場》將於2026年4月30日至6月14日於台東美術館展出。本展以「作品作為場（The Work as Field）」為核心概念，重新思考藝術作品與空間、光線及觀者之間的關係。 展覽不將作品視為封閉完成的物件，而是視為一個持續生成的場：光、空間、材料、時間與身體在其中彼此作用，使觀看成為一種進入與經驗的過程。展覽自戶外展開，延伸至室內展間，串連山與海的場域特質，形成一條可被感知的空間路徑。 台東的自然條件：光、空氣與地景，在本展中不只是背景，而是構成作品的重要元素。觀者在移動與停留之中，將參與作品的生成，使每一次經驗皆呈現不同狀態。 賴純純長期關注藝術與場域的關係，並發展「自由生成美學」的實踐方法，強調創作作為一種持續發生的過程。《光成為海》為此方法於台東的具體展現，使藝術從觀看對象轉化為可進入的生成場。 展覽名稱｜《光成為海｜作品作為場》賴純純個展 展覽時間｜115年4月30日－6月14日 開幕 ｜115年4月30日 15:00 開館時間｜9:00–12:00、13:30–17:00（週一休館） 展覽地點｜臺東美術館（臺東市浙江路350號） 台日交流自由生成美學座談會｜115年5月30日 15:00 ＠大文創教室 REFERENCE 臺東美術館",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/048/4d4fs13x5azzs6db0qcn2f1znisivgea_800x420^.jpg",
+    "masterUnit": [
+      "賴純純"
+    ],
+    "subUnit": [],
+    "supportUnit": [],
+    "otherUnit": [],
+    "webSales": "",
+    "sourceWebPromote": "https://tm.ccl.ttct.edu.tw/",
+    "comment": "",
+    "editModifyDate": "",
+    "sourceWebName": "Artemperor",
+    "startDate": "2026/04/30",
+    "endDate": "2026/06/14",
+    "hitRate": 0,
+    "artemperorMeta": {
+      "allImages": [
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/048/4d4fs13x5azzs6db0qcn2f1znisivgea_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/048/4d4fs13x5azzs6db0qcn2f1znisivgea_1400x800.jpg"
+      ],
+      "relatedLinks": [
+        "https://tm.ccl.ttct.edu.tw/"
+      ],
+      "rawDate": "日期：2026-04-30 ~ 2026-06-14"
+    },
+    "tag": [
+      "#其他地區",
+      "#室外",
+      "#高價",
+      "#下午"
+    ]
+  },
+  {
+    "version": "artemperor-1.0",
+    "UID": "cb072af97ee03a2950b3cc9f6507de87",
     "title": "【超現實主義: 對話中的世界】",
     "category": "6",
     "showInfo": [
@@ -4485,11 +3463,69 @@
         "https://www.tfam.museum/index.aspx?ddlLang=zh-tw"
       ],
       "rawDate": "日期：2026-04-25 ~ 2026-08-30"
-    }
+    },
+    "tag": [
+      "#台北市中山區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "2596938a76ad8e2cd390453d433e0968",
+    "version": "artemperor-1.0",
+    "UID": "8158bf3c4802e44fa8907a0dde8b1712",
+    "title": "【熱暑人】熱／暑的文化與當代藝術",
+    "category": "6",
+    "showInfo": [
+      {
+        "time": "2026/05/15 00:00:00",
+        "location": "臺中市立美術館（臺中市西屯區中科路 2201 號）",
+        "locationName": "臺中市立美術館（臺中市西屯區中科路 2201 號）",
+        "onSales": "",
+        "price": "",
+        "latitude": null,
+        "longitude": null,
+        "endTime": "2026/08/30 23:59:59"
+      }
+    ],
+    "showUnit": "盧切札．博亞杰夫、艾德加．卡萊爾、潘妮洛普．肯恩、布恩．卡路拜恩、張乾琦、邱子晏、唐娜．康隆 & 喬納森．哈克、致穎 & 格雷戈爾．卡斯柏、肯妮．德．聖荷西、埃利拉 、拉希瑪．甘博、Posak Jodian、廖瑞芬、丁載暻、林怡君、劉致宏、劉玗、馬哈拉妮．馬羌那嘎拉、克莉絲蒂娜．梅希亞斯、薇若妮卡．納瓦斯、內莉．魯日奇、拉勒俄嵐．巴耷玬 / 郭悅暘、艾利亞薩爾．奧提斯．羅亞、安德里亞．桑托斯、佐藤．安帕妮、安娜．艾瑞娜．德赫拉、蔡宗祐、蔡詠欣、王守英、太認真、郭柏俞、佘文瑛、科斯坦蒂諾．季卡瑞利、國家攝影",
+    "discountInfo": "",
+    "descriptionFilterHtml": "國際展覽「熱暑人－熱／暑的文化與當代藝術」 展期自2026年5月15日至8月30日，於中美館展覽室A、B、C展出。此次為中美館首次串聯國際館舍合作，由臺灣、菲律賓與巴拿馬三國機構策展團隊聯手，匯聚16國，共33組藝術家、50件作品，涵蓋錄像、繪畫、雕塑、檔案、與聲音裝置等多媒材形式，聚焦熱帶氣候如何影響人類生活與身體感受。此展將於三個國家——臺灣、菲律賓及巴拿馬全球多國進行巡迴，以臺中作為首站，並結合國際駐村計畫，由國外藝術家深入駐地創作，勾勒出臺中與其他熱帶國家的關聯，邀請民眾從藝術視角發掘熱帶國家與熱文化的多元面向。 本次展覽邀集獨立策展人高森信男（Takamori Nobuo）、國立菲律賓大學瓦爾加斯美術館館長泰莎．瑪莉亞．奎松（Tessa Maria Guazon)、巴拿馬當代藝術館總策展人胡安．卡內拉（Juan Canela）及蔡淑清（Jennifer Choy）共同策劃。策展團隊從各自地域的熱帶經驗出發，經研究與長期討論後，將來自各國的熱帶經驗轉化為策展實踐。 以熱帶文化與身體感知為核心的有機策展計畫 本次展覽源於策展人泰莎在夢境中的祖母對其說出西班牙語「Kalentura」（熱），進而開啟不同語言和文化中對「熱」之意涵的研究與探索。策展計畫串聯臺灣、菲律賓與巴拿馬團隊，曾於國立菲律賓大學瓦爾加斯美術館、巴拿馬當代藝術館及臺南絕對空間等地，呈現階段性的研究與成果，逐步發展為一項以熱帶文化與身體感知為核心的策展實踐網絡。 本次於中美館的呈現，除了延續開館展「萬物的邀約」對人為與自然環境的關注，也整合歷年研究成果與創作展現，在實踐的基礎上，進一步深化策展脈絡。展覽透過多元媒材與跨領域觀點，視角呈現「熱」在不同文化脈絡中的多重樣貌，並將其視為一種跨文化的感知經驗與社會隱喻，展開多層次的討論。 展覽內容涵納熱帶醫學史、民俗療法、氣候地理及跨域文化等面向，回應「熱」如何在日常身體感受與殖民歷史脈絡中被理解與建構，並在不同文化與生態環境中，衍生出多樣的生命經驗與藝術表達。回應策展命題，參展藝術家透過田野調查與跨地域研究，以氣候、身體、記憶與自然為關鍵線索，描繪臺灣與熱帶國家之間彼此呼應的生活圖譜。 ▐ 參展藝術家（依姓氏首字母排列） 盧切札．博亞杰夫 Luchezar Boyadjiev（1957年生於保加利亞索菲亞，現居創作於保加利亞索菲亞） 艾德加．卡萊爾 Edgar Calel （1987年生於聖胡安科馬拉帕奇索特，現居創作於聖胡安科馬拉帕奇索特） 潘妮洛普．肯恩 Penelope Cain（1970年生於澳洲雪梨，現居創作於荷蘭） 布恩．卡路拜恩 Buen Calubayan（19840年生於菲律賓馬尼拉，現居創作於菲律賓馬尼拉） 張乾琦 Chang Chien-Chi（1961年生於臺中，現居創作於臺北、紐約、格拉茲） 邱子晏 Ciou Zih Yan（1985年生於臺中，現居創作於苗栗、雲林） 唐娜．康隆 ＆ 喬納森．哈克 Donna Conlon ＆ Jonathan Harker（唐娜.康隆 1966年生於巴拿馬；喬納森.哈克 1975年生於巴拿馬；兩人現居創作於巴拿馬） 致穎 ＆ 格雷戈爾．卡斯柏 Musquiqui Chihying ＆ Kasper Gregor（致穎，1985年生於臺北，現居創作於臺北與柏林；格雷戈爾．卡斯柏，1986年生於東德，現居創作於德勒斯登與柏林） 肯妮．德．聖荷西 Corinne de San Jose（1977年生於菲律賓巴柯洛德，現居創作於菲律賓馬尼拉） 埃利拉 Elyla（1989年生於尼加拉瓜，現居創作於尼加拉瓜） 拉希瑪．甘博 Rahima Gambo（1986年生於英國倫敦，現居創作於英國倫敦） Posak Jodian（1987年生於臺北，現居創作於臺北） 廖瑞芬 Liao Jui-Fen（1968年生於臺中，現居創作於臺中） 丁載暻 Jaekyung Jung（1975年生於韓國，現居創作於韓國） 林怡君 Esther Yi-Chun LIN（1990年生於南投，現居創作於臺北） 劉致宏 Chihhung Liu（1985年生於新竹，現居創作於臺北） 劉玗 Liu Yu（1985年生於臺中，現居創作於臺東） 馬哈拉妮．馬羌那嘎拉 Maharani Mancanagara（1990年生於印尼，現居創作於印尼萬隆） 克莉絲蒂娜．梅希亞斯 Cristina Mejías（1986年生於西班牙，現居創作於西班牙） 薇若妮卡．納瓦斯 Verónica Navas（1995年生於哥斯大黎加聖荷西，現居創作於哥斯大黎加） 內莉．魯日奇 Neli Ružić （1966年生於克羅埃西亞-史普利特 ，現居創作於克羅埃西亞-史普利特） 拉勒俄嵐．巴耷玬 / 郭悅暘 Ljalje’elan Patadalj（1997年生於屏東，現居創作於屏東） 艾利亞薩爾．奧提斯．羅亞 Eliazar Ortiz Roa（1981年生於多明尼加共和國，現居創作於多明尼加共和國） 安德里亞．桑托斯 Andrea Santos（1991年生於巴拿馬，現居創作於巴拿馬） 佐藤．安帕妮 Ampannee Satoh（1983年生於泰國，現居創作於泰國） 安娜．艾瑞娜．德赫拉 Ana Elena Tejera（1990年生於巴拿馬，現居創作於巴拿馬、巴黎） 蔡宗祐 Tsai Tsung-Yu（1975年生於嘉義，現居創作於臺南） 蔡詠欣 Tsai Yung-Hsin（1991年生於桃園，現居創作於臺中） 王守英 Wang Shou-Ying（1934年生於彰化，現居創作於臺中） 太認真，郭柏俞、佘文瑛 Working Hard, Kuo Po-Yu, She Wen-Ying（郭柏俞，1989年生於臺北；佘文瑛，1989年生於臺北；太認真成立於2015年） 科斯坦蒂諾．季卡瑞利 Costantino Zicarelli（1984年生於科威特傑赫拉省，現居創作於菲律賓馬尼拉） 國家攝影文化中心典藏 Collection from NCPI 國立臺灣大學附設醫院典藏 Collection from NTU Hospital ▐ 團體導覽預約資訊 團體導覽預約，將於115年4月中旬開放登記。 ▐ 售票資訊 為因應中美館長期營運發展，5月19日起，採「部分展覽收費、多數空間免費」原則，本展為首檔收費展，一般全票100元，臺中市民、兒童及樂齡族群享優惠票50元；5月15日至17日配合國際博物館日開放免票入場。其他展覽及公共空間（大廳、咖啡廳、藝術書店等）仍維持免費，歡迎民眾參觀。請持續關注中美館官網（https://www.tcam.museum）或追蹤Facebook及Instagram專頁，了解更多精彩展覽資訊。 REFERENCE 臺中市立美術館",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/261/8cpad95vox5hm1bzqfeitn9pkjexf7i4_800x420^.jpg",
+    "masterUnit": [
+      "盧切札．博亞杰夫、艾德加．卡萊爾、潘妮洛普．肯恩、布恩．卡路拜恩、張乾琦、邱子晏、唐娜．康隆 & 喬納森．哈克、致穎 & 格雷戈爾．卡斯柏、肯妮．德．聖荷西、埃利拉 、拉希瑪．甘博、Posak Jodian、廖瑞芬、丁載暻、林怡君、劉致宏、劉玗、馬哈拉妮．馬羌那嘎拉、克莉絲蒂娜．梅希亞斯、薇若妮卡．納瓦斯、內莉．魯日奇、拉勒俄嵐．巴耷玬 / 郭悅暘、艾利亞薩爾．奧提斯．羅亞、安德里亞．桑托斯、佐藤．安帕妮、安娜．艾瑞娜．德赫拉、蔡宗祐、蔡詠欣、王守英、太認真、郭柏俞、佘文瑛、科斯坦蒂諾．季卡瑞利、國家攝影"
+    ],
+    "subUnit": [],
+    "supportUnit": [],
+    "otherUnit": [],
+    "webSales": "",
+    "sourceWebPromote": "https://www.tcam.museum/zh",
+    "comment": "",
+    "editModifyDate": "",
+    "sourceWebName": "Artemperor",
+    "startDate": "2026/05/15",
+    "endDate": "2026/08/30",
+    "hitRate": 0,
+    "artemperorMeta": {
+      "allImages": [
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/261/8cpad95vox5hm1bzqfeitn9pkjexf7i4_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/261/8cpad95vox5hm1bzqfeitn9pkjexf7i4_1400x800.jpg"
+      ],
+      "relatedLinks": [
+        "https://www.tcam.museum/zh"
+      ],
+      "rawDate": "日期：2026-05-15 ~ 2026-08-30"
+    },
+    "tag": [
+      "#臺中市",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
+  },
+  {
+    "version": "artemperor-1.0",
+    "UID": "6f0b5e400d18606fe3f4b55df4c688f2",
     "title": "【FUTURE VISION LAB 2026】",
     "category": "6",
     "showInfo": [
@@ -4534,11 +3570,17 @@
         "https://www.accupass.com/event/2603271003184551632480"
       ],
       "rawDate": "日期：2026-04-18 ~ 2026-06-07"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室外",
+      "#高價",
+      "#晚上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "8ef5262d6373a46c935eaa576620ca76",
+    "version": "artemperor-1.0",
+    "UID": "7f7abcea6c285e7795a2094f8e7d4cb8",
     "title": "【夜遊者】練佳昕 個展",
     "category": "6",
     "showInfo": [
@@ -4594,11 +3636,76 @@
         "https://artgalleryapollo.com/2021/event/%e3%80%8a%e5%a4%9c%e9%81%8a%e8%80%85%e3%80%8b%e7%b7%b4%e4%bd%b3%e6%98%95%e5%80%8b%e5%b1%95/"
       ],
       "rawDate": "日期：2026-04-11 ~ 2026-05-30"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "8d024ae1417f9c4df677ae3000033ab3",
+    "version": "artemperor-1.0",
+    "UID": "c3e22a49075a56e5e16a1d4a3dd0747e",
+    "title": "【Soft Witness : 50 Stories of Us】",
+    "category": "6",
+    "showInfo": [
+      {
+        "time": "2026/05/04 00:00:00",
+        "location": "G01 Tradestars Islington, 4–10 North Road, London N7 9EY",
+        "locationName": "G01 Tradestars Islington, 4–10 North Road, London N7 9EY",
+        "onSales": "",
+        "price": "",
+        "latitude": null,
+        "longitude": null,
+        "endTime": "2026/05/10 23:59:59"
+      }
+    ],
+    "showUnit": "詳見展覽資訊",
+    "discountInfo": "",
+    "descriptionFilterHtml": "(倫敦，2026年4月14日) 倫敦 Roha Gallery 將於2026年5月4日至10日呈現旅英台灣策展人楊子寬所帶來的裝置藝術展覽《Soft Witness: 50 Stories of Us》。49位來自亞洲、歐洲及美洲的國際藝術家，以一次性紙巾，這一服務業中最無聲、最易被棄置的日常物件，作為創作媒介與見證載體，探問在全球化與快速消費的時代下，那些附著於勞動表面的情感、尊嚴與存在痕跡，如何在被擦拭的瞬間同步消失。 這個計畫源於策展人自身的生存經驗。2024年初，楊子寬剛以全部積蓄付清皇家藝術學院（Royal College of Art）碩士學位，銀行戶頭僅剩不到一千英鎊，台灣的寵物剛過世，同時，下個月的房租又即將到期。無可奈何之下，透過朋友介紹，他在倫敦一間四星級酒店找到禮賓員的工作。上班日靠員工餐維生；休假日則靠 Pret 一天五杯的月付25英鎊訂閱提供熱量。 每天天未亮，他便搭上地鐵。車廂裡安靜，不是因為危險，而是坐滿了剛夜班結束或是被經濟壓力喚醒的人。即使穿著擦亮的皮鞋與整潔的衣著，臉上卻共享著同一種沉鬱的疲倦。藍領生活粉碎了白領幻覺。他每天問自己：是不是該台灣了？直到某天，他被調往酒店行政酒廊值班。一位客人遞給他一張紙巾，上面寫著一句手寫的話：你做得很好，繼續加油。(You are doing great. Keep going.) 那張紙巾上微小的認可，存放在最容易被丟棄的表面，成為一場延伸策展探問的起點：餐廳、酒店、酒吧裡的紙巾，在消失之前究竟吸收了什麼？當桌面被清理、當紙巾被扔進垃圾桶，什麼樣的情感、姿態與尊嚴也隨之被一併抹去？ 楊子寬邀請了49位國際藝術家在紙巾上進行原創創作。這些作品涵蓋親密的繪畫、手寫告白到抽象介入，被轉製為A5高品質攝影打印，以近乎隱形的單絲釣魚線懸浮於展場天花板，高低錯落。觀眾穿行於一片密集而輕盈的影像之間，近距離閱讀這些脆弱而真實的個人敘事。 展廳中央設置一張覆以黑色桌布的工作站，提供空白紙巾與筆，旁邊放置一張印有「Write your story. Add it to the 50th story.」的邀請卡。希望觀眾書寫紙巾，並將之以木夾懸掛於窗邊釣魚線上，陽光穿透紙張，使這座不斷生長的檔案對內部觀眾和窗戶外的行人同時可見。也能夠隨著展期推移，讓第50個故事逐日積累：一份集體的、活生生的文獻。 「紙巾一直都在，一直在旁邊等候著。」楊子寬說。「它們安靜地坐在餐廳、廚房、咖啡館、酒吧、婚禮、飛機上，聆聽卻不發一語，像是隱形人般，就像那些提供服務的人一樣。」 在歐洲與英國社會對移民與服務業勞動條件高度關注與政策調整的時刻，人力壓力與生活成本危機，使服務業從業者（其中許多為移民）的不穩定處境變得清晰可見。《Soft Witness》不以紀實或抗議的方式進入這一議題，而是透過安靜的物質詩學：紙巾作為一個容器，承載著被感受卻未被記錄、存在卻可被丟棄的一切。 同時延續了楊子寬自2023年以來對勞工階級和弱勢族群的持續關注與策展實踐。過去六年間，他在英國與台灣策劃超過二十場展覽，包括《Hold It Together As We Fall Apart》（Teapsy Project, 倫敦, 2025–26）、《HOME: TAIWAN》（Safe House 1, 倫敦, 2024）、以及將當代藝術帶入台北十間頂級餐廳與酒吧的《Façade Taipei》（2022）。其策展工作曾獲 GQ Taiwan、Tatler Asia、VERSE、中央通訊社、Marie Claire Taiwan、大紀元等媒體報導。 ▐ 相關出版 展覽延伸自同名書籍《Soft Witness: 50 Artists, 50 Stories》（Amazon Kindle, ISBN: 978-1068293009, 2025年6月出版），完整記錄了所有紙巾作品及策展論述。另一本出版物《Check-In London》（ISBN: 978-1068293016, 2025年7月出版）則聚焦於倫敦餐旅業中移民勞動的更廣泛經驗。 ▐ 關於策展人 楊子寬（Neal）為旅居倫敦的台灣阿美族策展人。擁有皇家藝術學院當代藝術策展碩士學位及輔仁大學數學系應用數學組學士學位。曾任職於社團法人中華民國畫廊協會及蘇富比台北辦公室，現為獨立策展人與《換日線》（天下雜誌集團）讀者投稿專欄作者。 ▐ 關於 Roha Gallery Roha Gallery 是一間位於倫敦 Islington 的藝術家經營當代藝術空間，創立於2025年。畫廊以支持新興國際藝術家為核心，尤其關注韓國及東亞藝術家，呈現跨媒介的個展與策劃聯展。",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/466/urfkhxm4axdigp3nsvqth59rlh1smv85_800x420^.jpg",
+    "masterUnit": [
+      "詳見展覽資訊"
+    ],
+    "subUnit": [],
+    "supportUnit": [],
+    "otherUnit": [],
+    "webSales": "",
+    "sourceWebPromote": "",
+    "comment": "",
+    "editModifyDate": "",
+    "sourceWebName": "Artemperor",
+    "startDate": "2026/05/04",
+    "endDate": "2026/05/10",
+    "hitRate": 0,
+    "artemperorMeta": {
+      "allImages": [
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/466/urfkhxm4axdigp3nsvqth59rlh1smv85_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/466/urfkhxm4axdigp3nsvqth59rlh1smv85_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/457/r97miuwtn7ioc4vmelfgmz0f7188wfan_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/458/xnu9wwk9uwla2y9fcf3vwtosi85b2bw1_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/459/wtnx2em1timr4w86fnb3p9037ssd6l7o_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/460/sk4sw2k49y1wm9e86srsb56351kn6vwx_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/461/o5huv9ns8mra70i06ilm2bqtkfgvimdr_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/462/xamf2z5kw6i7eijn2v0uuet3tvqsxt7g_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/463/2whjlchdkwragv9xzeoj3xvtrp4zpud9_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/464/phepreo3p186msipek1g3planv2fwbiw_1400x800.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/465/vj3ei5myvr60qlrms59ewnk68dfx7jtj_1400x800.jpg"
+      ],
+      "relatedLinks": [],
+      "rawDate": "日期：2026-05-04 ~ 2026-05-10"
+    },
+    "tag": [
+      "#其他地區",
+      "#室外",
+      "#高價",
+      "#早上"
+    ]
+  },
+  {
+    "version": "artemperor-1.0",
+    "UID": "301dc119e2a446a447d44300d2907a48",
     "title": "【稀有高山·彩鳥報喜】王紹麟攝影展",
     "category": "6",
     "showInfo": [
@@ -4642,11 +3749,17 @@
       ],
       "relatedLinks": [],
       "rawDate": "日期：2026-03-14 ~ 2026-12-31"
-    }
+    },
+    "tag": [
+      "#台北市",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "e425b6d673c98070633079b607e94ec0",
+    "version": "artemperor-1.0",
+    "UID": "eb8d32b106a499713f27cdfb9a8b459a",
     "title": "【滾動的四連夜—藝術家會客室｜5.12 - 5.15｜報名開始】",
     "category": "6",
     "showInfo": [
@@ -4688,11 +3801,17 @@
         "https://www.taishinart.org.tw/art-award-year-works/2025"
       ],
       "rawDate": "日期：2026-05-12 ~ 2026-05-15"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#低價",
+      "#晚上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "6eb417d1e66fc174e71c56f449b0866d",
+    "version": "artemperor-1.0",
+    "UID": "7d8679f6d5da11f7b6ea766813ad9b14",
     "title": "【我心目中得主｜4.22 - 5.29｜投票即日開始】",
     "category": "6",
     "showInfo": [
@@ -4734,11 +3853,69 @@
         "https://24award.taishinart.org.tw/2026%E6%88%91%E5%BF%83%E7%9B%AE%E4%B8%AD%E5%BE%97%E4%B8%BB_%E6%B4%BB%E5%8B%95%E8%BE%A6%E6%B3%9520250413.pdf"
       ],
       "rawDate": "日期：2026-04-22 ~ 2026-05-29"
-    }
+    },
+    "tag": [
+      "#其他地區",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "8c204cc8edd35da491ee47f15654afbb",
+    "version": "artemperor-1.0",
+    "UID": "f262dbc84043b3709f4471f449db0791",
+    "title": "【弄一弄就出來了－李碩瑜個展】Rub＆#039;n It Comes Out - Li Shuo-Yu Solo Exhibition",
+    "category": "6",
+    "showInfo": [
+      {
+        "time": "2026/04/22 00:00:00",
+        "location": "台南市中西區民生路一段205巷11號",
+        "locationName": "台南市中西區民生路一段205巷11號",
+        "onSales": "",
+        "price": "",
+        "latitude": null,
+        "longitude": null,
+        "endTime": "2026/05/24 23:59:59"
+      }
+    ],
+    "showUnit": "李碩瑜",
+    "discountInfo": "",
+    "descriptionFilterHtml": "弄一弄就出來了－李碩瑜個展 Rub＆#039;n It Comes Out - Li Shuo-Yu Solo Exhibition 展期 Duration ｜2026.04.22 (wed) - 05.24 (sun) 藝術家 Artist ｜李碩瑜Li Shuo-Yu 地點 Venue ｜絕對空間 Absolute Space for the Arts 開幕茶會 Opening ｜2026.04.26 (sun) 15:00 藝術家座談 Forum ｜2026.04.26 (sun) 15:30 與談人 Guest ｜吳牧青 Wu Mu-Ching --------------------------------------------------------------------------- 展覽論述 「意想的滋味何其美妙！沒有了它，又有什麼能讓我們抵達那貪婪地互相佔有的伊甸園呢？」 「想像」得以成為一種手段，使想像者，得以獲得某種超越於現實世界的本真。本次展覽「弄一弄就出來了」便欲透過「想像」的方法，放置於「性/慾望」的脈絡框架下進行運作，似於哲學家巴塔耶談論情色中所及：「情色是一連串心理與身體的劇烈運動，藉以預演或模擬『自我消失』的連續狀態」。 「弄一弄就出來了」（Rub ’n It Comes Out）來自於我某次於彩券行外瞥見彩券行內的開獎畫面，不分性別、年紀、職業的投注者面對螢幕內彩球的掉落，狂喜的嚎叫與狂悲的悻悻然互相疊合，簡直就是一場充滿性與慾望的嘉年華派對。 我「想像」著不同彩球在摸彩箱裡來回擦撞，直到一種達到高潮的結果水落石出，作為特殊的肉體經驗，與本展覽中出現的現成物件，如數獨遊戲、積木等，試圖藉由表面上看似與「性/慾望」無關的材料語言的並置，夾擠出「性/慾望」的逐漸成形。 --------------------------------------------------------------------------- 藝術家自述 「在我閉上眼的時候，是你離我最近的時刻。」 「不亞於台南火車站旁年約六、七十歲的老婦，手上的紅白條紋塑膠袋裡裝著幾根小黃瓜，滿頭白髮卻綁著雙馬尾的造型；不亞於火車上一對母子之間的對話：『媽媽，你可以直接吐在我手上！』」。 在某些日常生活的景象裡......。算了，這麼說好了，我就是一隻充滿性慾的獵犬，當嗅到了性，無差別的獵物正以某種淫靡的姿態服務著我的性癖，似於鋒刃的原始衝動逐一劃破我與「與我之外」的分界。 又有一次，我再次化身為獵狗，卻意外地被太陽下了一道短暫的詛咒：在我長時間視姦太陽之後，所有能被我看見的事物都留下了一個黑洞，就連你的肚臍眼也是。 我一直在尋找一種性慾來源的迫切，就像是上課偷玩數獨遊戲，然而卻不小心意識到自己一直忘記剪指甲，指甲縫裡那條細細的、黑黃的污垢。 你也有過這種污垢嗎？有的話，能不能也讓我知道，我想要把我的污垢揉進你的污垢裡，變成「我們」的污垢，像是協同作者，又或是犯罪的共謀一般。 --------------------------------------------------------------------------- 關於藝術家 李碩瑜 Shuo Yu Li 1996年出生於台灣高雄。目前就讀國立台南藝術大學造形所碩二，現居台南。曾就讀國立中興大學應用數學系，大三肄業；國立台北藝術大學美術學系碩士（藝術史與視覺文化組），碩三再度肄業。多次不得不的過場成為創作路徑中的不同內存，鍾愛於數獨遊戲。近期創作關注數字系統、遊戲、身體與慾望的交互關係。 --------------------------------------------------------------------------- 主辦單位｜絕對空間 展覽補助｜臺南市政府文化局 空間營運補助｜國藝會 REFERENCE 弄一弄就出來了－李碩瑜個展",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/436/xgyvc53obtziw06hwysmajmlgdplu8q9_800x420^.jpg",
+    "masterUnit": [
+      "李碩瑜"
+    ],
+    "subUnit": [],
+    "supportUnit": [],
+    "otherUnit": [],
+    "webSales": "",
+    "sourceWebPromote": "https://absoluteart.space/14634799",
+    "comment": "",
+    "editModifyDate": "",
+    "sourceWebName": "Artemperor",
+    "startDate": "2026/04/22",
+    "endDate": "2026/05/24",
+    "hitRate": 0,
+    "artemperorMeta": {
+      "allImages": [
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/436/xgyvc53obtziw06hwysmajmlgdplu8q9_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/436/xgyvc53obtziw06hwysmajmlgdplu8q9_1400x800.jpg"
+      ],
+      "relatedLinks": [
+        "https://absoluteart.space/14634799"
+      ],
+      "rawDate": "日期：2026-04-22 ~ 2026-05-24"
+    },
+    "tag": [
+      "#台南市",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
+  },
+  {
+    "version": "artemperor-1.0",
+    "UID": "a8670ab0fda7f395ff973f9be182f290",
     "title": "【壹葉一山】2026 邱國峯個展",
     "category": "6",
     "showInfo": [
@@ -4783,11 +3960,69 @@
       ],
       "relatedLinks": [],
       "rawDate": "日期：2026-04-03 ~ 2026-05-31"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "a28d2f33598cacfed06ef8291cafaf76",
+    "version": "artemperor-1.0",
+    "UID": "b43a9515e23b93ab643f69b3326a325b",
+    "title": "【wandering : 3300km / 33rpm】中村眞弥子、中村友胤",
+    "category": "6",
+    "showInfo": [
+      {
+        "time": "2026/05/02 00:00:00",
+        "location": "台中市西區五權西六街72號",
+        "locationName": "台中市西區五權西六街72號",
+        "onSales": "",
+        "price": "",
+        "latitude": null,
+        "longitude": null,
+        "endTime": "2026/05/24 23:59:59"
+      }
+    ],
+    "showUnit": "中村眞弥子、中村友胤",
+    "discountInfo": "",
+    "descriptionFilterHtml": "wandering : 3300km / 33rpm｜中村眞弥子、中村友胤 3300 公里的移動，與 33 轉的緩慢旋律。從日本到台灣，沿著歷史、自然、城市與建築的脈絡，在當代的時間層中，追尋過去的痕跡。兩位藝術家，將於 ZASSO 以作品與展演呈現旅之音風景。 3300 km の旅路と、33 rpm の穏やかな回転。日本から台湾へ。歴史、自然、都市、建築、そして人々。過去の痕跡を現代の台湾で探す旅。二つの国をつなぐ二人のアーティストが、ZASSO にてその作品を「旅の音風景」として発表する。 A 3300-kilometer journey and a tender 33-rpm rotation. From Japan to Taiwan. History, nature, cities, architecture, and people. A journey to discover traces of the past in present day Taiwan. Two artists connecting two nations express their work as a \"Travel Sound Landscape\" at ZASSO. 關於藝術家｜Mayako Nakamura 中村眞弥子 居住於東京的畫家。自 2009 年起於日本及海外持續發表創作，作品橫跨繪畫、裝置與生活物件。創作關注「日常之中難以言說的感受」，透過身體對空間與邊界的感受，將記憶、情緒與潛在的普遍形態交織於畫面之中，描繪既熟悉又略微偏移的「另一種日常」。 關於音樂家｜Tomotsugu Nakamura 中村友胤 居住於東京的音樂家與平面設計師，以極簡聲響、電子音與環境錄音構築具空間感的聲音場域。透過聲響的堆疊與流動，形成介於音樂與環境之間的聆聽經驗。作品曾由 Kaico、Audiobulb Records、LAAPS 等廠牌發行。 展期：2026.05.02 - 05.24 茶會：2026.05.02｜3pm - 5pm｜交流、演出 演出：報名連結 / https://reurl.cc/Z2eYNa 視覺：林鼎國 / IKOI GRAPHIC @ikoigraphic ZASSO 草也 台中市西區五權西六街72號 Mon. - Sun. 11am - 8pm #中村眞弥子 #MayakoNakamura #中村友胤 #TomotsuguNakamura REFERENCE wandering : 3300km / 33rpm｜中村眞弥子、中村友胤｜現場演出報名連結",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/414/kbm0y8irjlc1ta139rlywf7cj0n3ws1v_800x420^.jpg",
+    "masterUnit": [
+      "中村眞弥子、中村友胤"
+    ],
+    "subUnit": [],
+    "supportUnit": [],
+    "otherUnit": [],
+    "webSales": "",
+    "sourceWebPromote": "https://reurl.cc/Z2eYNa",
+    "comment": "",
+    "editModifyDate": "",
+    "sourceWebName": "Artemperor",
+    "startDate": "2026/05/02",
+    "endDate": "2026/05/24",
+    "hitRate": 0,
+    "artemperorMeta": {
+      "allImages": [
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/414/kbm0y8irjlc1ta139rlywf7cj0n3ws1v_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/414/kbm0y8irjlc1ta139rlywf7cj0n3ws1v_1400x800.jpg"
+      ],
+      "relatedLinks": [
+        "https://reurl.cc/Z2eYNa"
+      ],
+      "rawDate": "日期：2026-05-02 ~ 2026-05-24"
+    },
+    "tag": [
+      "#台中市",
+      "#室內",
+      "#高價",
+      "#早上"
+    ]
+  },
+  {
+    "version": "artemperor-1.0",
+    "UID": "aa7ac335611dd297266bb0c3386ba724",
     "title": "【The Alchemy of Wool】Oksana Pero debut solo exhibition",
     "category": "6",
     "showInfo": [
@@ -4836,11 +4071,17 @@
         "https://500times.udn.com/wtimes/story/12672/9429246"
       ],
       "rawDate": "日期：2026-04-11 ~ 2026-04-26"
-    }
+    },
+    "tag": [
+      "#台北市大安區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "e27247527f50f68c648f306b565c43ce",
+    "version": "artemperor-1.0",
+    "UID": "d0fcd9c8d41aea24b5892291b72ce902",
     "title": "【片段與回響—王淑鈴個展 】Fragments and Echoes—Suling WANG Solo Exhibition",
     "category": "6",
     "showInfo": [
@@ -4900,11 +4141,17 @@
         "https://www.chinigallery.com/load_page/get_exhibition_content/201"
       ],
       "rawDate": "日期：2026-05-01 ~ 2026-06-21"
-    }
+    },
+    "tag": [
+      "#台北市中山區",
+      "#室內",
+      "#高價",
+      "#下午"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "707290ccf9b162cc2224d394d50b0960",
+    "version": "artemperor-1.0",
+    "UID": "b1d582588ecd110a0b4f91d8579240df",
     "title": "【朝風呂】許宥逸個展",
     "category": "6",
     "showInfo": [
@@ -4947,11 +4194,17 @@
         "https://www.instagram.com/gallery80a?igshid=NDk5N2NlZjQ%3D"
       ],
       "rawDate": "日期：2026-04-18 ~ 2026-05-17"
-    }
+    },
+    "tag": [
+      "#台北市士林區",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "efb95107e31a2386551b0d6bd2fc4daa",
+    "version": "artemperor-1.0",
+    "UID": "b3cb132c00def43ff61ee9f708e6fe5d",
     "title": "【七日談—蔡咅璟個展】",
     "category": "6",
     "showInfo": [
@@ -4993,237 +4246,64 @@
         "https://www.moca.taipei/tw"
       ],
       "rawDate": "日期：2026-04-25 ~ 2026-07-05"
-    }
+    },
+    "tag": [
+      "#台北市大同區",
+      "#室外",
+      "#高價",
+      "#早上"
+    ]
   },
   {
-    "version": "1.4",
-    "UID": "438d873c28106a328fc96ad01911a184",
-    "title": "【綺夢】周純卉陶塑個展",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/04/25 00:00:00",
-        "location": "台北市大安區敦化南路二段63巷21弄27號1樓",
-        "locationName": "台北市大安區敦化南路二段63巷21弄27號1樓",
-        "onSales": "",
-        "price": "",
-        "latitude": null,
-        "longitude": null,
-        "endTime": "2026/05/10 23:59:59"
-      }
-    ],
-    "showUnit": "周純卉",
-    "discountInfo": "",
-    "descriptionFilterHtml": "綺夢 : 周純卉陶塑創作個展 我們所篤信的真實，究竟是集體的共識，抑或只是因循守舊的習慣？ 在當代台灣的網絡語境中，「我夢到的」已然演化為一種兼具爆料保護色與天馬行空開場白的社群默契，在此介於真實與虛構之間的緩衝地帶，允許我們在免除邏輯與立場審查的前提下，釋放那些日常被壓抑、不被允許或看似不成立的敘事。藝術家周純卉的最新陶塑創作，正是從這一語境出發，建構出一個如夢境般偏離常態、真假交織的場域，也同時挑戰我們對既定真實的認知。 在周純卉的手中，不同系列的作品、相異的物種基因，乃至於對立的情緒，皆能荒謬而合理地共存，且獲得鮮活的生命力。從多重感官器官的繁衍、物種邊界的模糊化，到從怪誕中流露出的幽默感，透過這些實體化的夢囈，周純卉邀請觀者大膽做夢，在真實與虛構的邊界上反覆橫跨，暫時卸下現實世界的防備與理性，並重新思考存在的多元面貌。 來吶，來吶，一起做夢吧！ I Dreamed A Dream Is the reality we so firmly believe in a collective consensus, or merely a byproduct of entrenched habit? In the context of contemporary Taiwan’s digital discourse, the phrase \"I dreamt it\" has evolved into a social shorthand—a protective layer for whistleblowing and a gateway to the fantastical. This liminal space between fact and fiction serves as a buffer, allowing us to release narratives that are otherwise suppressed, forbidden, or logically untenable, free from the scrutiny of stance and reason. From this specific context, artist Rhea C. constructs a realm where the ordinary is subverted and truth intertwines with illusion, challenging our very perception of established reality. In Rhea’s hands, disparate series, divergent genetic traits, and even conflicting emotions coexist with an absurd yet compelling internal logic. From the proliferation of sensory organs and the blurring of species boundaries to the dark humor radiating from the grotesque, these materialized whimsical dreams invite viewers to dream boldly. By repeatedly traversing the borders of the real and the imagined, Rhea encourages us to lower our rational defenses and reconsider the multifaceted nature of existence. Come, come now—let us dream together! 周純卉 畢業於輔仁大學織品服裝學系服裝設計組，擅以細膩的捏塑與多變的釉色語彙，在陶土上復刻出如夢境般的奇異質地，或模擬如青銅器般的鐵鏽古感。創作路徑與其精彩的斜槓人生緊密交織——她曾穿梭於時裝與專櫃，亦曾投身市場零售與動物收容，更在演藝實踐與偏鄉教育中轉譯生命觀點。自2018年習陶至今，豐富跳躍的生命經驗，賦予其獨特創作視角。 作品橫跨多重敘事：從探討當代議題的《眾生相》、結合中藥意象與未來物種的《本草綱目》，到象徵財富的《Lucky Monster》、可愛幽默的《寇妮·吉娃》系列，皆展現其敏銳的社會觀察。獨特語彙亦深受專業肯定，於2025年榮獲「苗栗國際陶藝競賽」優選獎。2026年推出全新系列《來吶，你坐啊！2.0》，以療癒小精靈為核心，帶來心靈治癒能量。 Rhea C. A graduate of the Department of Textiles and Clothing at Fu Jen Catholic University, majoring in Fashion Design, Rhea is a master of intricate hand-building and versatile glazing. Her work meticulously replicates the ethereal textures of dreams or the archaic, weathered patina of ancient bronzeware. Her artistic trajectory is deeply interwoven with an eclectic life path—navigating the realms of high fashion and retail, animal welfare, and performance art, while translating her observations of humanity through rural education. Since dedicating herself to ceramics in 2018, these vibrant and varied experiences have endowed her with a singular and profound creative perspective. Rhea’s work spans multiple narratives: from Panorama of Life, which interrogates contemporary social issues, to The Compendium of Materia Medica, a series merging traditional herbalism with futuristic hybrid species. Her work also features the wealth-symbolizing Lucky Monster and the humorously defiant Chihuahua collection, both reflecting her acute social observation. Her unique visual vocabulary earned professional acclaim in 2025 with the Award of Excellence at the Miaoli International Ceramics Competition. In 2026, she introduced her latest series, Come Sit With Me 2.0, centered on healing sprites that channel a powerful restorative energy. REFERENCE 純Object 官網 純Object 臉書",
-    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/396/vlnpriz4z824aui7zy0wsg312qs4b0i0_800x420^.jpg",
-    "masterUnit": [
-      "周純卉"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "",
-    "sourceWebPromote": "https://www.simple-object.com/pages/2026rhea-c",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "Artemperor",
-    "startDate": "2026/04/25",
-    "endDate": "2026/05/10",
-    "hitRate": 0,
-    "artemperorMeta": {
-      "allImages": [
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/396/vlnpriz4z824aui7zy0wsg312qs4b0i0_800x420^.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/396/vlnpriz4z824aui7zy0wsg312qs4b0i0_1400x800.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/397/79v4e9cf1dzsiby5p4t6ni8c6ymftkny_1400x800.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/398/tn2pelqp8ozrbxkly9fswgsxd86vth0j_1400x800.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/399/pqu09xi7w08avpzrkehel34s3q2ifdoz_1400x800.jpg"
-      ],
-      "relatedLinks": [
-        "https://www.simple-object.com/pages/2026rhea-c",
-        "https://www.facebook.com/events/1282748093973359"
-      ],
-      "rawDate": "日期：2026-04-25 ~ 2026-05-10"
-    }
-  },
-  {
-    "version": "1.4",
-    "UID": "04dfadb6925414ada23815dadc7b3b68",
-    "title": "【在逗號裡散步】插畫創作聯展",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/11 00:00:00",
-        "location": "典美藝文空間（台北市信義區信義路五段150巷2號14樓之3，近象山站2號出口）",
-        "locationName": "典美藝文空間（台北市信義區信義路五段150巷2號14樓之3，近象山站2號出口）",
-        "onSales": "",
-        "price": "",
-        "latitude": null,
-        "longitude": null,
-        "endTime": "2026/06/02 23:59:59"
-      }
-    ],
-    "showUnit": "Leely、小花慢慢開、王鑫湘、吳世傑、林翊琦、洪郁茹、細川巴掌雲、莎莎、張筱涵、許維芸、雲昌宜MimiCloud、黃瑋琦、嘎又Gayo、劉智淵、蕭伊珊",
-    "discountInfo": "",
-    "descriptionFilterHtml": "人生中的「逗號」象徵一段停下、回望與轉彎的時刻，它可能是被迫按下的暫停鍵、也可能是主動選擇的深呼吸。 《在逗號裡散步》插畫創作聯展，延續2025典美插畫大賞《逗號》的主題，匯聚 15 位入圍創作者，透過 45 幅原創作品，邀請您走進逗號的間隙中，來一場沒有目的地的散步。 在這裡，你可以享受任性迷路、安靜呼吸的時刻，讓插畫作品為你留下一段柔軟的空白，找回內心最安穩的節奏，從容地展開下一步的前行。 ◼《在逗號裡散步》插畫創作聯展 ＊時間：2026.05.11～06.02，10:30-17:00 (每週日休館) ＊地點：典美藝文空間（台北市信義區信義路五段150巷2號） ＊免費預約參觀，最晚請於前一日17:00前線上預約 ＊參展者：2025典美插畫大賞入圍者 (依字首筆畫排序) Leely 小花慢慢開 王鑫湘 吳世傑 林翊琦 洪郁茹 細川巴掌雲 莎莎 張筱涵 許維芸 雲昌宜MimiCloud 黃瑋琦 嘎又Gayo 劉智淵 蕭伊珊 ◼ 展期系列活動： ＊05.16 (六) 14:00-16:00 插畫同樂會：創作交流分享會 (免費報名) 為自己畫下一個逗號吧！在插畫同樂會中相遇懂你的創作人。本場活動邀請參展者、插畫同好、以及所有對創作懷抱熱忱的你，暫時放下畫筆、走出畫框，在創作議題中，展開真誠地交流與對話，讓彼此的共鳴成為繼續前行的力量。 ＊05.30(六) 14:30-15:40插畫講座：我在插畫的路上一直走著 (講座費用NT$ 200) 從3歲的夢想到現在，這條彷彿走了一輩子的創作路，充滿迷惘、自暴自棄、卡關與逃避，但正因為死皮賴臉地堅持在想做的事情上，那些灰暗的時刻，終成為閃閃發亮的模樣。本場講座邀請cincin聊聊她創作至今的體悟，以及如何透過持續創作，讓作品呈現獨特的生命力。 來吧！跟著cincin一起在插畫的宇宙裡走下去吧:D REFERENCE 展覽暨活動官網",
-    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/394/yu2tbvnf4463zla02sp46n9d5rxmb15f_800x420^.jpg",
-    "masterUnit": [
-      "Leely、小花慢慢開、王鑫湘、吳世傑、林翊琦、洪郁茹、細川巴掌雲、莎莎、張筱涵、許維芸、雲昌宜MimiCloud、黃瑋琦、嘎又Gayo、劉智淵、蕭伊珊"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "",
-    "sourceWebPromote": "https://art.hoss.org.tw/events",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "Artemperor",
-    "startDate": "2026/05/11",
-    "endDate": "2026/06/02",
-    "hitRate": 0,
-    "artemperorMeta": {
-      "allImages": [
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/394/yu2tbvnf4463zla02sp46n9d5rxmb15f_800x420^.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/394/yu2tbvnf4463zla02sp46n9d5rxmb15f_1400x800.jpg"
-      ],
-      "relatedLinks": [
-        "https://art.hoss.org.tw/events"
-      ],
-      "rawDate": "日期：2026-05-11 ~ 2026-06-02"
-    }
-  },
-  {
-    "version": "1.4",
-    "UID": "dab2d7f4dc4f1eec6bb5c11baefd5650",
-    "title": "【畫家王傑帶路城市速寫講座】集結建築、文學與現場實作的建築速寫講座",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/20 00:00:00",
-        "location": "臺灣文學糧倉｜100臺北市中正區杭州北路26號旁",
-        "locationName": "臺灣文學糧倉｜100臺北市中正區杭州北路26號旁",
-        "onSales": "",
-        "price": "",
-        "latitude": null,
-        "longitude": null,
-        "endTime": "2026/05/20 23:59:59"
-      }
-    ],
-    "showUnit": "王傑",
-    "discountInfo": "",
-    "descriptionFilterHtml": "這是一場集結建築、文學與現場實作的建築速寫講座，特別邀請留學西班牙巴塞隆納大學美術繪畫創作博士的知名畫家—王傑，透過繪畫與文學的跨域結合，細膩地記錄這片土地上的城市景緻與故事。這不只是一場技巧分享，更是一次對生活周遭的深度探索，一起進行一場難得的建築美學課。 建築與生活美學密不可分，從用途、材質到美學風格，反映了不同生活樣貌，聚落生成軌跡和生活故事。基金會長期致力於啟發孩子對空間與環境的感知，這次邀請大人們，一起了解建築，累積對於身邊人事物及美的感受，進而關懷生活周遭的樣貌。 王傑擅長以水彩速寫與西洋書法記錄城市風光，以特殊風格的水彩畫，記錄故鄉基隆的一景一物，足跡更遍及臺灣與世界各地。透過文字及色彩，記錄並描繪著土地上每座城市的風光與人物以及形象與色彩。 特別安排在「臺灣文學糧倉」，一同感受老屋之美。「臺灣文學糧倉」為1950年代歷史建物，曾為學校、糧食局倉庫。保留磚造建築體、傳統日式木桁架構屋頂，作為跨域活動創作能量交會之地，曾獲獎：2025年老屋新生大獎BEST 10、2025金點設計獎、2025台灣光環境獎。 ⭓ 特色內容 1. 無須繪畫基礎，畫家現場速寫示範。 2. 畫家創作心法，建築觀察分享。 3. 畫家親自解惑，深度交流。 4. 現場解惑速寫及各種繪畫的疑難雜症！ 活動時間｜2026/5/20（三）14:00~16:00 活動地點｜臺灣文學糧倉（近捷運善導寺站，臺北市中正區杭州北路26號旁） 主講人｜王傑（知名畫家、圖文專欄作者、文學與繪畫跨域藝術家） 參與對象｜年滿18歲，對建築與繪畫有興趣之成人 ⭓ 活動洽詢 長虹教育基金會 行政企劃專員 林小姐 電話：02-23963280#189 Email：py2488@chonghong.com.tw REFERENCE 購票資訊",
-    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/393/spciy12r48mh3u7e2t654z4x6xvjj1cz_800x420^.jpg",
-    "masterUnit": [
-      "王傑"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "",
-    "sourceWebPromote": "https://www.accupass.com/event/2604010926568438734900",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "Artemperor",
-    "startDate": "2026/05/20",
-    "endDate": "2026/05/20",
-    "hitRate": 0,
-    "artemperorMeta": {
-      "allImages": [
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/393/spciy12r48mh3u7e2t654z4x6xvjj1cz_800x420^.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/393/spciy12r48mh3u7e2t654z4x6xvjj1cz_1400x800.jpg"
-      ],
-      "relatedLinks": [
-        "https://www.accupass.com/event/2604010926568438734900"
-      ],
-      "rawDate": "日期：2026-05-20 ~ 2026-05-20"
-    }
-  },
-  {
-    "version": "1.4",
-    "UID": "4201ed54dd9f47be3b20dfb4377f51b8",
-    "title": "【404 Ink Not Found 】國立臺灣師範大學115級美術學系水墨畫組校外畢業展",
+    "version": "artemperor-1.0",
+    "UID": "3000402d2f696822ac77a20eec487e59",
+    "title": "【仙人．跳】土地公的藝術家朋友們特展",
     "category": "6",
     "showInfo": [
       {
         "time": "2026/04/18 00:00:00",
-        "location": "國立臺灣藝術教育館(100臺北市中正區南海路47號)",
-        "locationName": "國立臺灣藝術教育館(100臺北市中正區南海路47號)",
+        "location": "桃園市土地公文化館（桃園市桃園區三民路一段100號）",
+        "locationName": "桃園市土地公文化館（桃園市桃園區三民路一段100號）",
         "onSales": "",
         "price": "",
         "latitude": null,
         "longitude": null,
-        "endTime": "2026/04/22 23:59:59"
+        "endTime": "2026/08/30 23:59:59"
       }
     ],
-    "showUnit": "林昶翰、 洪瑜君、汪承沂、謝昕妤、楊家棋、陳亭亦、陳逸蓁、吳婧禕、許宇博、馬娸榛、 林穎欣、林珈羽、曾敏宣、申蕎恩、許宜家、蕭松逸、凃佩昕、劉智宇、王萱、葉家妤、劉家菱、鄭晨恩、吳宣穎",
+    "showUnit": "姚瑞中YAO、Jui-Chung、楊凱婷Ada Kai-Ting YANG、李俊陽LI、Jiun-Yang、魯志楷Chih Kai LU、涂維政TU、Wei-Cheng、邱杰森CHIU、Chieh-Sen、林彥翔LIN、Yan-Xiang、倪瑞宏NI、Jui-Hung、黃舜廷HUANG、Shun-Ting、陳柏瑜CHEN、Po-Yu、蕭雅萱HSIAO、Ya Hsuan、蔡浚勝TSAI、Chun-Shen、王薇媛Wei Yuan Wang、海闊拉帝Hi-Quality、柯聰煌KO、Ts",
     "discountInfo": "",
-    "descriptionFilterHtml": "資訊搜尋中。。。 在搜尋引擎中，404代表找不到的網頁；在我們筆下，404是水墨邊界的失蹤。 展覽名稱引用網路錯誤訊息，象徵水墨已跳脫原本語言，為傳統與當代的交融。 當今後現代對水墨的定義是模糊的，也似即將畢業的年輕藝術家們，面對未來在何處仍迷惘不清。在本展中，年輕藝術家們總結四年的養分，以不同的媒材創作回應水墨對自身的定義，如：水墨、膠彩、書篆，更橫跨平面、立體及錄像以及畫下我們對於這個世代的精彩註解。 展覽資訊 地點｜國立臺灣藝術教育館(100臺北市中正區南海路47號) 日期｜04.18 (六) － 04.22 (三)，每日9:00-17:00(週一休 開幕｜04.21 (二) 11:00",
-    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/369/cq5d29g4pm0k4iohw2vhtbpxa4kqofvf_800x420^.jpg",
+    "descriptionFilterHtml": "本展邀請當代藝術家姚瑞中統籌，帶領25位藝術家展開民俗文化與當代藝術的深度對話，讓信仰不只是過去的記憶，而是生活裡持續發生的創造。 展覽透過影像、聲音、材料與參與式作品，帶領大家從「觀者」轉為「參與者」，感受民俗如何在日常中不斷更新、協商，成為我們共同的語言。 土地公作為最貼近地方的神祇，提醒我們：宏大的故事往往藏在最細微的日常裡。 這場展覽，邀請你回到一個柔軟的提問——當民俗仍在發生，我們能否把它視為一種正在進行的當代？ 作為本展藝術家統籌的姚瑞中，長期關注台灣民間信仰與神明文化，創作橫跨攝影、裝置與影像，並多次以神像、廟宇與宗教場景為核心主題。例如其代表性系列《巨神連線》曾獲第十六屆台新藝術獎，歷時長時間走訪全台各地廟宇，拍攝大量巨型神像，透過影像揭示神明形象與人類欲望投射之間的關係；其《地獄空》等系列亦以田野調查方式拍攝台灣宮廟中的地獄審判場景，呈現台灣民間信仰中對生死、善惡與想像的獨特文化美學。這樣長期且持續的創作脈絡，使其在當代藝術與民俗信仰交界的領域中，具有高度代表性與研究價值。 藝術從來不是單一答案，而是一種觀看世界的方式，歡迎大家走進展場，在多元觀點中形成屬於自己的感受與詮釋。 ⍟ ─── 展覽資訊 ─── ⍟ 展覽時間｜115/04/18(六) – 115/08/30(日)，週二至週日09:00-17:00 展覽地點｜桃園市土地公文化館 4、5、6樓特展間 入場方式｜免費參觀 指導單位｜桃園市政府、桃園市議會 主辦單位｜桃園市政府文化局、財團法人桃園市文化基金會 承辦單位｜桃園市土地公文化館 執行單位｜泓綠有限公司 特展顧問｜石瑞仁SHIH, Jui-Jen 藝術家統籌｜姚瑞中YAO, Jui-Chung 參展藝術家｜姚瑞中YAO, Jui-Chung、楊凱婷Ada Kai-Ting YANG、李俊陽LI, Jiun-Yang、魯志楷Chih Kai LU、涂維政TU, Wei-Cheng、邱杰森CHIU, Chieh-Sen、林彥翔LIN, Yan-Xiang、倪瑞宏NI, Jui-Hung、黃舜廷HUANG, Shun-Ting、陳柏瑜CHEN, Po-Yu、蕭雅萱HSIAO, Ya Hsuan、蔡浚勝TSAI, Chun-Shen、王薇媛Wei Yuan Wang、海闊拉帝Hi-Quality、柯聰煌KO, Tsung-Huang、密斯卡‧飛魚Misega, Flying Fish、李可Christopher Adams、林祐聖LIN, Yu-Sheng、莊約翰John CHUNG、薛敬議Dou-dou HSUEH、徐文瑞Manray HSU、陳覺慧TAN, Jue Hui、Meuko！ Meuko！＋郭一Yi KUO、練柏宏LIEN, Po Hung、李俐亞Liya LEE REFERENCE 桃園市土地公文化館",
+    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/395/emhtxan13thpdmlar6ptic0uwmlk9hm5_800x420^.jpg",
     "masterUnit": [
-      "林昶翰、 洪瑜君、汪承沂、謝昕妤、楊家棋、陳亭亦、陳逸蓁、吳婧禕、許宇博、馬娸榛、 林穎欣、林珈羽、曾敏宣、申蕎恩、許宜家、蕭松逸、凃佩昕、劉智宇、王萱、葉家妤、劉家菱、鄭晨恩、吳宣穎"
+      "姚瑞中YAO、Jui-Chung、楊凱婷Ada Kai-Ting YANG、李俊陽LI、Jiun-Yang、魯志楷Chih Kai LU、涂維政TU、Wei-Cheng、邱杰森CHIU、Chieh-Sen、林彥翔LIN、Yan-Xiang、倪瑞宏NI、Jui-Hung、黃舜廷HUANG、Shun-Ting、陳柏瑜CHEN、Po-Yu、蕭雅萱HSIAO、Ya Hsuan、蔡浚勝TSAI、Chun-Shen、王薇媛Wei Yuan Wang、海闊拉帝Hi-Quality、柯聰煌KO、Ts"
     ],
     "subUnit": [],
     "supportUnit": [],
     "otherUnit": [],
     "webSales": "",
-    "sourceWebPromote": "",
+    "sourceWebPromote": "https://www.taoyuantudigong.org.tw/main/",
     "comment": "",
     "editModifyDate": "",
     "sourceWebName": "Artemperor",
     "startDate": "2026/04/18",
-    "endDate": "2026/04/22",
+    "endDate": "2026/08/30",
     "hitRate": 0,
     "artemperorMeta": {
       "allImages": [
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/369/cq5d29g4pm0k4iohw2vhtbpxa4kqofvf_800x420^.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/369/cq5d29g4pm0k4iohw2vhtbpxa4kqofvf_1400x800.jpg"
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/395/emhtxan13thpdmlar6ptic0uwmlk9hm5_800x420^.jpg",
+        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/395/emhtxan13thpdmlar6ptic0uwmlk9hm5_1400x800.jpg"
       ],
-      "relatedLinks": [],
-      "rawDate": "日期：2026-04-18 ~ 2026-04-22"
-    }
-  },
-  {
-    "version": "1.4",
-    "UID": "d2a08270f7be4440f939487240968fab",
-    "title": "【 天闊煙靜｜李安成水墨展】 Vast Skies, the Haze Withdrawn: Li An-Cheng Ink Painting Exhibition",
-    "category": "6",
-    "showInfo": [
-      {
-        "time": "2026/05/02 00:00:00",
-        "location": "富錦街91號（敦煌藝術中心）",
-        "locationName": "富錦街91號（敦煌藝術中心）",
-        "onSales": "",
-        "price": "",
-        "latitude": null,
-        "longitude": null,
-        "endTime": "2026/05/23 23:59:59"
-      }
-    ],
-    "showUnit": "李安成",
-    "discountInfo": "",
-    "descriptionFilterHtml": "天闊煙靜｜李安成水墨展 Vast Skies, the Haze Withdrawn Li An-Cheng Ink Painting Exhibition ▍展期：2026.05.02 ~ 05.23 在臺灣當代水墨的發展中，李安成始終像一抹不肯被收編的黑。 他畫山水，卻不是傳統意義上的山水；他描繪自然，卻從不以再現為目的。正如評論者所言，那是一種「神似山水的抽象」，從既有觀看經驗出發，卻引人走向前所未見的內在世界 。他的作品介於具象與抽象之間，在似與不似之際，構築出屬於自身的視覺語言。 李安成1959年生於雲林莿桐的農村，泥土、田水、竹林與溪流是他最初的視覺記憶，也構成日後創作的底色 。離鄉之後，基隆的潮濕山海、陽明山的雲霧、淡水紅樹林的水氣⋯⋯都不斷浸潤於他的畫面中，即使在早年受傳統書畫訓練，他卻很快擺脫師承束縛，走向一條近乎自學、極為個人的創作道路。 他以水與墨為主要媒介，發展出獨特的技法：讓墨在水的引導下自行蔓延、滲透與堆疊，筆觸往往隱沒於流動中，畫面生成於控制與放任間，充滿風、水、光與時間的痕跡。 然而，真正讓人難以忘記的，是他的「黑」。 那是層次極其豐富的黑：濃、淡、潤、枯、沉鬱或流動，既如夜幕覆蓋，也如水氣蒸騰。在他筆下，黑並非遮蔽，而是顯現，正如他所言：「黑色是可讓人放鬆的顏色。」這種對黑的極致運用，使畫作產生強烈的情緒張力與精神密度，也讓觀者在沉靜中被緩緩吞沒。 他的創作歷程亦如墨色般層層轉化。早期作品偏向輕薄宣紙上的水氣流動，畫面通透而敏銳，細膩捕捉氣候與環境的細微變化；中期之後，墨色轉趨厚重，對比更為強烈，表現力顯著提升；晚期則在韓紙等材質上展開更大尺幅的實驗，筆觸狂放而自由，墨色如暴雨傾瀉，既粗獷又內蘊寧靜 。在這些變化之中，不變的始終是對自 然的凝視，也是對內在世界的探問。（參考張玉音，〈他在墨裡安放自然：關於李安成作品選〉，《典藏ARTouch》，2019） 這樣的藝術強烈、純粹，也因此孤獨。 敦煌藝術中心創辦人洪平濤先生每每憶起李安成，總帶著複雜的情緒。一方面篤定於他那無需多言、難以模仿的天成才氣；另一方面，亦不免惋惜他對創作的虔誠與對筆墨的敬畏，使他在面對主流藝術市場時不願妥協，也未曾改變自己已然確立的藝術語言。洪先生曾半開玩笑地對他說：「不然畫一點有顏色的？也許會比較好賣。」李安成只是搖頭。 他始終站在邊緣。有人欣賞他的深度與力量，卻也有更多人無法進入他那片過於沉靜、甚至帶著陰鬱的黑。即便身為畫廊經營者，洪先生也坦言，未能讓這位老友被更多人看見是長久的遺憾。 也因此，「天闊煙靜」不只是李安成作品的展示，更像是對時代的回望；對一位不被時代堅定選擇的藝術家之致意。這些來自洪平濤先生收藏的作品，不僅見證李安成創作的歷程，也承載著兩人之間長年的情誼與相惜。面對時間無情的洪流，我們或許無力阻擋，但仍願意留下些什麼，讓李安成不至於就此被遺忘。 張大春曾在《我的老台北》提到李安成堅決的遺言：「我很快就要死了，但是還好，我還在畫，還在畫。」而他也確實畫到了最後一刻。 在藝術愈發喧囂、甚至過度解讀的當代，李安成的作品反而顯得異常安靜。他一生行走於少有人跡的幽徑，既不依附傳統，也不追逐潮流，而是在黑與白間，持續開鑿出一片暫離喧鬧的世界。而「天闊煙靜」讓我們得以走進這裡。駐足於作品之前，我們不只是觀看一位藝術家的創作，更是承接一段未竟的對話——關於藝術的純粹、選擇的代價，也關於那些未被時代記住，卻依然留存於筆墨間的生命。 在那之中，李安成的世界仍緩緩展開。",
-    "imageUrl": "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/351/rrxkhlqes294thwzvn15o3k9q25whgik_800x420^.jpg",
-    "masterUnit": [
-      "李安成"
-    ],
-    "subUnit": [],
-    "supportUnit": [],
-    "otherUnit": [],
-    "webSales": "",
-    "sourceWebPromote": "",
-    "comment": "",
-    "editModifyDate": "",
-    "sourceWebName": "Artemperor",
-    "startDate": "2026/05/02",
-    "endDate": "2026/05/23",
-    "hitRate": 0,
-    "artemperorMeta": {
-      "allImages": [
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/351/rrxkhlqes294thwzvn15o3k9q25whgik_800x420^.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/datas/000/125/351/rrxkhlqes294thwzvn15o3k9q25whgik_1400x800.jpg",
-        "https://d2onjhd726mt7c.cloudfront.net/images/gallery/logo/L310/75_jwlol.jpg"
+      "relatedLinks": [
+        "https://www.taoyuantudigong.org.tw/main/"
       ],
-      "relatedLinks": [],
-      "rawDate": "日期：2026-05-02 ~ 2026-05-23"
-    }
+      "rawDate": "日期：2026-04-18 ~ 2026-08-30"
+    },
+    "tag": [
+      "#桃園市",
+      "#室內",
+      "#低價",
+      "#早上"
+    ]
   }
 ]
