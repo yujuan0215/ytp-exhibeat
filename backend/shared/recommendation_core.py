@@ -39,12 +39,51 @@ TAG_KEYWORDS = {
     "history": ["歷史", "考古", "文物", "遺址", "佛塔", "典藏", "百年"],
     "science": ["自然", "科學", "生命", "科技", "宇宙", "標本"],
     "music": ["音樂", "樂器", "演奏", "聲音"],
+    "performance": ["表演", "劇場", "戲劇", "舞蹈", "演出", "演唱會", "展演"],
+    "digital": ["數位", "互動", "科技", "沉浸", "光影", "新媒體", "影像", "多媒體"],
     "indigenous": ["原住民", "原民", "排灣", "族語"],
     "art": ["藝術", "美術", "典藏", "策展", "館藏", "裝置"],
     "family": ["親子", "互動", "遊戲", "桌遊", "孩子", "兒童"],
     "photogenic": ["攝影", "拍照", "視覺", "沉浸", "奇幻"],
     "women": ["女性", "女力", "性別"],
     "culture": ["文化", "故事", "地方", "博物館"],
+    "night": ["夜間", "夜晚", "夜遊", "光雕", "燈光", "霓虹"],
+    "outdoor": ["戶外", "市集", "街區", "散步", "園區", "公園", "廣場"],
+}
+
+TAG_ALIASES = {
+    "當代藝術": "art",
+    "藝術": "art",
+    "美術": "art",
+    "攝影": "photogenic",
+    "視覺": "photogenic",
+    "攝影／視覺": "photogenic",
+    "攝影/視覺": "photogenic",
+    "數位": "digital",
+    "互動": "digital",
+    "數位／互動": "digital",
+    "數位/互動": "digital",
+    "歷史": "history",
+    "人文": "history",
+    "歷史人文": "history",
+    "文化": "culture",
+    "文化展演": "culture",
+    "原民": "indigenous",
+    "原民文化": "indigenous",
+    "原住民": "indigenous",
+    "音樂": "music",
+    "音樂現場": "music",
+    "表演": "performance",
+    "表演藝術": "performance",
+    "劇場": "performance",
+    "親子": "family",
+    "親子友善": "family",
+    "免費": "free",
+    "限時免費": "free",
+    "夜間": "night",
+    "夜間光影": "night",
+    "戶外": "outdoor",
+    "戶外體驗": "outdoor",
 }
 
 VENUE_KEYWORDS = {
@@ -111,6 +150,18 @@ def infer_tags(title: str, description: str, extra_text: str = "") -> tuple[str,
     return tuple(sorted(tags))
 
 
+def normalize_tag(raw: str) -> str:
+    tag = str(raw or "").strip().strip("#").strip().lower()
+    if not tag:
+        return ""
+    return TAG_ALIASES.get(tag, tag)
+
+
+def normalize_tags(tags: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    normalized = [normalize_tag(tag) for tag in tags]
+    return tuple(dict.fromkeys(tag for tag in normalized if tag))
+
+
 def infer_venues(location_name: str, title: str = "", description: str = "") -> tuple[str, ...]:
     haystack = f"{location_name} {title} {description}"
     venues = {
@@ -169,6 +220,8 @@ def is_rainy_context(weather_context: str) -> bool:
 
 def score_event(preference: UserPreference, event: RecommendableEvent, reference_date: date) -> float:
     score = 0.1
+    preferred_tags = set(normalize_tags(list(preference.preferred_tags)))
+    event_tags = set(normalize_tags(list(event.tags)))
 
     if preference.preferred_cities:
         if event.city in preference.preferred_cities:
@@ -176,7 +229,7 @@ def score_event(preference: UserPreference, event: RecommendableEvent, reference
         else:
             score -= 1.8
 
-    score += len(set(preference.preferred_tags) & set(event.tags)) * 1.8
+    score += len(preferred_tags & event_tags) * 1.8
     score += len(match_interest_tokens(preference, event)) * 5.0
     score += len(set(preference.venue_focus) & set(event.venues)) * 0.9
 
@@ -207,7 +260,7 @@ def build_reasons(preference: UserPreference, event: RecommendableEvent, referen
     if event.city in preference.preferred_cities:
         reasons.append(f"符合偏好區域：{event.city}")
 
-    matched_tags = sorted(set(preference.preferred_tags) & set(event.tags))
+    matched_tags = sorted(set(normalize_tags(list(preference.preferred_tags))) & set(normalize_tags(list(event.tags))))
     if matched_tags:
         reasons.append(f"符合主題偏好：{', '.join(matched_tags)}")
 

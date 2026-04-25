@@ -8,13 +8,11 @@ import sys
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
-import urllib.parse
-import urllib.request
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import Response, StreamingResponse
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import uvicorn
 
@@ -48,7 +46,9 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     TokenResponse,
     User,
     UserResponse,
+    bearer_scheme,
     create_access_token,
+    decode_token,
     ensure_database_ready,
     get_current_user,
     get_db,
@@ -88,24 +88,6 @@ ensure_database_ready()
 _legal_stays_cache: dict | None = None
 _exhibitions_cache: list[dict] | None = None
 _exhibitions_cache_mtime: float | None = None
-_translation_cache: dict[str, dict[str, str]] = {}
-_offline_translation_cache: dict[tuple[str, str], str] | None = None
-_offline_translation_mtime: float | None = None
-OFFLINE_TRANSLATIONS_PATH = PROJECT_ROOT / "data" / "exhibition_translations.json"
-
-
-class TranslationRequest(BaseModel):
-    texts: list[str] = Field(default_factory=list, max_length=50)
-    target_locale: str = Field(alias="targetLocale")
-    source_locale: str = Field(default="zh-TW", alias="sourceLocale")
-    context: str = ""
-
-
-class TranslationResponse(BaseModel):
-    target_locale: str
-    source_locale: str
-    translations: dict[str, str]
-    backend: str
 
 
 def load_legal_stays_dataset() -> dict:
@@ -179,6 +161,78 @@ def list_available_tag_stats() -> list[dict[str, int | str]]:
         {"tag": tag, "count": count}
         for tag, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
+
+
+def get_optional_current_user(
+    creds = Depends(bearer_scheme),
+    db = Depends(get_db),
+) -> User | None:
+    if not creds:
+        return None
+    try:
+        user_id = decode_token(creds.credentials)
+    except HTTPException:
+        return None
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
+
+
+def _user_preference_tags(user: User | None) -> list[str]:
+    if not user:
+        return []
+    try:
+        tags = json.loads(user.preference_tags or "[]")
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(tags, list):
+        return []
+    return [str(tag).strip() for tag in tags if str(tag).strip()]
+
+
+def _recommendation_args_for_preferences(
+    *,
+    tags: list[str],
+    top_k: int,
+    cities: str = "",
+    persona_name: str = "你的偏好",
+) -> argparse.Namespace:
+    wants_free = "free" in tags
+    scoring_tags = [tag for tag in tags if tag != "free"]
+    venue_focus_by_tag = {
+        "art": ("art_museum", "cultural_center"),
+        "history": ("museum", "cultural_center"),
+        "culture": ("museum", "cultural_center"),
+        "indigenous": ("museum", "cultural_center"),
+        "science": ("museum",),
+        "family": ("museum", "cultural_center"),
+    }
+    venue_focus = tuple(
+        dict.fromkeys(
+            venue
+            for tag in scoring_tags
+            for venue in venue_focus_by_tag.get(tag, ())
+        )
+    )
+    return argparse.Namespace(
+        exhibitions=str(EXHIBITIONS_PATH),
+        top_k=top_k,
+        date="",
+        backend="fallback",
+        blend_alpha=0.65,
+        persona="",
+        cities=cities,
+        tags=",".join(scoring_tags),
+        venue_focus=",".join(venue_focus),
+        free_only=wants_free,
+        popular=False,
+        persona_name=persona_name,
+        seed=42,
+        components=16,
+        epochs=30,
+        threads=2,
+    )
 
 
 def filter_legal_stays(
@@ -258,214 +312,6 @@ def localize_legal_stay(stay: dict, locale: str) -> dict:
     localized["address"] = address
     return localized
 
-
-def _translation_cache_key(text: str, target_locale: str, source_locale: str) -> str:
-    digest = hashlib.sha256(f"{source_locale}|{target_locale}|{text}".encode("utf-8")).hexdigest()
-    return digest
-
-
-def _translation_source_hash(text: str) -> str:
-    return hashlib.sha256(" ".join(str(text).split()).encode("utf-8")).hexdigest()
-
-
-def _load_offline_translation_index() -> dict[tuple[str, str], str]:
-    global _offline_translation_cache, _offline_translation_mtime
-    current_mtime = OFFLINE_TRANSLATIONS_PATH.stat().st_mtime if OFFLINE_TRANSLATIONS_PATH.exists() else None
-    if _offline_translation_cache is not None and _offline_translation_mtime == current_mtime:
-        return _offline_translation_cache
-
-    index: dict[tuple[str, str], str] = {}
-    if not OFFLINE_TRANSLATIONS_PATH.exists():
-        _offline_translation_cache = index
-        _offline_translation_mtime = None
-        return index
-
-    try:
-        payload = json.loads(OFFLINE_TRANSLATIONS_PATH.read_text(encoding="utf-8"))
-        entries = payload.get("entries", [])
-        if not isinstance(entries, list):
-            entries = []
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            source_hash = str(entry.get("source_hash", "")).strip()
-            translations = entry.get("translations", {})
-            if not source_hash or not isinstance(translations, dict):
-                continue
-            for locale, value in translations.items():
-                if isinstance(value, dict):
-                    text = str(value.get("text", "")).strip()
-                    status = str(value.get("status", "translated"))
-                else:
-                    text = str(value).strip()
-                    status = "translated"
-                if text and status == "translated":
-                    index[(source_hash, str(locale))] = text
-    except Exception as exc:
-        logger.warning("Failed to load offline translations: %s", exc)
-
-    _offline_translation_cache = index
-    _offline_translation_mtime = current_mtime
-    return index
-
-
-def _lookup_offline_translation(text: str, target_locale: str) -> str | None:
-    if target_locale == "zh-TW":
-        return text
-    normalized = " ".join(str(text).split())
-    if not normalized:
-        return None
-    return _load_offline_translation_index().get((_translation_source_hash(normalized), target_locale))
-
-
-def _translate_texts_naive(texts: list[str]) -> dict[str, str]:
-    return {text: text for text in texts}
-
-
-def _contains_cjk(text: str) -> bool:
-    return any(
-        ("\u4e00" <= ch <= "\u9fff")  # CJK Unified Ideographs
-        or ("\u3400" <= ch <= "\u4dbf")  # CJK Extension A
-        for ch in text
-    )
-
-
-def _requires_non_cjk_output(target_locale: str) -> bool:
-    # For these locales, we expect mostly non-CJK script output.
-    non_cjk_locales = {"en", "fr", "es", "de", "it", "pt", "id", "vi", "th"}
-    base = (target_locale or "").split("-")[0].lower()
-    return base in non_cjk_locales
-
-
-def _google_translate_fallback(text: str, target_locale: str, source_locale: str) -> str:
-    try:
-        query = urllib.parse.quote(text, safe="")
-        sl = (source_locale or "zh-TW").lower()
-        tl = (target_locale or "en").lower()
-        url = (
-            "https://translate.googleapis.com/translate_a/single"
-            f"?client=gtx&sl={sl}&tl={tl}&dt=t&q={query}"
-        )
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-        chunks = payload[0] if isinstance(payload, list) and payload else []
-        translated = "".join(part[0] for part in chunks if isinstance(part, list) and part and part[0])
-        return translated.strip() or text
-    except Exception:
-        return text
-
-
-def _translate_texts_with_gemini(
-    texts: list[str],
-    target_locale: str,
-    source_locale: str,
-    context: str,
-) -> dict[str, str]:
-    if os.environ.get("EXHIBEAT_ENABLE_AI_TRANSLATION", "0") != "1":
-        return _translate_texts_naive(texts)
-
-    try:
-        import google.generativeai as genai
-        api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if not api_key:
-            return _translate_texts_naive(texts)
-
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"))
-        prompt = (
-            "Translate the following UI or event content for an international traveler.\n"
-            "Translate into natural target-language phrasing. Keep dates/URLs/prices/IDs unchanged.\n"
-            "For exhibition titles, translate descriptive words. Keep proper nouns as-is (or transliterate), but do not leave the entire title untouched unless it is already in the target language.\n"
-            "Return ONLY a JSON object whose keys are the exact source strings and values are translations.\n"
-            f"Source locale: {source_locale}\n"
-            f"Target locale: {target_locale}\n"
-            f"Context: {context[:300]}\n"
-            f"Texts: {json.dumps(texts, ensure_ascii=False)}"
-        )
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.I | _re.S).strip()
-        parsed = json.loads(raw)
-        if not isinstance(parsed, dict):
-            return _translate_texts_naive(texts)
-        translated = {text: str(parsed.get(text, text)) for text in texts}
-
-        force_non_cjk = _requires_non_cjk_output(target_locale)
-        unresolved = [
-            text
-            for text in texts
-            if (
-                (
-                    translated.get(text, text) == text
-                    and _contains_cjk(text)
-                    and not target_locale.lower().startswith("zh")
-                )
-                or (
-                    force_non_cjk
-                    and _contains_cjk(text)
-                    and _contains_cjk(translated.get(text, text))
-                )
-            )
-        ]
-        if unresolved:
-            for text in unresolved[:10]:
-                prompts = [
-                    (
-                        "Translate the following Traditional Chinese exhibition title into the target locale.\n"
-                        "Keep proper names if needed, but translate descriptive words naturally.\n"
-                        "Output translation only.\n"
-                        + (
-                            "IMPORTANT: Do not output Chinese/Japanese characters in the final result; use the target language script.\n"
-                            if force_non_cjk
-                            else ""
-                        )
-                        + f"Target locale: {target_locale}\n"
-                        + f"Source: {text}"
-                    ),
-                    (
-                        "Translate this title to the target locale in fluent wording.\n"
-                        "Return one line only.\n"
-                        + (
-                            "Use Latin alphabet only (ASCII letters, numbers, punctuation). Do NOT use Chinese/Japanese characters.\n"
-                            if force_non_cjk
-                            else ""
-                        )
-                        + f"Target locale: {target_locale}\n"
-                        + f"Title: {text}"
-                    ),
-                ]
-                for single_prompt in prompts:
-                    single_response = model.generate_content(single_prompt)
-                    candidate = single_response.text.strip()
-                    if candidate.startswith("```"):
-                        candidate = _re.sub(r"^```(?:text)?\s*|\s*```$", "", candidate, flags=_re.I | _re.S).strip()
-                    if not candidate or candidate == text:
-                        continue
-                    if force_non_cjk and _contains_cjk(candidate):
-                        continue
-                    translated[text] = candidate
-                    break
-                if force_non_cjk and _contains_cjk(translated.get(text, text)):
-                    translated[text] = _google_translate_fallback(
-                        text=text,
-                        target_locale=target_locale,
-                        source_locale=source_locale,
-                    )
-
-        return translated
-    except Exception as exc:
-        logger.warning("AI translation fallback used: %s", exc)
-        if _requires_non_cjk_output(target_locale):
-            return {
-                text: _google_translate_fallback(
-                    text=text,
-                    target_locale=target_locale,
-                    source_locale=source_locale,
-                )
-                for text in texts
-            }
-        return _translate_texts_naive(texts)
 
 # ─── Image Pool ──────────────────────────────────────────────────────────────
 PLACEHOLDER_IMAGES = [
@@ -801,12 +647,46 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
     recs = results[0].get("recommendations", [])
     return [map_event_to_frontend_exhibition(r) for r in recs]
 
+
+def get_recommendations_for_user(user: User | None, top_k: int = 6, cities: str = "") -> list[dict]:
+    tags = _user_preference_tags(user)
+    if not tags:
+        return []
+    payload = run_demo(
+        _recommendation_args_for_preferences(
+            tags=tags,
+            top_k=top_k,
+            cities=cities,
+            persona_name=user.display_name if user else "你的偏好",
+        )
+    )
+    results = payload.get("results", [])
+    if not results:
+        return []
+    recs = results[0].get("recommendations", [])
+    return [map_event_to_frontend_exhibition(r) for r in recs]
+
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
     limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
+    if _user_preference_tags(current_user):
+        max_items = min(len(load_exhibitions_dataset()), 5000)
+        personalized = get_recommendations_for_user(current_user, top_k=max(offset + limit, max_items))
+        if not personalized:
+            personalized = get_recommendations_for_persona("taipei_after_work", top_k=max(offset + limit, max_items))
+        return {
+            "exhibitions": personalized[offset : offset + limit],
+            "offset": offset,
+            "limit": limit,
+            "total": len(personalized),
+            "hasMore": offset + limit < len(personalized),
+            "personalized": True,
+        }
+
     all_events = load_exhibitions_dataset()
     exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
     return {
@@ -815,6 +695,7 @@ async def get_home_recommendations(
         "limit": limit,
         "total": len(exhibitions),
         "hasMore": offset + limit < len(exhibitions),
+        "personalized": False,
     }
 
 
@@ -829,8 +710,10 @@ async def get_available_tag_stats():
 
 
 @app.get("/api/recommendations/collection/more")
-async def get_more_collection_recommendations():
-    sidebar = get_recommendations_for_persona("free_city_explorer", 9)
+async def get_more_collection_recommendations(
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    sidebar = get_recommendations_for_user(current_user, 9) or get_recommendations_for_persona("free_city_explorer", 9)
     return {"recommendations": [
         {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
          "location": s["location"], "imageUrl": s["imageUrl"]}
@@ -838,9 +721,11 @@ async def get_more_collection_recommendations():
     ]}
 
 @app.get("/api/recommendations/collection")
-async def get_collection_recommendations():
-    exhibitions = get_recommendations_for_persona("history_nerd", 4)
-    sidebar = get_recommendations_for_persona("free_city_explorer", 3)
+async def get_collection_recommendations(
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    exhibitions = get_recommendations_for_user(current_user, 4) or get_recommendations_for_persona("history_nerd", 4)
+    sidebar = get_recommendations_for_user(current_user, 3) or get_recommendations_for_persona("free_city_explorer", 3)
     return {
         "collectionExhibitions": exhibitions,
         "recommendations": [
@@ -849,70 +734,6 @@ async def get_collection_recommendations():
             for s in sidebar
         ],
     }
-
-
-@app.post("/api/i18n/translate", response_model=TranslationResponse)
-async def translate_dynamic_content(payload: TranslationRequest):
-    target_locale = payload.target_locale.strip()
-    source_locale = payload.source_locale.strip() or "zh-TW"
-    unique_texts = []
-    seen = set()
-    for raw in payload.texts:
-        text = " ".join(str(raw).split())
-        if not text or text in seen:
-            continue
-        seen.add(text)
-        unique_texts.append(text[:1200])
-
-    if not unique_texts or target_locale == source_locale:
-        return TranslationResponse(
-            target_locale=target_locale,
-            source_locale=source_locale,
-            translations={text: text for text in unique_texts},
-            backend="passthrough",
-        )
-
-    missing = []
-    translations: dict[str, str] = {}
-    for text in unique_texts:
-        offline = _lookup_offline_translation(text, target_locale)
-        if offline:
-            translations[text] = offline
-            continue
-        cache_key = _translation_cache_key(text, target_locale, source_locale)
-        cached = _translation_cache.get(cache_key)
-        if cached:
-            translations[text] = cached["translation"]
-        else:
-            missing.append(text)
-
-    backend = "cache"
-    if missing:
-        generated = _translate_texts_with_gemini(
-            missing,
-            target_locale=target_locale,
-            source_locale=source_locale,
-            context=payload.context,
-        )
-        backend = "gemini" if os.environ.get("EXHIBEAT_ENABLE_AI_TRANSLATION", "0") == "1" else "passthrough"
-        for text, translated in generated.items():
-            translations[text] = translated
-            # Avoid poisoning cache with unchanged CJK strings in non-Chinese targets.
-            if not (
-                translated == text
-                and _contains_cjk(text)
-                and not target_locale.lower().startswith("zh")
-            ):
-                _translation_cache[_translation_cache_key(text, target_locale, source_locale)] = {
-                    "translation": translated,
-                }
-
-    return TranslationResponse(
-        target_locale=target_locale,
-        source_locale=source_locale,
-        translations=translations,
-        backend=backend,
-    )
 
 
 @app.get("/api/legal-stays")
@@ -1398,9 +1219,9 @@ def _is_taipei_location_text(text: str) -> bool:
     return "台北" in normalized or "taipei" in normalized
 
 
-def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
+def _fallback_recommendation_events(limit: int = 6, current_user: User | None = None) -> list[dict]:
     try:
-        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
+        recs = get_recommendations_for_user(current_user, top_k=limit) or get_recommendations_for_persona("taipei_after_work", top_k=limit)
     except Exception:
         return []
     events: list[dict] = []
@@ -1424,6 +1245,60 @@ def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
             }
         )
     return events
+
+
+def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User | None = None) -> list[dict]:
+    target_town = _extract_taipei_town_from_text(text)
+    cards: list[dict] = []
+    seen_ids: set[str] = set()
+
+    if target_town:
+        town_matches: list[dict] = []
+        for event in load_exhibitions_dataset():
+            if not isinstance(event, dict):
+                continue
+            mapped = map_raw_event_to_frontend_exhibition(event)
+            search_text = " ".join(
+                [
+                    str(mapped.get("title") or ""),
+                    str(mapped.get("location") or ""),
+                    " ".join(str(tag) for tag in mapped.get("tags", []) if tag),
+                    str(event.get("descriptionFilterHtml") or ""),
+                ]
+            )
+            if target_town not in search_text:
+                continue
+            event_id = str(mapped.get("id") or "").strip()
+            title = str(mapped.get("title") or "").strip()
+            if not event_id or not title or event_id in seen_ids:
+                continue
+            seen_ids.add(event_id)
+            town_matches.append(
+                {
+                    "id": event_id,
+                    "title": title,
+                    "dateStr": str(mapped.get("dateStr") or "日期待確認"),
+                    "location": str(mapped.get("location") or "地點待確認"),
+                    "imageUrl": str(mapped.get("imageUrl") or ""),
+                    "reason": f"符合地區條件：{target_town}",
+                    "itemType": "event",
+                }
+            )
+            if len(town_matches) >= limit:
+                break
+        cards.extend(town_matches)
+
+    if len(cards) < limit:
+        for event in _fallback_recommendation_events(limit=limit * 2, current_user=current_user):
+            event_id = str(event.get("id") or "").strip()
+            if not event_id or event_id in seen_ids:
+                continue
+            seen_ids.add(event_id)
+            cards.append(event)
+            if len(cards) >= limit:
+                break
+
+    return cards[:limit]
 
 
 def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
@@ -1563,7 +1438,11 @@ def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     return collected
 
 
-def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_user_text: str = "") -> bytes:
+def _inject_recommendation_carousel_payload(
+    run_response_bytes: bytes,
+    latest_user_text: str = "",
+    current_user: User | None = None,
+) -> bytes:
     try:
         payload = json.loads(run_response_bytes.decode("utf-8"))
     except Exception:
@@ -1598,7 +1477,7 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
         merged = (
             _fallback_accommodation_cards(text=latest_user_text, limit=6)
             if wants_accommodation
-            else _fallback_recommendation_events(limit=6)
+            else _fallback_recommendation_events(limit=6, current_user=current_user)
         )
 
     if not merged:
@@ -1624,7 +1503,11 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
-async def proxy_adk(request: Request, path: str):
+async def proxy_adk(
+    request: Request,
+    path: str,
+    current_user: User | None = Depends(get_optional_current_user),
+):
     import urllib.parse
     # ADK exposes its routes at the root (e.g. /apps/..., /run, /list-apps),
     # not under /api/. The frontend adds /api/ as a uniform prefix, and Vite's
@@ -1711,9 +1594,40 @@ async def proxy_adk(request: Request, path: str):
                 if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
             }
             transformed = response.content
-            if response.status_code < 400:
+            if response.status_code >= 500 and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
+                fallback_events = _fallback_event_cards_for_text(
+                    latest_user_text,
+                    limit=6,
+                    current_user=current_user,
+                )
+                if fallback_events:
+                    transformed = json.dumps(
+                        [
+                            {
+                                "content": {
+                                    "parts": [
+                                        {
+                                            "text": "AI 目前無法回應，先用本地展演資料提供推薦。"
+                                        }
+                                    ]
+                                },
+                                "recommendation_carousel": {
+                                    "title": "推薦活動",
+                                    "introText": "AI 服務暫時不可用，以下是根據你的條件從本地資料篩出的展演",
+                                    "events": fallback_events,
+                                },
+                            }
+                        ],
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                    response.status_code = 200
+            elif response.status_code < 400:
                 transformed = _inject_list_itinerary_payload(transformed, latest_user_text=latest_user_text)
-                transformed = _inject_recommendation_carousel_payload(transformed, latest_user_text=latest_user_text)
+                transformed = _inject_recommendation_carousel_payload(
+                    transformed,
+                    latest_user_text=latest_user_text,
+                    current_user=current_user,
+                )
             return Response(content=transformed, status_code=response.status_code, headers=headers)
 
         req = client.build_request(

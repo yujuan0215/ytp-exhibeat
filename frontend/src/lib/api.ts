@@ -272,7 +272,7 @@ export const sendMessageToAgent = async (message: string) => {
 
   let response = await fetch('/api/run', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       appName: APP_NAME,
       userId: USER_ID,
@@ -286,7 +286,7 @@ export const sendMessageToAgent = async (message: string) => {
     sessionId = await getOrCreateSession();
     response = await fetch('/api/run', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         appName: APP_NAME,
         userId: USER_ID,
@@ -384,7 +384,9 @@ export const getHomeRecommendations = async (params: {
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined) search.set(key, String(value));
   });
-  const response = await fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`);
+  const response = await fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`, {
+    headers: authHeaders(),
+  });
   if (!response.ok) throw new Error("Failed to fetch home recommendations");
   const data = await response.json();
   return data.exhibitions;
@@ -423,7 +425,7 @@ export const listTagStats = async (): Promise<TagStat[]> => {
 };
 
 export const getCollectionRecommendations = async () => {
-  const response = await fetch('/api/recommendations/collection');
+  const response = await fetch('/api/recommendations/collection', { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch collection recommendations");
   const data = await response.json();
   return {
@@ -433,7 +435,7 @@ export const getCollectionRecommendations = async () => {
 };
 
 export const getMoreCollectionRecommendations = async () => {
-  const response = await fetch('/api/recommendations/collection/more');
+  const response = await fetch('/api/recommendations/collection/more', { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch more recommendations");
   const data = await response.json();
   return data.recommendations as { id: string; title: string; tag: string; location: string; imageUrl: string }[];
@@ -577,32 +579,6 @@ export const getLegalStaysGeoJson = async (params: {
   });
   const response = await fetch(`/api/legal-stays/geojson${search.size ? `?${search}` : ""}`);
   return handleJson<LegalStaysGeoJson>(response, "Failed to load legal stays GeoJSON");
-};
-
-// ─── Dynamic Translation ─────────────────────────────────────────────────────
-export interface TranslationResponse {
-  target_locale: string;
-  source_locale: string;
-  translations: Record<string, string>;
-  backend: "cache" | "gemini" | "passthrough" | string;
-}
-
-export const translateDynamicTexts = async (body: {
-  texts: string[];
-  targetLocale: string;
-  sourceLocale?: string;
-  context?: string;
-}): Promise<TranslationResponse> => {
-  const response = await fetch('/api/i18n/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sourceLocale: 'zh-TW',
-      context: '',
-      ...body,
-    }),
-  });
-  return handleJson<TranslationResponse>(response, "Failed to translate content");
 };
 
 // ─── Auth ────────────────────────────────────────────────────────────────────

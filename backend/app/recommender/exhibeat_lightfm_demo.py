@@ -189,7 +189,6 @@ def build_exhibition(record: dict) -> Exhibition:
     city = infer_city(location)
     start_date = parse_date(record["startDate"])
     end_date = parse_date(record["endDate"])
-    tags = infer_tags(title, description)
     raw_source_tags = record.get("tag", [])
     if isinstance(raw_source_tags, list):
         source_tags = tuple(str(t).strip() for t in raw_source_tags if str(t).strip())
@@ -197,6 +196,7 @@ def build_exhibition(record: dict) -> Exhibition:
         source_tags = (raw_source_tags.strip(),)
     else:
         source_tags = ()
+    tags = shared_infer_tags(title, description, extra_text=" ".join(source_tags))
     venues = infer_venues(location_name, title, description)
     features = {
         f"city:{city}",
@@ -299,11 +299,11 @@ def build_runtime_persona(args: argparse.Namespace) -> Persona | None:
     return Persona(
         persona_id="session_profile",
         display_name=args.persona_name,
-        preferred_cities=preferred_cities or ("台北市",),
+        preferred_cities=preferred_cities,
         preferred_tags=preferred_tags or ("general",),
         wants_free=args.free_only,
         wants_popular=True if args.popular else None,
-        venue_focus=venue_focus or ("general",),
+        venue_focus=venue_focus,
     )
 
 

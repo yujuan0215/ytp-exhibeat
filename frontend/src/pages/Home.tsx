@@ -4,8 +4,8 @@ import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
-import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
+import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
@@ -207,6 +207,7 @@ function parseInitialPageSize(searchParams: URLSearchParams): number {
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const { user } = useAuth();
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
@@ -224,17 +225,18 @@ export function Home() {
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = rawQuery.trim();
   const isTagSearch = effectiveSearch.startsWith("#");
-  const searchRef = useRef<HTMLFormElement | null>(null);
+  const preferenceKey = user?.preference_tags.join(",") ?? "";
 
 
   useEffect(() => {
+    setLoading(true);
     getHomeRecommendations({ limit: 5000, offset: 0 })
       .then(data => {
         setAllExhibitions(data);
         setLoading(false);
       })
       .catch(err => { console.error(err); setLoading(false); });
-  }, []);
+  }, [user?.id, preferenceKey]);
 
   useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
 
@@ -283,15 +285,6 @@ export function Home() {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const grid = filtered.slice(startIndex, startIndex + pageSize);
   const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
-  const sharedHomeTexts = useMemo(
-    () => [
-      ...heroCandidates.map((item) => item.title),
-      ...(hero ? [hero.aiSummary ?? "", hero.location] : []),
-      ...grid.flatMap((item) => [item.title, item.location, item.aiSummary ?? ""]),
-    ],
-    [grid, hero, heroCandidates],
-  );
-  const translateHomeText = useDynamicTranslation(sharedHomeTexts, "home shared exhibition content");
   const activeInstagramAccount =
     INSTAGRAM_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? INSTAGRAM_ACCOUNTS[0];
   const normalizedQuery = searchQuery.trim();
@@ -417,7 +410,7 @@ export function Home() {
         <div className="absolute inset-0 z-0">
           <img
             src={hero?.imageUrl ?? "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1200&auto=format&fit=crop&q=80"}
-            alt={hero ? translateHomeText(hero.title) : "ExhiBeat"}
+            alt={hero ? hero.title : "ExhiBeat"}
             className="w-full h-full object-cover opacity-60 transition-all duration-700"
             onError={(e) => {
               (e.target as HTMLImageElement).src =
@@ -442,11 +435,11 @@ export function Home() {
           ) : hero ? (
             <>
               <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tighter mb-6 leading-[1.03] text-white max-w-4xl">
-                <span data-dynamic-translate="true">{translateHomeText(hero.title)}</span>
+                <span>{hero.title}</span>
               </h1>
               <p className="max-w-2xl text-lg text-white/70 mb-8 font-body leading-relaxed">
-                <span data-dynamic-translate="true">{hero.aiSummary
-                  ? translateHomeText(hero.aiSummary)
+                <span>{hero.aiSummary
+                  ? hero.aiSummary
                   : "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。"}</span>
               </p>
               <div className="flex items-center gap-6 mt-1 mb-8">
@@ -454,7 +447,7 @@ export function Home() {
                   <Calendar className="w-4 h-4" /> {hero.dateStr.replace(" -> ", " — ")}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" /> <span data-dynamic-translate="true">{translateHomeText(hero.location)}</span>
+                  <MapPin className="w-4 h-4" /> <span>{hero.location}</span>
                 </span>
               </div>
               <div className="flex gap-4">
@@ -485,7 +478,7 @@ export function Home() {
                 onClick={() => setHeroIndex(idx)}
                 className="group flex items-center justify-center w-6 h-12 rounded-md"
                 aria-label={`切換到推薦展演 ${idx + 1}`}
-                title={translateHomeText(item.title)}
+                title={item.title}
               >
                 <span className={`rounded-full transition-all ${isActive ? "w-1 h-12 bg-primary" : "w-1 h-8 bg-[#25252c] group-hover:bg-white/30"}`} />
               </button>
@@ -659,7 +652,6 @@ export function Home() {
             <ExhibitionCard
               key={exhibition.id}
               exhibition={exhibition}
-              translateText={translateHomeText}
             />
           ))
         ) : (
