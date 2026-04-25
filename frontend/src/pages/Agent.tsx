@@ -8,7 +8,7 @@ export function Agent() {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const [input, setInput] = useState("");
-  const { messages, isLoading, sendMessage } = useAgent();
+  const { messages, isLoading, sendMessage, retryFailedPrefill, failedPrefillLabel } = useAgent();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,25 +24,32 @@ export function Agent() {
   };
 
   return (
-    <div className="px-8 py-6 w-full h-full overflow-hidden flex flex-col">
-      <header className="mb-6 shrink-0">
-        <h2 className="text-secondary text-sm font-bold tracking-widest uppercase mb-2">Assistant</h2>
-        <h1 className="text-4xl font-extrabold text-white">AI 助手</h1>
-      </header>
-
-      <div className={`flex-1 min-h-0 border border-white/10 bg-[#120f1c] ${isV1 ? "rounded-md" : "rounded-3xl"} overflow-hidden flex flex-col`}>
+    <div className="flex h-full w-full min-w-0 flex-col overflow-hidden px-3 pb-4 pt-2 sm:px-5 sm:pb-5 sm:pt-3 lg:px-8">
+      <div className={`flex-1 min-h-0 min-w-0 border border-white/10 bg-[#120f1c] ${isV1 ? "rounded-md" : "rounded-3xl"} overflow-hidden flex flex-col`}>
         <div className="px-5 py-4 border-b border-purple-500/20 bg-[#2a1b38]/50 flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-purple-300" />
           <h3 className="font-semibold text-purple-100">ExhiBeat AI</h3>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {failedPrefillLabel ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 sm:px-5">
+            <span className="min-w-0 break-words">{failedPrefillLabel} 自動傳送失敗，請重試。</span>
+            <button
+              type="button"
+              onClick={() => void retryFailedPrefill()}
+              className="rounded-full border border-amber-300/30 px-3 py-1 font-semibold text-amber-50 hover:bg-amber-300/10"
+            >
+              重新傳送
+            </button>
+          </div>
+        ) : null}
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-3 space-y-4 sm:p-4">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+            <div key={i} className={`flex min-w-0 flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
               {msg.role === "agent" && msg.kind === "recommendation_carousel" ? (
                 <RecommendationCarousel title={msg.title} introText={msg.introText} events={msg.events} />
               ) : (
                 <div
-                  className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
+                  className={`max-w-[92%] sm:max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
                     msg.role === "user"
                       ? "bg-purple-600/90 text-white rounded-br-sm backdrop-blur-sm"
                       : "bg-white/5 text-purple-50 border border-white/10 rounded-bl-sm backdrop-blur-sm"
@@ -63,7 +70,7 @@ export function Agent() {
           )}
           <div ref={messagesEndRef} className="h-1" />
         </div>
-        <form onSubmit={handleSend} className="p-4 border-t border-purple-500/20 bg-[#0d0a10]">
+        <form onSubmit={handleSend} className="border-t border-purple-500/20 bg-[#0d0a10] p-3 sm:p-4">
           <div className="flex items-center gap-2 relative">
             <input
               type="text"

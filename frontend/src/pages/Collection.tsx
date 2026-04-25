@@ -23,6 +23,7 @@ import { TripListMosaicHeader } from "@/components/collection/TripListMosaicHead
 import { TripListRail } from "@/components/collection/TripListRail";
 import { TripListActionsMenu } from "@/components/collection/TripListActionsMenu";
 import { StayListCard } from "@/components/collection/StayListCard";
+import { ActionToast } from "@/components/ActionToast";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
@@ -40,6 +41,8 @@ export function Collection() {
   const [allRecs, setAllRecs] = useState<Recommendation[]>([]);
   const [recsVisible, setRecsVisible] = useState(3);
   const [hasMoreRecs, setHasMoreRecs] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const selectedList = selectedListId ? tripLists.find((l) => l.id === selectedListId) ?? null : null;
 
@@ -108,9 +111,18 @@ export function Collection() {
 
   const handleSendListToAgent = () => {
     if (!selectedList) return;
+    // Current flow: Collection -> sessionStorage prefill -> Agent page auto-sends.
     queueAgentPrefillFromList(selectedList);
-    navigate("/agent");
+    setToastMessage("已將清單帶入助理對話");
+    setShowToast(true);
+    window.setTimeout(() => navigate("/agent"), 180);
   };
+
+  useEffect(() => {
+    if (!showToast) return;
+    const timer = window.setTimeout(() => setShowToast(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [showToast]);
 
   const canDeleteList = (list: TripList) => list.id !== DEFAULT_TRIP_LIST_ID_KEY;
 
@@ -384,6 +396,7 @@ export function Collection() {
           </div>
         </div>
       )}
+      <ActionToast open={showToast} message={toastMessage} />
     </div>
   );
 }

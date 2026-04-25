@@ -63,7 +63,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
   };
 
   return (
-    <div className="w-full max-w-[95%] rounded-2xl border border-white/10 bg-[#171728] p-3">
+    <div className="w-full max-w-full rounded-2xl border border-white/10 bg-[#171728] p-3">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           {title && <p className="text-sm font-semibold text-white">{title}</p>}

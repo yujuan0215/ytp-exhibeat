@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { sendMessageToAgent } from "../lib/api";
 import type { AgentRecommendationItem } from "../lib/api";
-import { AGENT_PREFILL_STORAGE_KEY } from "../lib/tripLists";
+import { AGENT_PREFILL_STORAGE_KEY, type AgentPrefillEnvelope } from "../lib/tripLists";
 
 export type AgentUserMessage = {
   role: 'user';
@@ -28,6 +28,8 @@ type AgentContextValue = {
   messages: Message[];
   isLoading: boolean;
   sendMessage: (text: string) => Promise<void>;
+  retryFailedPrefill: () => Promise<void>;
+  failedPrefillLabel: string | null;
 };
 
 const AgentContext = createContext<AgentContextValue | null>(null);
@@ -38,6 +40,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const prefillConsumed = useRef(false);
+  const seenPrefillNonces = useRef(new Set<string>());
+  const [failedPrefill, setFailedPrefill] = useState<{ text: string; label: string } | null>(null);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -70,25 +74,78 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const sendPrefillMessage = useCallback(
+    async (text: string, label: string) => {
+      if (!text.trim()) return;
+      setIsLoading(true);
+      setMessages((prev) => [...prev, { role: "user", text }]);
+      try {
+        const result = await sendMessageToAgent(text);
+        if (result.kind === "recommendation_carousel") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "agent",
+              kind: "recommendation_carousel",
+              title: result.title,
+              introText: result.introText,
+              events: result.events,
+            },
+          ]);
+        } else {
+          setMessages((prev) => [...prev, { role: "agent", kind: "text", text: result.text }]);
+        }
+        setFailedPrefill(null);
+      } catch (e: unknown) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : String(e);
+        setMessages((prev) => [...prev, { role: "agent", kind: "text", text: `Connection Error: ${msg}` }]);
+        setFailedPrefill({ text, label });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
+  const parsePrefill = (raw: string): { text: string; nonce: string; label: string } | null => {
+    const parsed = JSON.parse(raw) as Partial<AgentPrefillEnvelope> & { text?: string; nonce?: string };
+    const text = typeof parsed.text === "string" ? parsed.text.trim() : "";
+    if (!text) return null;
+    const nonce = typeof parsed.nonce === "string" && parsed.nonce.trim()
+      ? parsed.nonce.trim()
+      : `legacy_${text.slice(0, 48)}`;
+    const label = typeof parsed.listName === "string" && parsed.listName.trim()
+      ? `「${parsed.listName.trim()}」`
+      : "行程清單";
+    return { text, nonce, label };
+  };
+
   useEffect(() => {
     if (prefillConsumed.current) return;
     try {
       const raw = sessionStorage.getItem(AGENT_PREFILL_STORAGE_KEY);
       if (!raw) return;
       sessionStorage.removeItem(AGENT_PREFILL_STORAGE_KEY);
-      const parsed = JSON.parse(raw) as { text?: string };
-      const text = typeof parsed.text === "string" ? parsed.text.trim() : "";
-      if (!text) return;
+      const parsed = parsePrefill(raw);
+      if (!parsed) return;
+      if (seenPrefillNonces.current.has(parsed.nonce)) return;
+      seenPrefillNonces.current.add(parsed.nonce);
       prefillConsumed.current = true;
-      void sendMessage(text);
+      void sendPrefillMessage(parsed.text, parsed.label);
     } catch {
       /* ignore */
     }
-  }, [sendMessage]);
+  }, [sendPrefillMessage]);
+
+  const retryFailedPrefill = useCallback(async () => {
+    if (!failedPrefill) return;
+    await sendPrefillMessage(failedPrefill.text, failedPrefill.label);
+  }, [failedPrefill, sendPrefillMessage]);
 
   const value = useMemo(
-    () => ({ messages, isLoading, sendMessage }),
-    [messages, isLoading, sendMessage],
+    () => ({ messages, isLoading, sendMessage, retryFailedPrefill, failedPrefillLabel: failedPrefill?.label ?? null }),
+    [messages, isLoading, sendMessage, retryFailedPrefill, failedPrefill],
   );
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

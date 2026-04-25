@@ -25,6 +25,15 @@ export type TripList = {
   items: TripListItem[];
 };
 
+export type AgentPrefillEnvelope = {
+  source: "trip_list";
+  nonce: string;
+  createdAt: string;
+  listId: string;
+  listName: string;
+  text: string;
+};
+
 function dispatchChange() {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
@@ -263,7 +272,15 @@ export function buildListSummaryForAgent(list: TripList): string {
 
 export function queueAgentPrefillFromList(list: TripList): void {
   const text = buildListSummaryForAgent(list);
-  sessionStorage.setItem(AGENT_PREFILL_KEY, JSON.stringify({ text }));
+  const envelope: AgentPrefillEnvelope = {
+    source: "trip_list",
+    nonce: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    listId: list.id,
+    listName: list.name,
+    text,
+  };
+  sessionStorage.setItem(AGENT_PREFILL_KEY, JSON.stringify(envelope));
 }
 
 export const TRIP_LISTS_CHANGE_EVENT = CHANGE_EVENT;
