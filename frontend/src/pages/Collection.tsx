@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { Exhibition, Recommendation } from "@/data/mock";
+import type { Recommendation } from "@/data/mock";
 import { getCollectionRecommendations, getMoreCollectionRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, ChevronDown, Lock, MessageCircle, ArrowLeft } from "lucide-react";
-import { getFavorites } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import {
@@ -35,7 +33,6 @@ export function Collection() {
   const [tripLists, setTripLists] = useState<TripList[]>(() => getTripLists());
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
-  const [collectionExhibitions, setCollectionExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allRecs, setAllRecs] = useState<Recommendation[]>([]);
@@ -59,8 +56,6 @@ export function Collection() {
   }, [tripLists, selectedListId]);
 
   useEffect(() => {
-    setCollectionExhibitions(getFavorites());
-
     getCollectionRecommendations()
       .then((data) => {
         setAllRecs(data.recommendations);
@@ -70,10 +65,6 @@ export function Collection() {
         console.error("Failed to fetch collection recommendations", err);
         setLoading(false);
       });
-
-    const handleSync = () => setCollectionExhibitions(getFavorites());
-    window.addEventListener("favorites-changed", handleSync);
-    return () => window.removeEventListener("favorites-changed", handleSync);
   }, []);
 
   const handleLoadMoreRecs = async () => {
@@ -96,12 +87,6 @@ export function Collection() {
   };
 
   const visibleRecs = allRecs.slice(0, recsVisible);
-  const endingSoon = collectionExhibitions.filter((e) => {
-    const end = new Date(e.dateStr.replace(/.*-> /, "").trim());
-    const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 30;
-  }).length;
-
   const handleCreateTripList = () => {
     const name = window.prompt("新行程清單名稱", `新行程 ${new Date().toLocaleDateString("zh-TW")}`);
     if (name === null) return;
@@ -203,68 +188,6 @@ export function Collection() {
     </div>
   );
 
-  const statsCard = (
-    <Card className={`bg-surface-container-low border-transparent ring-0 ${isV1 ? "rounded-md" : "rounded-3xl"} pt-2`}>
-      <CardContent className="p-6">
-        <h3 className="text-lg font-bold text-white mb-6">收藏統計</h3>
-        <div className="flex justify-between items-end">
-          <div>
-            <p className="text-4xl font-light text-primary mb-1">{collectionExhibitions.length}</p>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest">喜歡的展演</p>
-          </div>
-          <div className="text-right">
-            <p className="text-4xl font-light text-secondary mb-1">{endingSoon}</p>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest">即將結束</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const listOverviewCenter = (
-    <section className="mx-auto w-full max-w-4xl">
-      <div className="mb-6 flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
-        <div>
-          <h2 className="text-secondary text-sm font-bold tracking-widest uppercase">Trip lists</h2>
-          <h3 className="mt-1 text-2xl font-bold text-white">行程清單</h3>
-          <p className="mt-1 text-sm text-white/55">建立多份清單，規劃不同旅程；可加入展演與旅宿。</p>
-        </div>
-        <Button
-          type="button"
-          onClick={handleCreateTripList}
-          className={`${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] px-5 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff]`}
-        >
-          新建清單
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        {tripLists.map((list) => (
-          <div
-            key={list.id}
-            className={`border border-white/10 bg-surface-container-low p-4 transition-colors hover:border-cyan-400/40 hover:bg-white/5 ${isV1 ? "rounded-md" : "rounded-2xl"}`}
-          >
-            <div className="mb-2 flex justify-end">
-              <TripListActionsMenu
-                list={list}
-                canDelete={canDeleteList(list)}
-                onRename={handleRenameList}
-                onDelete={handleDeleteList}
-              />
-            </div>
-            <button type="button" onClick={() => setSelectedListId(list.id)} className="w-full text-left">
-              <TripListMosaicHeader list={list} className="mb-4 max-h-48" />
-              <p className="font-bold text-white">{list.name}</p>
-              <p className="mt-1 text-xs text-white/55">
-                {list.items.length} 項
-                {list.items.some((i) => i.kind === "stay") ? " · 含旅宿" : ""}
-              </p>
-            </button>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-
   const listDetailMain = selectedList && (
     <div className="min-w-0 flex-1">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -333,12 +256,21 @@ export function Collection() {
 
   return (
     <div className="flex w-full flex-col gap-10 px-8 py-10">
-      <header className="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between">
+      <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
         <div>
           <h2 className="text-secondary mb-2 text-sm font-bold tracking-widest uppercase">Personal Gallery</h2>
           <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
           <p className="mt-2 max-w-xl text-sm text-white/55">喜歡的展演與行程清單分開管理；清單可交給 AI 助理協助排行程。</p>
         </div>
+        {user && !selectedListId ? (
+          <Button
+            type="button"
+            onClick={handleCreateTripList}
+            className={`${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] px-5 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff]`}
+          >
+            新建清單
+          </Button>
+        ) : null}
       </header>
 
       {status === "loading" ? (
@@ -371,28 +303,53 @@ export function Collection() {
           </div>
         </div>
       ) : selectedListId ? (
-        <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-8">
-          {listDetailMain}
-          <aside className="flex w-full shrink-0 flex-col gap-8 lg:w-80">
-            <TripListRail
-              lists={tripLists}
-              selectedListId={selectedListId}
-              onSelect={setSelectedListId}
-              onCreateList={handleCreateTripList}
-              onRenameList={handleRenameList}
-              onDeleteList={handleDeleteList}
-              canDeleteList={canDeleteList}
-            />
-            {recommendationsAside}
-            {statsCard}
+        <div className="relative">
+          <div className="min-w-0 lg:pr-[22rem]">{listDetailMain}</div>
+          <aside className={`mt-8 w-full shrink-0 border border-white/10 bg-surface-container-low p-4 lg:fixed lg:right-8 lg:top-24 lg:mt-0 lg:h-[calc(100vh-8rem)] lg:w-80 lg:overflow-y-auto ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
+            <div className="pr-1">
+              <TripListRail
+                lists={tripLists}
+                selectedListId={selectedListId}
+                onSelect={setSelectedListId}
+                onCreateList={handleCreateTripList}
+                onRenameList={handleRenameList}
+                onDeleteList={handleDeleteList}
+                canDeleteList={canDeleteList}
+              />
+            </div>
           </aside>
         </div>
       ) : (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-14">
-          {listOverviewCenter}
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-14">
+          <section className="w-full">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {tripLists.map((list) => (
+                <div
+                  key={list.id}
+                  className={`border border-white/10 bg-surface-container-low p-3 transition-colors hover:border-cyan-400/40 hover:bg-white/5 ${isV1 ? "rounded-md" : "rounded-2xl"}`}
+                >
+                  <div className="mb-1 flex justify-end">
+                    <TripListActionsMenu
+                      list={list}
+                      canDelete={canDeleteList(list)}
+                      onRename={handleRenameList}
+                      onDelete={handleDeleteList}
+                    />
+                  </div>
+                  <button type="button" onClick={() => setSelectedListId(list.id)} className="w-full text-left">
+                    <TripListMosaicHeader list={list} className="mb-3 aspect-[4/3] max-h-36" />
+                    <p className="line-clamp-1 text-sm font-bold text-white">{list.name}</p>
+                    <p className="mt-0.5 text-xs text-white/55">
+                      {list.items.length} 項
+                      {list.items.some((i) => i.kind === "stay") ? " · 含旅宿" : ""}
+                    </p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
           <div className="flex flex-col gap-8">
             {recommendationsAside}
-            {statsCard}
           </div>
         </div>
       )}
