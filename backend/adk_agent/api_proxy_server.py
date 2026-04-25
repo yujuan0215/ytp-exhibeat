@@ -624,7 +624,47 @@ def _format_price(price_text: str, is_free: bool) -> str:
         return "FREE"
     if not price_text:
         return "—"
-    clean = " ".join(price_text.split())
+    raw = str(price_text).strip()
+    if not raw:
+        return "—"
+
+    # Source payloads occasionally contain mixed date/time fragments in the
+    # price field (e.g. "500、2026、5、4、12、00..."). Prefer extracting only
+    # recognizable currency expressions; otherwise avoid showing noisy numbers.
+    clean = " ".join(raw.replace("\n", " ").split())
+    lower = clean.lower()
+    if any(keyword in lower for keyword in ("免費", "免票", "free", "free entry")):
+        return "FREE"
+
+    currency_patterns = [
+        r"(?:nt\$|ntd|twd|新台幣)\s*\d{1,6}",
+        r"\d{1,6}\s*元",
+        r"\d{1,6}\s*[-~至]\s*\d{1,6}\s*元",
+    ]
+    extracted: list[str] = []
+    for pattern in currency_patterns:
+        matches = _re.findall(pattern, clean, flags=_re.I)
+        for match in matches:
+            value = " ".join(str(match).split())
+            if value and value not in extracted:
+                extracted.append(value)
+        if extracted:
+            break
+
+    if extracted:
+        joined = " / ".join(extracted[:2])
+        return joined[:30] + ("…" if len(joined) > 30 else "")
+
+    # If the field is mostly numeric fragments and looks like date/time tokens,
+    # don't surface it as price.
+    numeric_tokens = _re.findall(r"\d+", clean)
+    has_year_like = any(len(token) == 4 and token.startswith("20") for token in numeric_tokens)
+    if has_year_like and len(numeric_tokens) >= 4:
+        first_number = next((token for token in numeric_tokens if token and not (len(token) == 4 and token.startswith("20"))), None)
+        if first_number:
+            return f"NT${first_number}"
+        return clean[:30] + ("…" if len(clean) > 30 else "")
+
     return clean[:30] + ("…" if len(clean) > 30 else "")
 
 def map_event_to_frontend_exhibition(rec: dict) -> dict:
