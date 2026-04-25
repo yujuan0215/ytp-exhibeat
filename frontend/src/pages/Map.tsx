@@ -17,7 +17,6 @@ import {
   toggleStayFavorite,
 } from "@/lib/stayFavorites";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
-import { useI18n } from "@/lib/i18n";
 
 declare global {
   interface Window {
@@ -245,7 +244,6 @@ export function Map() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { locale } = useI18n();
   const { theme } = useTheme();
-  const { locale } = useI18n();
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAP_ID;
@@ -757,7 +755,6 @@ export function Map() {
       .finally(() => {
         taipeiStayLoadingRef.current = false;
       });
-  }, [loadedTaipeiStays, mapViewport, selectedStayIdState, locale]);
   }, [loadedTaipeiStays, locale, mapViewport, selectedStayIdState]);
 
 

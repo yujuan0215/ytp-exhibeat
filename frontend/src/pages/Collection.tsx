@@ -88,6 +88,8 @@ export function Collection() {
   };
 
   const visibleRecs = allRecs.slice(0, recsVisible);
+  const eventItems = selectedList?.items.filter((i) => i.kind === "event") ?? [];
+  const stayItems = selectedList?.items.filter((i) => i.kind === "stay") ?? [];
   const collectionTranslationTexts = [
     ...eventItems.flatMap((item) => [item.payload.title, item.payload.location, item.payload.aiSummary ?? ""]),
     ...visibleRecs.flatMap((rec) => [rec.title, rec.location, rec.tag]),
@@ -130,9 +132,6 @@ export function Collection() {
     setTripLists(getTripLists());
     if (selectedListId === listId) setSelectedListId(null);
   };
-
-  const eventItems = selectedList?.items.filter((i) => i.kind === "event") ?? [];
-  const stayItems = selectedList?.items.filter((i) => i.kind === "stay") ?? [];
 
   const recommendationsAside = (
     <div className={`bg-surface-container-low ${isV1 ? "rounded-md" : "rounded-3xl"} p-6`}>

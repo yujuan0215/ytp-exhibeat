@@ -251,7 +251,7 @@ export function ExhibitionDetail() {
     );
   }
 
-  const isFree = exhibition.price === "FREE" || exhibition._meta?.isFree;
+  const isFree = exhibition.price === "FREE" || Boolean(exhibition._meta?.isFree);
   const numericPrice = isFree
     ? "FREE"
     : typeof exhibition.price === "string" && exhibition.price
