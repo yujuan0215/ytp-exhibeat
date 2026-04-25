@@ -92,7 +92,7 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           {!isCollectionVariant && (
             <span
               className={`font-semibold min-w-0 max-w-[44%] text-right truncate whitespace-nowrap ${exhibition.price === 'FREE' ? 'text-secondary' : 'text-secondary'}`}
-              title={exhibition.price}
+              title={exhibition.price === undefined ? undefined : String(exhibition.price)}
             >
               {exhibition.price}
             </span>
