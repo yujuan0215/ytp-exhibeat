@@ -33,11 +33,26 @@ type AgentContextValue = {
 };
 
 const AgentContext = createContext<AgentContextValue | null>(null);
+const CHAT_HISTORY_STORAGE_KEY = "exhibeat_agent_chat_history";
+
+function readChatHistory(): Message[] | null {
+  try {
+    const raw = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed as Message[];
+  } catch {
+    return null;
+  }
+}
 
 export function AgentProvider({ children }: { children: ReactNode }) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'agent', kind: 'text', text: 'Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?' }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const cached = readChatHistory();
+    if (cached && cached.length > 0) return cached;
+    return [{ role: "agent", kind: "text", text: "Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?" }];
+  });
   const [isLoading, setIsLoading] = useState(false);
   const prefillConsumed = useRef(false);
   const seenPrefillNonces = useRef(new Set<string>());
@@ -142,6 +157,14 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     if (!failedPrefill) return;
     await sendPrefillMessage(failedPrefill.text, failedPrefill.label);
   }, [failedPrefill, sendPrefillMessage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      /* ignore storage write errors */
+    }
+  }, [messages]);
 
   const value = useMemo(
     () => ({ messages, isLoading, sendMessage, retryFailedPrefill, failedPrefillLabel: failedPrefill?.label ?? null }),

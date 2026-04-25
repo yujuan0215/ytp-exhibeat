@@ -286,6 +286,9 @@ export function Map() {
   const taipeiStayHasMoreRef = useRef(true);
   const taipeiStayLoadingRef = useRef(false);
   const latestViewportRef = useRef<NonNullable<typeof mapViewport> | null>(null);
+  const prefillState = (location.state as { prefillStay?: LegalStay; prefillEvent?: Exhibition } | null) ?? null;
+  const prefillStay = prefillState?.prefillStay ?? null;
+  const prefillEvent = prefillState?.prefillEvent ?? null;
 
   useEffect(() => {
     const styleId = "map-info-window-theme";
@@ -308,12 +311,17 @@ export function Map() {
       }
     `;
     document.head.appendChild(style);
-  }, []);
+  }, [prefillEvent]);
 
   useEffect(() => {
     getHomeRecommendations()
       .then((exhibitionsData) => {
-        setExhibitions(exhibitionsData);
+        setExhibitions(() => {
+          if (prefillEvent?.id && !exhibitionsData.some((item) => item.id === prefillEvent.id)) {
+            return [prefillEvent, ...exhibitionsData];
+          }
+          return exhibitionsData;
+        });
         setError(null);
       })
       .catch((err) => {
@@ -323,6 +331,14 @@ export function Map() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!prefillEvent?.id) return;
+    setExhibitions((prev) => {
+      if (prev.some((item) => item.id === prefillEvent.id)) return prev;
+      return [prefillEvent, ...prev];
+    });
+  }, [prefillEvent]);
 
   const markerData = useMemo(
     () =>
@@ -395,7 +411,6 @@ export function Map() {
   const queryStayName = searchParams.get("stayName")?.trim() || "住宿地點";
   const queryStayAddress = searchParams.get("stayAddress")?.trim() ?? "";
   const queryReturnTo = searchParams.get("returnTo");
-  const prefillStay = (location.state as { prefillStay?: LegalStay } | null)?.prefillStay ?? null;
 
   function isTaipeiStay(stay: LegalStay): boolean {
     const city = stay.address.city.trim().toLowerCase().replace("台", "臺");
@@ -1124,6 +1139,15 @@ export function Map() {
             </div>
           ) : selectedItem ? (
             <div className="flex flex-col gap-5">
+              {queryReturnTo ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(queryReturnTo)}
+                  className={`inline-flex w-fit items-center gap-1.5 border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/25 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  返回聊天
+                </button>
+              ) : null}
               <div className="relative">
                 <img
                   src={selectedItem.imageUrl}
