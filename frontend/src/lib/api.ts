@@ -199,6 +199,28 @@ export const listAvailableTags = async (): Promise<string[]> => {
     .filter(Boolean);
 };
 
+export interface TagStat {
+  tag: string;
+  count: number;
+}
+
+export const listTagStats = async (): Promise<TagStat[]> => {
+  const response = await fetch('/api/tags/stats');
+  if (!response.ok) throw new Error("Failed to fetch tag stats");
+  const data = await response.json();
+  if (!Array.isArray(data?.tags)) return [];
+  return data.tags
+    .map((row: unknown) => {
+      const item = row as { tag?: unknown; count?: unknown };
+      const tag = String(item?.tag ?? "").trim();
+      const countRaw = Number(item?.count ?? 0);
+      const count = Number.isFinite(countRaw) ? Math.max(0, Math.floor(countRaw)) : 0;
+      if (!tag) return null;
+      return { tag, count };
+    })
+    .filter((item: TagStat | null): item is TagStat => Boolean(item));
+};
+
 export const getCollectionRecommendations = async () => {
   const response = await fetch('/api/recommendations/collection');
   if (!response.ok) throw new Error("Failed to fetch collection recommendations");
