@@ -19,13 +19,5 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
-    rules: {
-      // The current app uses pragmatic local state sync in effects and shared
-      // component utility exports. Keep lint focused on syntax and safer hooks
-      // rules until those patterns are refactored.
-      'react-hooks/set-state-in-effect': 'off',
-      'react-refresh/only-export-components': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
   },
 ])

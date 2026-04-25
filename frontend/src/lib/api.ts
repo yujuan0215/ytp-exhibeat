@@ -51,7 +51,7 @@ async function handleJson<T>(response: Response, fallbackMsg: string): Promise<T
 }
 
 async function getOrCreateSession() {
-  const sessionId = localStorage.getItem('adk_session');
+  let sessionId = localStorage.getItem('adk_session');
   if (sessionId) return sessionId;
 
   const response = await fetch(`/api/apps/${APP_NAME}/users/${USER_ID}/sessions`, {
