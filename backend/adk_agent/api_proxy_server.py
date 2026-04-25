@@ -48,7 +48,9 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     TokenResponse,
     User,
     UserResponse,
+    bearer_scheme,
     create_access_token,
+    decode_token,
     ensure_database_ready,
     get_current_user,
     get_db,
@@ -179,6 +181,78 @@ def list_available_tag_stats() -> list[dict[str, int | str]]:
         {"tag": tag, "count": count}
         for tag, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
+
+
+def get_optional_current_user(
+    creds = Depends(bearer_scheme),
+    db = Depends(get_db),
+) -> User | None:
+    if not creds:
+        return None
+    try:
+        user_id = decode_token(creds.credentials)
+    except HTTPException:
+        return None
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
+
+
+def _user_preference_tags(user: User | None) -> list[str]:
+    if not user:
+        return []
+    try:
+        tags = json.loads(user.preference_tags or "[]")
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(tags, list):
+        return []
+    return [str(tag).strip() for tag in tags if str(tag).strip()]
+
+
+def _recommendation_args_for_preferences(
+    *,
+    tags: list[str],
+    top_k: int,
+    cities: str = "",
+    persona_name: str = "你的偏好",
+) -> argparse.Namespace:
+    wants_free = "free" in tags
+    scoring_tags = [tag for tag in tags if tag != "free"]
+    venue_focus_by_tag = {
+        "art": ("art_museum", "cultural_center"),
+        "history": ("museum", "cultural_center"),
+        "culture": ("museum", "cultural_center"),
+        "indigenous": ("museum", "cultural_center"),
+        "science": ("museum",),
+        "family": ("museum", "cultural_center"),
+    }
+    venue_focus = tuple(
+        dict.fromkeys(
+            venue
+            for tag in scoring_tags
+            for venue in venue_focus_by_tag.get(tag, ())
+        )
+    )
+    return argparse.Namespace(
+        exhibitions=str(EXHIBITIONS_PATH),
+        top_k=top_k,
+        date="",
+        backend="fallback",
+        blend_alpha=0.65,
+        persona="",
+        cities=cities,
+        tags=",".join(scoring_tags),
+        venue_focus=",".join(venue_focus),
+        free_only=wants_free,
+        popular=False,
+        persona_name=persona_name,
+        seed=42,
+        components=16,
+        epochs=30,
+        threads=2,
+    )
 
 
 def filter_legal_stays(
@@ -801,12 +875,46 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
     recs = results[0].get("recommendations", [])
     return [map_event_to_frontend_exhibition(r) for r in recs]
 
+
+def get_recommendations_for_user(user: User | None, top_k: int = 6, cities: str = "") -> list[dict]:
+    tags = _user_preference_tags(user)
+    if not tags:
+        return []
+    payload = run_demo(
+        _recommendation_args_for_preferences(
+            tags=tags,
+            top_k=top_k,
+            cities=cities,
+            persona_name=user.display_name if user else "你的偏好",
+        )
+    )
+    results = payload.get("results", [])
+    if not results:
+        return []
+    recs = results[0].get("recommendations", [])
+    return [map_event_to_frontend_exhibition(r) for r in recs]
+
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
     limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
+    if _user_preference_tags(current_user):
+        max_items = min(len(load_exhibitions_dataset()), 5000)
+        personalized = get_recommendations_for_user(current_user, top_k=max(offset + limit, max_items))
+        if not personalized:
+            personalized = get_recommendations_for_persona("taipei_after_work", top_k=max(offset + limit, max_items))
+        return {
+            "exhibitions": personalized[offset : offset + limit],
+            "offset": offset,
+            "limit": limit,
+            "total": len(personalized),
+            "hasMore": offset + limit < len(personalized),
+            "personalized": True,
+        }
+
     all_events = load_exhibitions_dataset()
     exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
     return {
@@ -815,6 +923,7 @@ async def get_home_recommendations(
         "limit": limit,
         "total": len(exhibitions),
         "hasMore": offset + limit < len(exhibitions),
+        "personalized": False,
     }
 
 
@@ -829,8 +938,10 @@ async def get_available_tag_stats():
 
 
 @app.get("/api/recommendations/collection/more")
-async def get_more_collection_recommendations():
-    sidebar = get_recommendations_for_persona("free_city_explorer", 9)
+async def get_more_collection_recommendations(
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    sidebar = get_recommendations_for_user(current_user, 9) or get_recommendations_for_persona("free_city_explorer", 9)
     return {"recommendations": [
         {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
          "location": s["location"], "imageUrl": s["imageUrl"]}
@@ -838,9 +949,11 @@ async def get_more_collection_recommendations():
     ]}
 
 @app.get("/api/recommendations/collection")
-async def get_collection_recommendations():
-    exhibitions = get_recommendations_for_persona("history_nerd", 4)
-    sidebar = get_recommendations_for_persona("free_city_explorer", 3)
+async def get_collection_recommendations(
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    exhibitions = get_recommendations_for_user(current_user, 4) or get_recommendations_for_persona("history_nerd", 4)
+    sidebar = get_recommendations_for_user(current_user, 3) or get_recommendations_for_persona("free_city_explorer", 3)
     return {
         "collectionExhibitions": exhibitions,
         "recommendations": [
@@ -1398,9 +1511,9 @@ def _is_taipei_location_text(text: str) -> bool:
     return "台北" in normalized or "taipei" in normalized
 
 
-def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
+def _fallback_recommendation_events(limit: int = 6, current_user: User | None = None) -> list[dict]:
     try:
-        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
+        recs = get_recommendations_for_user(current_user, top_k=limit) or get_recommendations_for_persona("taipei_after_work", top_k=limit)
     except Exception:
         return []
     events: list[dict] = []
@@ -1424,6 +1537,60 @@ def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
             }
         )
     return events
+
+
+def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User | None = None) -> list[dict]:
+    target_town = _extract_taipei_town_from_text(text)
+    cards: list[dict] = []
+    seen_ids: set[str] = set()
+
+    if target_town:
+        town_matches: list[dict] = []
+        for event in load_exhibitions_dataset():
+            if not isinstance(event, dict):
+                continue
+            mapped = map_raw_event_to_frontend_exhibition(event)
+            search_text = " ".join(
+                [
+                    str(mapped.get("title") or ""),
+                    str(mapped.get("location") or ""),
+                    " ".join(str(tag) for tag in mapped.get("tags", []) if tag),
+                    str(event.get("descriptionFilterHtml") or ""),
+                ]
+            )
+            if target_town not in search_text:
+                continue
+            event_id = str(mapped.get("id") or "").strip()
+            title = str(mapped.get("title") or "").strip()
+            if not event_id or not title or event_id in seen_ids:
+                continue
+            seen_ids.add(event_id)
+            town_matches.append(
+                {
+                    "id": event_id,
+                    "title": title,
+                    "dateStr": str(mapped.get("dateStr") or "日期待確認"),
+                    "location": str(mapped.get("location") or "地點待確認"),
+                    "imageUrl": str(mapped.get("imageUrl") or ""),
+                    "reason": f"符合地區條件：{target_town}",
+                    "itemType": "event",
+                }
+            )
+            if len(town_matches) >= limit:
+                break
+        cards.extend(town_matches)
+
+    if len(cards) < limit:
+        for event in _fallback_recommendation_events(limit=limit * 2, current_user=current_user):
+            event_id = str(event.get("id") or "").strip()
+            if not event_id or event_id in seen_ids:
+                continue
+            seen_ids.add(event_id)
+            cards.append(event)
+            if len(cards) >= limit:
+                break
+
+    return cards[:limit]
 
 
 def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
@@ -1563,7 +1730,11 @@ def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     return collected
 
 
-def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_user_text: str = "") -> bytes:
+def _inject_recommendation_carousel_payload(
+    run_response_bytes: bytes,
+    latest_user_text: str = "",
+    current_user: User | None = None,
+) -> bytes:
     try:
         payload = json.loads(run_response_bytes.decode("utf-8"))
     except Exception:
@@ -1598,7 +1769,7 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
         merged = (
             _fallback_accommodation_cards(text=latest_user_text, limit=6)
             if wants_accommodation
-            else _fallback_recommendation_events(limit=6)
+            else _fallback_recommendation_events(limit=6, current_user=current_user)
         )
 
     if not merged:
@@ -1624,7 +1795,11 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
-async def proxy_adk(request: Request, path: str):
+async def proxy_adk(
+    request: Request,
+    path: str,
+    current_user: User | None = Depends(get_optional_current_user),
+):
     import urllib.parse
     # ADK exposes its routes at the root (e.g. /apps/..., /run, /list-apps),
     # not under /api/. The frontend adds /api/ as a uniform prefix, and Vite's
@@ -1711,9 +1886,40 @@ async def proxy_adk(request: Request, path: str):
                 if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
             }
             transformed = response.content
-            if response.status_code < 400:
+            if response.status_code >= 500 and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
+                fallback_events = _fallback_event_cards_for_text(
+                    latest_user_text,
+                    limit=6,
+                    current_user=current_user,
+                )
+                if fallback_events:
+                    transformed = json.dumps(
+                        [
+                            {
+                                "content": {
+                                    "parts": [
+                                        {
+                                            "text": "AI 目前無法回應，先用本地展演資料提供推薦。"
+                                        }
+                                    ]
+                                },
+                                "recommendation_carousel": {
+                                    "title": "推薦活動",
+                                    "introText": "AI 服務暫時不可用，以下是根據你的條件從本地資料篩出的展演",
+                                    "events": fallback_events,
+                                },
+                            }
+                        ],
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                    response.status_code = 200
+            elif response.status_code < 400:
                 transformed = _inject_list_itinerary_payload(transformed, latest_user_text=latest_user_text)
-                transformed = _inject_recommendation_carousel_payload(transformed, latest_user_text=latest_user_text)
+                transformed = _inject_recommendation_carousel_payload(
+                    transformed,
+                    latest_user_text=latest_user_text,
+                    current_user=current_user,
+                )
             return Response(content=transformed, status_code=response.status_code, headers=headers)
 
         req = client.build_request(

@@ -19,11 +19,11 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 if [ ! -d "$VENV_DIR" ]; then
-  echo "找不到 $VENV_DIR。請先執行 bash scripts/setup_backend.sh" >&2
+  echo "找不到 ${VENV_DIR}。請先執行 bash scripts/setup_backend.sh" >&2
   exit 1
 fi
 if [ ! -f "$ENV_FILE" ]; then
-  echo "找不到 $ENV_FILE。請先完成設定。" >&2
+  echo "找不到 ${ENV_FILE}。請先完成設定。" >&2
   exit 1
 fi
 

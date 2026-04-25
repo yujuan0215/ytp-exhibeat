@@ -18,11 +18,16 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 
-# If dependencies were installed on Windows and then reused in WSL/Linux,
-# optional native bindings may be missing (e.g. rolldown Linux binary).
-# Auto-heal by reinstalling in the current environment.
-if [ ! -f "node_modules/@rolldown/binding-linux-x64-gnu/package.json" ]; then
-  echo "偵測到缺少 Linux 原生 binding，重新安裝前端依賴 ..."
+# If dependencies were installed on another platform and then reused here,
+# optional native bindings may be missing (e.g. rolldown binary).
+case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64) ROLLDOWN_BINDING="node_modules/@rolldown/binding-linux-x64-gnu/package.json" ;;
+  Darwin-arm64) ROLLDOWN_BINDING="node_modules/@rolldown/binding-darwin-arm64/package.json" ;;
+  Darwin-x86_64) ROLLDOWN_BINDING="node_modules/@rolldown/binding-darwin-x64/package.json" ;;
+  *) ROLLDOWN_BINDING="" ;;
+esac
+if [ -n "$ROLLDOWN_BINDING" ] && [ ! -f "$ROLLDOWN_BINDING" ]; then
+  echo "偵測到缺少目前平台的原生 binding，重新安裝前端依賴 ..."
   rm -rf node_modules
   npm install --include=optional
 fi
