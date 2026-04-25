@@ -178,15 +178,6 @@ export function Navbar() {
                 <div className="px-4 py-3 border-b border-white/5">
                   <p className="text-sm font-semibold text-white truncate">{user.display_name}</p>
                   <p className="text-xs text-white/50 truncate">{user.email}</p>
-                  {user.preference_tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {user.preference_tags.slice(0, 4).map((tag) => (
-                        <span key={tag} className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-medium">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 <Link
                   to="/collection"
