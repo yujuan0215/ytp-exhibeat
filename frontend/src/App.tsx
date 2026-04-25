@@ -3,6 +3,7 @@ import { Layout } from "./components/layout/Layout";
 import { Home } from "./pages/Home";
 import { Collection } from "./pages/Collection";
 import { Map } from "./pages/Map";
+import { Accommodations } from "./pages/Accommodations";
 import { Agent } from "./pages/Agent";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
@@ -30,6 +31,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
+        <Route path="accommodations" element={<Accommodations />} />
         <Route path="map" element={<Map />} />
         <Route path="agent" element={<Agent />} />
         <Route element={<RequireAuth />}>

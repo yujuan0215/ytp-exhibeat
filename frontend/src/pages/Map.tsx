@@ -4,12 +4,17 @@ import { getHomeRecommendations, listLegalStays } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
+import {
+  getStayFavoriteIds,
+  STAY_FAVORITES_CHANGE_EVENT,
+  toggleStayFavorite,
+} from "@/lib/stayFavorites";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 declare global {
@@ -170,6 +175,14 @@ function buildGoogleMapsUrl(item: Exhibition): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`;
 }
 
+function buildStayGoogleMapsUrl(stay: LegalStay): string {
+  const address = stay.address.full?.trim();
+  if (address) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${stay.location.lat},${stay.location.lng}`;
+}
+
 function geocodeWithGoogle(geocoder: any, address: string): Promise<LatLng | null> {
   return new Promise((resolve) => {
     geocoder.geocode({ address }, (results: any[], status: string) => {
@@ -226,6 +239,7 @@ function buildMarkerIcon(maps: any, kind: "event" | "stay", selected = false) {
 export function Map() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
@@ -251,6 +265,7 @@ export function Map() {
   const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [stayFavoriteIds, setStayFavoriteIds] = useState<Set<string>>(new Set());
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
@@ -259,6 +274,7 @@ export function Map() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
+  const transientStayMarkerRef = useRef<any>(null);
   const markerLookupRef = useRef<
     Record<string, { marker: any; content: string; selection: MapSelection; stayData?: LegalStay }>
   >({});
@@ -366,6 +382,18 @@ export function Map() {
     selectedItem?.aiSummary ||
     "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
   const queryEventId = searchParams.get("eventId");
+  const queryStayId = searchParams.get("stayId");
+  // Important: Number(null) is 0 — missing query params must not be treated as valid coordinates.
+  const stayLatRaw = searchParams.get("stayLat");
+  const stayLngRaw = searchParams.get("stayLng");
+  const hasExplicitStayCoords =
+    stayLatRaw !== null && stayLatRaw !== "" && stayLngRaw !== null && stayLngRaw !== "";
+  const queryStayLat = hasExplicitStayCoords ? Number(stayLatRaw) : Number.NaN;
+  const queryStayLng = hasExplicitStayCoords ? Number(stayLngRaw) : Number.NaN;
+  const queryStayName = searchParams.get("stayName")?.trim() || "住宿地點";
+  const queryStayAddress = searchParams.get("stayAddress")?.trim() ?? "";
+  const queryReturnTo = searchParams.get("returnTo");
+  const prefillStay = (location.state as { prefillStay?: LegalStay } | null)?.prefillStay ?? null;
 
   function isTaipeiStay(stay: LegalStay): boolean {
     const city = stay.address.city.trim().toLowerCase().replace("台", "臺");
@@ -410,6 +438,13 @@ export function Map() {
     return () => window.removeEventListener("favorites-changed", syncFavorites);
   }, [exhibitions]);
 
+  useEffect(() => {
+    const syncStayFavorites = () => setStayFavoriteIds(new Set(getStayFavoriteIds()));
+    syncStayFavorites();
+    window.addEventListener(STAY_FAVORITES_CHANGE_EVENT, syncStayFavorites);
+    return () => window.removeEventListener(STAY_FAVORITES_CHANGE_EVENT, syncStayFavorites);
+  }, []);
+
   const handleToggleFavorite = async (e: React.MouseEvent, exhibition: Exhibition) => {
     e.stopPropagation();
     if (!user) {
@@ -424,6 +459,19 @@ export function Map() {
       return next;
     });
     setToastMessage(nowFavorited ? "已加入收藏" : "已取消收藏");
+    setShowToast(true);
+  };
+
+  const handleToggleStayFavorite = (e: React.MouseEvent, stay: LegalStay) => {
+    e.stopPropagation();
+    const nowFavorited = toggleStayFavorite(stay.id);
+    setStayFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (nowFavorited) next.add(stay.id);
+      else next.delete(stay.id);
+      return next;
+    });
+    setToastMessage(nowFavorited ? "已加入住宿收藏" : "已取消住宿收藏");
     setShowToast(true);
   };
 
@@ -454,6 +502,13 @@ export function Map() {
     const entry = markerLookupRef.current[lookupKey];
     if (!map || !infoWindow || !entry) return;
 
+    // A URL-driven transient stay marker should disappear once users switch focus
+    // to another marker from the live map dataset.
+    if (transientStayMarkerRef.current) {
+      transientStayMarkerRef.current.setMap(null);
+      transientStayMarkerRef.current = null;
+    }
+
     const pos = entry.marker.getPosition?.();
     if (recenter && pos) {
       map.panTo(pos);
@@ -468,8 +523,17 @@ export function Map() {
       setSelectedStay(null);
     }
     const next = new URLSearchParams(searchParams);
+    const clearStayQuery = () => {
+      next.delete("stayId");
+      next.delete("stayLat");
+      next.delete("stayLng");
+      next.delete("stayName");
+      next.delete("stayAddress");
+      next.delete("returnTo");
+    };
     if (entry.selection?.kind === "event" && entry.selection.id) {
       if (syncEventQuery) {
+        clearStayQuery();
         next.set("eventId", entry.selection.id);
         setSearchParams(next, { replace: true });
       }
@@ -487,6 +551,7 @@ export function Map() {
     let detached = false;
     let eventMarkers: any[] = [];
     let idleListener: any = null;
+    let mapClickListener: any = null;
 
     loadGoogleMaps(apiKey)
       .then(async () => {
@@ -598,6 +663,12 @@ export function Map() {
             zoom: map.getZoom?.() ?? 0,
           });
         });
+        mapClickListener = map.addListener("click", () => {
+          if (transientStayMarkerRef.current) {
+            transientStayMarkerRef.current.setMap(null);
+            transientStayMarkerRef.current = null;
+          }
+        });
         setMapReadyVersion((prev) => prev + 1);
       })
       .catch((e) => {
@@ -609,7 +680,12 @@ export function Map() {
     return () => {
       detached = true;
       if (idleListener) idleListener.remove?.();
+      if (mapClickListener) mapClickListener.remove?.();
       eventMarkers.forEach((m) => m.setMap(null));
+      if (transientStayMarkerRef.current) {
+        transientStayMarkerRef.current.setMap(null);
+        transientStayMarkerRef.current = null;
+      }
       markerLookupRef.current = {};
       mapInstanceRef.current = null;
       infoWindowRef.current = null;
@@ -698,8 +774,7 @@ export function Map() {
       const safeClass = escapeHtml(stay.classLabels.join(" / ") || "合法旅宿");
       const safePhone = escapeHtml(stay.phones[0] || "電話待補");
       const mapUrl =
-        stay.urls.map[0] ||
-        `https://www.google.com/maps/search/?api=1&query=${stay.location.lat},${stay.location.lng}`;
+        stay.urls.map[0] || buildStayGoogleMapsUrl(stay);
 
       const marker = new maps.Marker({
         position: coord,
@@ -769,6 +844,68 @@ export function Map() {
     }
     setSelection({ kind: "event", id: queryEventId });
   }, [queryEventId, exhibitions, mapReadyVersion]);
+
+  useEffect(() => {
+    if (!prefillStay) return;
+    setSelectedStay(prefillStay);
+    setSelection({ kind: "stay", id: prefillStay.id });
+  }, [prefillStay]);
+
+  useEffect(() => {
+    if (!queryStayId) return;
+    if (markerLookupRef.current[`stay:${queryStayId}`]) {
+      focusMarkerOnMap(`stay:${queryStayId}`, false);
+    }
+  }, [queryStayId, mapReadyVersion, legalStays]);
+
+  useEffect(() => {
+    if (!hasExplicitStayCoords || !Number.isFinite(queryStayLat) || !Number.isFinite(queryStayLng)) return;
+    const map = mapInstanceRef.current;
+    const infoWindow = infoWindowRef.current;
+    const maps = window.google?.maps;
+    if (!map || !infoWindow || !maps) return;
+
+    if (transientStayMarkerRef.current) {
+      transientStayMarkerRef.current.setMap(null);
+      transientStayMarkerRef.current = null;
+    }
+
+    map.panTo({ lat: queryStayLat, lng: queryStayLng });
+    map.setZoom(Math.max(map.getZoom?.() ?? 11, 14));
+
+    const marker = new maps.Marker({
+      position: { lat: queryStayLat, lng: queryStayLng },
+      map,
+      title: queryStayName,
+      icon: buildMarkerIcon(maps, "stay", true),
+      zIndex: 1200,
+    });
+    transientStayMarkerRef.current = marker;
+
+    const popupContent = `<div style="max-width:260px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
+          <strong style="display:block;color:#d8f8ff;margin-bottom:4px;">${escapeHtml(queryStayName)}</strong>
+          ${
+            queryStayAddress
+              ? `<span style="display:block;color:#cbd5e1;margin-top:2px;">${escapeHtml(queryStayAddress)}</span>`
+              : ""
+          }
+        </div>`;
+    infoWindow.setContent(popupContent);
+    infoWindow.open({ anchor: marker, map });
+    marker.addListener("click", () => {
+      infoWindow.setContent(popupContent);
+      infoWindow.open({ anchor: marker, map });
+      setSelection({ kind: "stay", id: queryStayId || "__transient_stay__" });
+      if (prefillStay) setSelectedStay(prefillStay);
+    });
+
+    return () => {
+      marker.setMap(null);
+      if (transientStayMarkerRef.current === marker) {
+        transientStayMarkerRef.current = null;
+      }
+    };
+  }, [hasExplicitStayCoords, queryStayLat, queryStayLng, queryStayName, queryStayAddress, queryStayId, prefillStay, mapReadyVersion]);
 
   if (!apiKey) {
     return (
@@ -895,6 +1032,15 @@ export function Map() {
             </>
           ) : selectedStay ? (
             <div className="flex flex-col gap-5">
+              {queryReturnTo ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(queryReturnTo)}
+                  className={`inline-flex w-fit items-center gap-1.5 border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/25 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  返回找住宿結果
+                </button>
+              ) : null}
               <div className="relative border border-white/10 bg-[#111827] p-5">
                 <button
                   type="button"
@@ -910,7 +1056,23 @@ export function Map() {
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
                 <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
-                  <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleStayFavorite(e, selectedStay)}
+                      title={stayFavoriteIds.has(selectedStay.id) ? "取消收藏" : "加入收藏"}
+                      className="rounded-full border border-white/20 bg-black/45 p-2 text-white/80 hover:bg-black/60"
+                    >
+                      <Heart
+                        className={`h-4 w-4 transition-all ${
+                          stayFavoriteIds.has(selectedStay.id)
+                            ? "fill-purple-500 text-purple-500"
+                            : "text-white/70 hover:text-white"
+                        }`}
+                      />
+                    </button>
+                    <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
+                  </div>
                 </div>
                 <div className="pt-8">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
@@ -937,7 +1099,7 @@ export function Map() {
               </div>
 
               <a
-                href={selectedStay.urls.map[0] || `https://www.google.com/maps/search/?api=1&query=${selectedStay.location.lat},${selectedStay.location.lng}`}
+                href={selectedStay.urls.map[0] || buildStayGoogleMapsUrl(selectedStay)}
                 target="_blank"
                 rel="noreferrer"
                 className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
