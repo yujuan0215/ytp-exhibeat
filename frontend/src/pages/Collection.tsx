@@ -24,6 +24,7 @@ import { TripListRail } from "@/components/collection/TripListRail";
 import { TripListActionsMenu } from "@/components/collection/TripListActionsMenu";
 import { StayListCard } from "@/components/collection/StayListCard";
 import { ActionToast } from "@/components/ActionToast";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
@@ -96,6 +97,14 @@ export function Collection() {
   };
 
   const visibleRecs = allRecs.slice(0, recsVisible);
+  const collectionTranslationTexts = [
+    ...eventItems.flatMap((item) => [item.payload.title, item.payload.location, item.payload.aiSummary ?? ""]),
+    ...visibleRecs.flatMap((rec) => [rec.title, rec.location, rec.tag]),
+  ];
+  const translateCollectionText = useDynamicTranslation(
+    collectionTranslationTexts,
+    "collection shared exhibition content",
+  );
   const endingSoon = collectionExhibitions.filter((e) => {
     const end = new Date(e.dateStr.replace(/.*-> /, "").trim());
     const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
@@ -160,7 +169,7 @@ export function Collection() {
             >
               <img
                 src={rec.imageUrl}
-                alt={rec.title}
+                alt={translateCollectionText(rec.title)}
                 className={`w-16 h-16 ${isV1 ? "rounded-md" : "rounded-lg"} object-cover flex-shrink-0`}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
@@ -168,12 +177,12 @@ export function Collection() {
               />
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] text-secondary font-medium tracking-wider mb-1 block truncate">
-                  {rec.tag}
+                  {translateCollectionText(rec.tag)}
                 </span>
                 <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[34px]">
-                  {rec.title}
+                  {translateCollectionText(rec.title)}
                 </h4>
-                <p className="text-xs text-muted-foreground line-clamp-1">{rec.location}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1">{translateCollectionText(rec.location)}</p>
               </div>
             </Link>
           ))
@@ -311,6 +320,7 @@ export function Collection() {
                     exhibition={item.payload}
                     isCollectionVariant
                     tripListContextId={selectedList.id}
+                    translateText={translateCollectionText}
                   />
                 ))}
               </div>
