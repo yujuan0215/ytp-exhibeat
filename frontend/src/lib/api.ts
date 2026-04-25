@@ -289,6 +289,32 @@ export const getLegalStaysGeoJson = async (params: {
   return handleJson<LegalStaysGeoJson>(response, "Failed to load legal stays GeoJSON");
 };
 
+// ─── Dynamic Translation ─────────────────────────────────────────────────────
+export interface TranslationResponse {
+  target_locale: string;
+  source_locale: string;
+  translations: Record<string, string>;
+  backend: "cache" | "gemini" | "passthrough" | string;
+}
+
+export const translateDynamicTexts = async (body: {
+  texts: string[];
+  targetLocale: string;
+  sourceLocale?: string;
+  context?: string;
+}): Promise<TranslationResponse> => {
+  const response = await fetch('/api/i18n/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sourceLocale: 'zh-TW',
+      context: '',
+      ...body,
+    }),
+  });
+  return handleJson<TranslationResponse>(response, "Failed to translate content");
+};
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export interface AuthUser {
   id: string;

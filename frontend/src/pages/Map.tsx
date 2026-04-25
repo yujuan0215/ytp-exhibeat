@@ -10,6 +10,7 @@ import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 declare global {
   interface Window {
@@ -345,6 +346,11 @@ export function Map() {
   }, [activeFilter, exhibitions]);
 
   const hasMore = sidebarItems.length < totalFilteredCount;
+  const mapTranslationTexts = useMemo(
+    () => exhibitions.flatMap((item) => [item.title, item.location]),
+    [exhibitions],
+  );
+  const translateMapText = useDynamicTranslation(mapTranslationTexts, "map exhibition title and venue");
   const selectedEventId = selection?.kind === "event" ? selection.id : null;
   const selectedItem = useMemo(
     () => (selectedEventId ? exhibitions.find((item) => item.id === selectedEventId) ?? null : null),
@@ -542,8 +548,10 @@ export function Map() {
         const bounds = new maps.LatLngBounds();
 
         eventMarkers = resolvedData.map(({ item, coord }) => {
-          const safeTitle = escapeHtml(item.title);
-          const safeLocation = escapeHtml(item.location);
+          const translatedTitle = translateMapText(item.title);
+          const translatedLocation = translateMapText(item.location);
+          const safeTitle = escapeHtml(translatedTitle);
+          const safeLocation = escapeHtml(translatedLocation);
           const safeDate = escapeHtml(item.dateStr);
           const eventUrl = buildEventPageUrl(item);
           const lookupKey = `event:${item.id}`;
@@ -551,7 +559,7 @@ export function Map() {
           const marker = new maps.Marker({
             position: coord,
             map,
-            title: item.title,
+            title: translatedTitle,
             icon: buildMarkerIcon(maps, "event", false),
           });
 
@@ -851,10 +859,10 @@ export function Map() {
                     }}
                   >
                     <div className="flex gap-3">
-                      <img src={item.imageUrl} alt={item.title} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
+                      <img src={item.imageUrl} alt={translateMapText(item.title)} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
                       <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-start justify-between gap-2">
-                          <p className="line-clamp-2 text-sm font-bold text-white">{item.title}</p>
+                          <p className="line-clamp-2 text-sm font-bold text-white">{translateMapText(item.title)}</p>
                           <button
                             type="button"
                             onClick={(e) => void handleToggleFavorite(e, item)}
@@ -865,7 +873,7 @@ export function Map() {
                           </button>
                         </div>
                         <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
-                          <MapPin className="h-3 w-3" /> {item.location}
+                          <MapPin className="h-3 w-3" /> {translateMapText(item.location)}
                         </p>
                         <p className="flex items-center gap-1 text-[11px] text-white/50">
                           <Clock3 className="h-3 w-3" /> {item.dateStr.replace(" -> ", " — ")}
@@ -953,7 +961,7 @@ export function Map() {
               <div className="relative">
                 <img
                   src={selectedItem.imageUrl}
-                  alt={selectedItem.title}
+                  alt={translateMapText(selectedItem.title)}
                   className="h-48 w-full object-cover"
                 />
                 <button
@@ -976,7 +984,7 @@ export function Map() {
 
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-2xl font-bold leading-tight text-white">{selectedItem.title}</h2>
+                  <h2 className="text-2xl font-bold leading-tight text-white">{translateMapText(selectedItem.title)}</h2>
                   <button
                     type="button"
                     onClick={(e) => void handleToggleFavorite(e, selectedItem)}
@@ -991,7 +999,7 @@ export function Map() {
 
               <div className="space-y-2 border-y border-white/10 py-4">
                 <p className="flex items-center gap-2 text-sm text-white/80">
-                  <MapPin className="h-4 w-4 text-cyan-200" /> {selectedItem.location}
+                  <MapPin className="h-4 w-4 text-cyan-200" /> {translateMapText(selectedItem.location)}
                 </p>
                 <p className="flex items-center gap-2 text-sm text-white/75">
                   <Clock3 className="h-4 w-4 text-cyan-200" /> {selectedItem.dateStr.replace(" -> ", " — ")}
