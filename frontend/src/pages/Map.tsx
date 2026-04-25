@@ -4,7 +4,6 @@ import { getHomeRecommendations, listLegalStays } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { useI18n } from "@/lib/i18n";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
@@ -242,7 +241,6 @@ export function Map() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { locale } = useI18n();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -733,8 +731,8 @@ export function Map() {
     taipeiStayLoadingRef.current = true;
     listLegalStays({
       city: "Taipei City",
-      locale,
-      lang: locale,
+      locale: "zh-TW",
+      lang: "zh-TW",
       limit: STAY_PAGE_SIZE,
       offset: taipeiStayOffsetRef.current,
     })
@@ -767,7 +765,7 @@ export function Map() {
       .finally(() => {
         taipeiStayLoadingRef.current = false;
       });
-  }, [loadedTaipeiStays, locale, mapViewport, selectedStayIdState]);
+  }, [loadedTaipeiStays, mapViewport, selectedStayIdState]);
 
 
   useEffect(() => {
