@@ -19,7 +19,7 @@ export function Footer() {
         </div>
       </div>
       <p className="mb-4 text-foreground/40">
-        © 2024{" "}
+        © 2026{" "}
         <span style={{ color: "#df8eff", fontFamily: '"The Seasons", serif', fontWeight: 400 }}>
           ExhiBeat
         </span>

@@ -4,7 +4,7 @@ import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp } from "lucide-react";
+import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -148,11 +148,27 @@ function normalizeSearchText(value: string) {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function splitSearchTerms(query: string) {
-  return normalizeSearchText(query).split(" ").filter(Boolean);
+function parseSearchTokens(query: string): { keywordTerms: string[]; tagTerms: string[] } {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) {
+    return { keywordTerms: [], tagTerms: [] };
+  }
+  const tagTerms = Array.from(normalized.matchAll(/#([^\s#]+)/g))
+    .map((match) => match[1]?.trim())
+    .filter(Boolean) as string[];
+  const keywordTerms = normalized
+    .replace(/#[^\s#]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  return { keywordTerms, tagTerms };
 }
 
-function matchKeywordSearch(exhibition: Exhibition, query: string) {
+function matchMixedSearch(
+  exhibition: Exhibition,
+  tokens: { keywordTerms: string[]; tagTerms: string[] },
+) {
   const haystack = normalizeSearchText(
     [
       exhibition.title,
@@ -162,17 +178,37 @@ function matchKeywordSearch(exhibition: Exhibition, query: string) {
       ...(exhibition.tags ?? []),
     ].join(" "),
   );
-  const terms = splitSearchTerms(query);
-  if (!terms.length) return true;
-  return terms.every((term) => haystack.includes(term));
+  const normalizedTags = (exhibition.tags ?? []).map((tag) =>
+    normalizeSearchText(String(tag).replace(/^#+/, "")),
+  );
+  const keywordMatched = tokens.keywordTerms.every((term) => haystack.includes(term));
+  const tagMatched = tokens.tagTerms.every((term) => normalizedTags.some((tag) => tag.includes(term)));
+  return keywordMatched && tagMatched;
 }
 
-function matchTagSearch(exhibition: Exhibition, query: string) {
-  const raw = query.trim().replace(/^#+/, "");
-  const keyword = normalizeSearchText(raw);
-  if (!keyword) return true;
-  const tags = (exhibition.tags ?? []).map((tag) => normalizeSearchText(String(tag).replace(/^#+/, "")));
-  return tags.some((tag) => tag.includes(keyword));
+function getActiveHashtagFragment(input: string): string {
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  const match = trimmedRight.match(/(?:^|\s)#([^\s#]*)$/);
+  return match?.[1]?.toLowerCase() ?? "";
+}
+
+function hasActiveHashtagToken(input: string): boolean {
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  return /(?:^|\s)#[^\s#]*$/.test(trimmedRight);
+}
+
+function replaceActiveHashtag(input: string, nextTag: string): string {
+  const normalizedTag = normalizeHashtag(nextTag);
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  if (!normalizedTag) return trimmedRight;
+  const match = trimmedRight.match(/(?:^|\s)#[^\s#]*$/);
+  if (!match) {
+    return `${trimmedRight}${trimmedRight ? " " : ""}${normalizedTag}`.trim();
+  }
+  const start = (match.index ?? 0);
+  const prefix = trimmedRight.slice(0, start);
+  const joiner = prefix && !/\s$/.test(prefix) ? " " : "";
+  return `${prefix}${joiner}${normalizedTag}`.trim();
 }
 
 function buildPageTokens(totalPages: number, currentPage: number): PageToken[] {
@@ -222,9 +258,10 @@ export function Home() {
   const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [activeInstagramHandle, setActiveInstagramHandle] = useState(INSTAGRAM_ACCOUNTS[0].handle);
+  const searchRef = useRef<HTMLFormElement | null>(null);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = rawQuery.trim();
-  const isTagSearch = effectiveSearch.startsWith("#");
+  const searchTokens = useMemo(() => parseSearchTokens(effectiveSearch), [effectiveSearch]);
   const preferenceKey = user?.preference_tags.join(",") ?? "";
 
 
@@ -270,13 +307,9 @@ export function Home() {
   const filtered = useMemo(() => {
     const searched = !effectiveSearch
       ? allExhibitions
-      : allExhibitions.filter((exhibition) =>
-          isTagSearch
-            ? matchTagSearch(exhibition, effectiveSearch)
-            : matchKeywordSearch(exhibition, effectiveSearch),
-        );
+      : allExhibitions.filter((exhibition) => matchMixedSearch(exhibition, searchTokens));
     return sortExhibitions(searched, activeSort);
-  }, [activeSort, allExhibitions, effectiveSearch, isTagSearch]);
+  }, [activeSort, allExhibitions, effectiveSearch, searchTokens]);
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
@@ -287,9 +320,8 @@ export function Home() {
   const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
   const activeInstagramAccount =
     INSTAGRAM_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? INSTAGRAM_ACCOUNTS[0];
-  const normalizedQuery = searchQuery.trim();
-  const isTagInput = normalizedQuery.startsWith("#");
-  const bareTagQuery = normalizedQuery.replace(/^#+/, "").trim().toLowerCase();
+  const activeTagQuery = useMemo(() => getActiveHashtagFragment(searchQuery), [searchQuery]);
+  const tagSuggestionActive = useMemo(() => hasActiveHashtagToken(searchQuery), [searchQuery]);
   const mergedTagStats = useMemo(() => {
     const merged = new Map<string, number>();
     availableTagStats.forEach((row) => {
@@ -308,15 +340,15 @@ export function Home() {
       .sort((a, b) => (b.count - a.count) || a.tag.localeCompare(b.tag, "zh-Hant"));
   }, [availableTagStats, rawQuery]);
   const searchSuggestions = useMemo(() => {
-    if (!isTagInput) return [] as Array<{ tag: string; count: number }>;
+    if (!tagSuggestionActive) return [] as Array<{ tag: string; count: number }>;
     const rows: Array<{ tag: string; count: number }> = [];
     for (const row of mergedTagStats) {
       const cleanTag = row.tag.replace(/^#+/, "").toLowerCase();
-      if (bareTagQuery && !cleanTag.startsWith(bareTagQuery)) continue;
+      if (activeTagQuery && !cleanTag.startsWith(activeTagQuery)) continue;
       rows.push(row);
     }
     return rows.slice(0, 30);
-  }, [bareTagQuery, isTagInput, mergedTagStats]);
+  }, [activeTagQuery, tagSuggestionActive, mergedTagStats]);
 
   useEffect(() => {
     if (!ENABLE_IG_WIDGET) return;
@@ -377,12 +409,15 @@ export function Home() {
     event.preventDefault();
     const selectedSuggestion =
       activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex]?.tag : null;
-    applySearchQuery(selectedSuggestion ?? searchQuery);
+    const nextQuery = selectedSuggestion ? replaceActiveHashtag(searchQuery, selectedSuggestion) : searchQuery;
+    setSearchQuery(nextQuery);
+    applySearchQuery(nextQuery);
   };
 
   const handleSuggestionClick = (suggestion: { tag: string; count: number }) => {
-    setSearchQuery(suggestion.tag);
-    applySearchQuery(suggestion.tag);
+    const nextQuery = replaceActiveHashtag(searchQuery, suggestion.tag);
+    setSearchQuery(nextQuery);
+    applySearchQuery(nextQuery);
   };
 
   useEffect(() => {
@@ -498,12 +533,10 @@ export function Home() {
                 const value = event.target.value;
                 setSearchQuery(value);
                 setActiveSuggestionIndex(-1);
-                const trimmed = value.trim();
-                setSearchSuggestionsOpen(trimmed.startsWith("#"));
+                setSearchSuggestionsOpen(hasActiveHashtagToken(value));
               }}
               onFocus={() => {
-                const trimmed = searchQuery.trim();
-                setSearchSuggestionsOpen(trimmed.startsWith("#"));
+                setSearchSuggestionsOpen(hasActiveHashtagToken(searchQuery));
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -665,7 +698,7 @@ export function Home() {
         {!loading && filtered.length > 0 && (
           <div className="mt-12 flex flex-col items-center gap-3">
             <p className="text-center text-white/45 text-sm">
-              第 {safeCurrentPage} / {totalPages} 頁，每頁 {pageSize} 筆，本頁 {grid.length} 筆，共 {filtered.length} 項推薦
+              共 {filtered.length} 筆
             </p>
             <div className="flex items-center gap-2 text-xs text-white/70">
               <label htmlFor="home-page-size">每頁顯示</label>
