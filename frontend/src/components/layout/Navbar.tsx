@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X, Languages } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { listAvailableTags } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LOCALE_OPTIONS, useI18n } from "@/lib/i18n";
 
@@ -14,10 +15,15 @@ export function Navbar() {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -27,17 +33,50 @@ export function Navbar() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const query = new URLSearchParams(location.search).get("q") ?? "";
+    setSearchQuery(query);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    listAvailableTags()
+      .then((data) => {
+        setAvailableTags(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        console.warn("Failed to load search suggestions", error);
+        setAvailableTags([]);
+      });
+  }, []);
+
+  useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
       if (!notificationRef.current?.contains(e.target as Node)) setNotificationOpen(false);
       if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
       if (!mobileMenuRef.current?.contains(e.target as Node)) setMobileMenuOpen(false);
+      if (!searchRef.current?.contains(e.target as Node)) setSearchSuggestionsOpen(false);
     };
-    if (menuOpen || notificationOpen || settingsOpen || mobileMenuOpen) {
+    if (menuOpen || notificationOpen || settingsOpen || mobileMenuOpen || searchSuggestionsOpen) {
       document.addEventListener("mousedown", onDocClick);
     }
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [menuOpen, notificationOpen, settingsOpen, mobileMenuOpen]);
+  }, [menuOpen, notificationOpen, settingsOpen, mobileMenuOpen, searchSuggestionsOpen]);
+
+  const normalizedQuery = searchQuery.trim();
+  const isTagSearch = normalizedQuery.startsWith("#");
+  const bareTagQuery = normalizedQuery.replace(/^#+/, "").trim().toLowerCase();
+  const searchSuggestions = useMemo(() => {
+    if (!isTagSearch || bareTagQuery.length < 1) return [];
+    const tagSet = new Set<string>();
+    for (const rawTag of availableTags) {
+      const cleanTag = String(rawTag).trim().replace(/^#+/, "");
+      if (!cleanTag) continue;
+      if (cleanTag.toLowerCase().startsWith(bareTagQuery)) {
+        tagSet.add(`#${cleanTag}`);
+      }
+    }
+    return Array.from(tagSet).slice(0, 8);
+  }, [availableTags, bareTagQuery, isTagSearch]);
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-foreground/90 ${
@@ -48,6 +87,24 @@ export function Navbar() {
     logout();
     setMenuOpen(false);
     navigate("/");
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedSuggestion =
+      activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex] : null;
+    const q = (selectedSuggestion ?? searchQuery).trim();
+    const search = q ? `?q=${encodeURIComponent(q)}` : "";
+    setSearchSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+    navigate(`/${search}`);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    setSearchSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+    navigate(`/?q=${encodeURIComponent(suggestion)}`);
   };
 
   const initials = user?.display_name
@@ -75,14 +132,68 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="relative hidden md:block">
+        <form className="relative hidden md:block" onSubmit={handleSearchSubmit} ref={searchRef}>
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
-            placeholder="搜尋展覽、藝術家..."
+            value={searchQuery}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchQuery(value);
+              setActiveSuggestionIndex(-1);
+              const trimmed = value.trim();
+              const shouldOpen = trimmed.startsWith("#") && trimmed.replace(/^#+/, "").trim().length >= 1;
+              setSearchSuggestionsOpen(shouldOpen);
+            }}
+            onFocus={() => {
+              const trimmed = searchQuery.trim();
+              const shouldOpen = trimmed.startsWith("#") && trimmed.replace(/^#+/, "").trim().length >= 1;
+              setSearchSuggestionsOpen(shouldOpen);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearchSuggestionsOpen(false);
+                setActiveSuggestionIndex(-1);
+                return;
+              }
+              if (!searchSuggestionsOpen || searchSuggestions.length === 0) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveSuggestionIndex((prev) => (prev + 1) % searchSuggestions.length);
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveSuggestionIndex((prev) =>
+                  prev <= 0 ? searchSuggestions.length - 1 : prev - 1,
+                );
+              }
+            }}
+            placeholder="搜尋展覽、藝術家...（#標籤）"
             className="h-9 w-64 rounded-md border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
-        </div>
+          {searchSuggestionsOpen && (
+            <div className="absolute left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1625] shadow-xl z-50">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onMouseEnter={() => setActiveSuggestionIndex(index)}
+                    className={`block w-full px-3 py-2.5 text-left text-sm transition-colors ${
+                      index === activeSuggestionIndex
+                        ? "bg-white/10 text-white"
+                        : "text-white/80 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    {suggestion}
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2.5 text-sm text-white/45">無符合標籤</div>
+              )}
+            </div>
+          )}
+        </form>
         <div className="relative" ref={notificationRef}>
           <button
             type="button"

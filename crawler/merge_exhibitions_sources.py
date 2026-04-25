@@ -50,14 +50,56 @@ def merge_events(files: list[Path]) -> list[dict[str, Any]]:
     return merged
 
 
-DISTRICT_PATTERNS: list[tuple[str, str]] = [
-    (r"[台臺]北市\s*(中正區|大同區|中山區|松山區|大安區|萬華區|信義區|士林區|北投區|內湖區|南港區|文山區)", "台北市{}"),
-    (r"新北市\s*(板橋區|三重區|中和區|永和區|新莊區|新店區|土城區|蘆洲區|汐止區|樹林區|鶯歌區|三峽區|淡水區|瑞芳區|五股區|泰山區|林口區|深坑區|石碇區|坪林區|三芝區|石門區|八里區|平溪區|雙溪區|貢寮區|金山區|萬里區|烏來區)", "新北市{}"),
-    (r"(基隆市|[台臺]北市|新北市|桃園市|新竹市|新竹縣|苗栗縣|[台臺]中市|彰化縣|南投縣|雲林縣|嘉義市|嘉義縣|[台臺]南市|高雄市|屏東縣|宜蘭縣|花蓮縣|[台臺]東縣|澎湖縣|金門縣|連江縣)", "{}"),
+ADMIN_DISTRICT_PATTERN = re.compile(
+    r"(中正區|大同區|中山區|松山區|大安區|萬華區|信義區|士林區|北投區|內湖區|南港區|文山區|"
+    r"板橋區|三重區|中和區|永和區|新莊區|新店區|土城區|蘆洲區|汐止區|樹林區|鶯歌區|三峽區|淡水區|瑞芳區|"
+    r"五股區|泰山區|林口區|深坑區|石碇區|坪林區|三芝區|石門區|八里區|平溪區|雙溪區|貢寮區|金山區|萬里區|烏來區|"
+    r"[^\s,，、]{1,6}(?:區|鎮|鄉|市))"
+)
+
+INVALID_ADMIN_TAGS = {
+    "台北市",
+    "臺北市",
+    "新北市",
+    "桃園市",
+    "台中市",
+    "臺中市",
+    "台南市",
+    "臺南市",
+    "高雄市",
+    "展區",
+    "園區",
+    "校區",
+    "館區",
+    "特區",
+    "地區",
+}
+
+CITY_PREFIXES = [
+    "台北市",
+    "臺北市",
+    "新北市",
+    "桃園市",
+    "新竹市",
+    "台中市",
+    "臺中市",
+    "台南市",
+    "臺南市",
+    "高雄市",
+    "基隆市",
+    "嘉義市",
 ]
 
 
-def pick_area_tag(event: dict[str, Any]) -> str:
+def strip_city_prefix(value: str) -> str:
+    cleaned = value.strip().lstrip("（(【[").rstrip("）)】],，。;；")
+    for prefix in CITY_PREFIXES:
+        if cleaned.startswith(prefix):
+            return cleaned[len(prefix) :].strip()
+    return cleaned
+
+
+def pick_area_tag(event: dict[str, Any]) -> str | None:
     show = first_show_info(event)
     fields = [
         str(show.get("locationName", "")),
@@ -66,17 +108,17 @@ def pick_area_tag(event: dict[str, Any]) -> str:
         str(event.get("descriptionFilterHtml", "")),
     ]
     text = " ".join(fields)
-    for pattern, template in DISTRICT_PATTERNS:
-        m = re.search(pattern, text)
-        if not m:
+    for m in ADMIN_DISTRICT_PATTERN.finditer(text):
+        district = strip_city_prefix(m.group(1))
+        if not district or district in INVALID_ADMIN_TAGS:
             continue
-        group = m.group(1)
-        if "{}" in template:
-            return f"#{template.format(group)}"
-    return "#其他地區"
+        if district.endswith("市") and district not in {"竹北市", "竹南市", "頭份市", "太保市", "朴子市"}:
+            continue
+        return f"#{district}"
+    return None
 
 
-def pick_indoor_outdoor_tag(event: dict[str, Any]) -> str:
+def pick_indoor_outdoor_tag(event: dict[str, Any]) -> str | None:
     text = normalize_text(
         " ".join(
             [
@@ -92,14 +134,27 @@ def pick_indoor_outdoor_tag(event: dict[str, Any]) -> str:
         return "#室外"
     if any(k in text for k in indoor_keywords):
         return "#室內"
-    return "#室內"
+    return None
 
 
 def _extract_numeric_values(text: str) -> list[int]:
     return [int(n) for n in re.findall(r"\d+", text or "")]
 
 
-def pick_price_tag(event: dict[str, Any]) -> str:
+def _extract_price_values_from_text(text: str) -> list[int]:
+    if not text:
+        return []
+    values: list[int] = []
+    patterns = [
+        r"(?:nt\$|ntd|twd|新台幣|台幣|票價|全票|優惠票|入場費|費用)\s*[:：]?\s*(\d{1,5})",
+        r"(\d{1,5})\s*(?:元|塊)",
+    ]
+    for pattern in patterns:
+        values.extend(int(m) for m in re.findall(pattern, text, flags=re.IGNORECASE))
+    return values
+
+
+def pick_price_tag(event: dict[str, Any]) -> str | None:
     show = first_show_info(event)
     show_price = str(show.get("price", "")).strip()
     raw_price = " ".join(
@@ -113,19 +168,19 @@ def pick_price_tag(event: dict[str, Any]) -> str:
     if not values:
         normalized = normalize_text(raw_price)
         if any(k in normalized for k in ["免費", "免票", "free", "無須購票"]):
-            return "#低價"
-        values = _extract_numeric_values(raw_price)
+            return "#低價位"
+        values = _extract_price_values_from_text(raw_price)
     if not values:
-        return "#中價"
+        return None
     price = max(values)
     if price < 400:
-        return "#低價"
+        return "#低價位"
     if price < 900:
-        return "#中價"
-    return "#高價"
+        return "#中價位"
+    return "#高價位"
 
 
-def pick_time_tag(event: dict[str, Any]) -> str:
+def pick_time_tag(event: dict[str, Any]) -> str | None:
     show = first_show_info(event)
     time_value = str(show.get("time", "")).strip()
     hour: int | None = None
@@ -147,22 +202,30 @@ def pick_time_tag(event: dict[str, Any]) -> str:
         if m:
             hour = int(m.group(1))
     if hour is None:
-        return "#下午"
+        return None
     if hour < 12:
         return "#早上"
     if hour < 18:
-        return "#下午"
+        return "#中午"
     return "#晚上"
 
 
 def build_default_tags(event: dict[str, Any]) -> list[str]:
     # Fixed categories requested: area, indoor/outdoor, price, visit time.
-    return [
+    candidates = [
         pick_area_tag(event),
         pick_indoor_outdoor_tag(event),
         pick_price_tag(event),
         pick_time_tag(event),
     ]
+    result: list[str] = []
+    seen: set[str] = set()
+    for tag in candidates:
+        if not tag or tag in seen:
+            continue
+        seen.add(tag)
+        result.append(tag)
+    return result
 
 
 def main() -> None:
