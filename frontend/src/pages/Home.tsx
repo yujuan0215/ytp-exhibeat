@@ -10,6 +10,66 @@ import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
 type PageToken = number | "...";
+const ENABLE_IG_WIDGET = import.meta.env.VITE_ENABLE_IG_WIDGET === "true";
+const IG_WIDGET_SCRIPT_SRC = "https://cdn.commoninja.com/sdk/latest/commonninja.js";
+const IG_WIDGET_PID = "76c8d05c-85f6-4953-bb5b-f7e5cfd50c99";
+
+type InstagramAccount = {
+  handle: string;
+  label: string;
+  url: string;
+  avatarLabel: string;
+  description: string;
+  widgetPid?: string;
+};
+
+function getInstagramAvatarUrl(handle: string) {
+  // Unavatar aggregates public profile images and works for many social providers.
+  return `https://unavatar.io/instagram/${encodeURIComponent(handle)}`;
+}
+
+const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
+  {
+    handle: "taipeitravel",
+    label: "台北旅遊網",
+    url: "https://www.instagram.com/taipeitravel/?hl=zh-tw",
+    avatarLabel: "旅",
+    description: "官方旅遊靈感，適合補足城市活動、景點與路線內容。",
+    widgetPid: IG_WIDGET_PID,
+  },
+  {
+    handle: "ryan_tobehonest",
+    label: "Ryan To Be Honest",
+    url: "https://www.instagram.com/ryan_tobehonest/",
+    avatarLabel: "R",
+    description: "個人視角的展覽、生活與城市觀察，可作為風格化內容來源。",
+    widgetPid: IG_WIDGET_PID,
+  },
+  {
+    handle: "tfam_museum",
+    label: "台北市立美術館",
+    url: "https://www.instagram.com/tfam_museum/",
+    avatarLabel: "北",
+    description: "美術館官方內容，適合呈現展覽更新與館方活動資訊。",
+    widgetPid: IG_WIDGET_PID,
+  },
+  {
+    handle: "wenwenmommy",
+    label: "親子旅遊帳號",
+    url: "https://www.instagram.com/wenwenmommy/",
+    avatarLabel: "親",
+    description: "親子友善活動與出遊視角，可補足家庭客群推薦。",
+    widgetPid: IG_WIDGET_PID,
+  },
+  {
+    handle: "duringmyjourney",
+    label: "During My Journey",
+    url: "https://www.instagram.com/duringmyjourney/",
+    avatarLabel: "旅",
+    description: "旅遊與城市探索內容，適合延伸展覽前後的行程靈感。",
+    widgetPid: IG_WIDGET_PID,
+  },
+];
 
 // Sort definitions — operate on filtered array
 type SortKey = "relevancy" | "newest" | "oldest" | "ending_soon";
@@ -153,6 +213,7 @@ export function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOpen, setSortOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [activeInstagramHandle, setActiveInstagramHandle] = useState(INSTAGRAM_ACCOUNTS[0].handle);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = searchTerm.trim() || rawQuery.trim();
   const isTagSearch = effectiveSearch.startsWith("#");
@@ -197,6 +258,19 @@ export function Home() {
     [grid, hero, heroCandidates],
   );
   const translateHomeText = useDynamicTranslation(sharedHomeTexts, "home shared exhibition content");
+  const activeInstagramAccount =
+    INSTAGRAM_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? INSTAGRAM_ACCOUNTS[0];
+
+  useEffect(() => {
+    if (!ENABLE_IG_WIDGET) return;
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${IG_WIDGET_SCRIPT_SRC}"]`);
+    if (existingScript) return;
+
+    const script = document.createElement("script");
+    script.src = IG_WIDGET_SCRIPT_SRC;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
 
   useEffect(() => {
     if (heroCandidates.length === 0) {
@@ -394,6 +468,69 @@ export function Home() {
             </div>
           )}
         </div>
+        {ENABLE_IG_WIDGET && (
+          <section className="mb-10 rounded-[2rem] border border-white/10 bg-[#1f1f26]/60 p-5 shadow-2xl shadow-black/20 md:p-7">
+            <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">Social Picks</p>
+                <h2 className="text-2xl font-bold text-white">Instagram 靈感帳號</h2>
+              </div>
+              <p className="max-w-xl text-sm text-white/50">
+                先選上方帳號，再看下方完整貼文區；目前三個帳號先共用同一個 widget 測試排版。
+              </p>
+            </div>
+
+            <div className="mb-8 rounded-[1.75rem] border border-white/10 bg-black/20 px-4 py-6">
+              <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12">
+                {INSTAGRAM_ACCOUNTS.slice(0, 3).map((account) => {
+                  const isActive = account.handle === activeInstagramAccount.handle;
+                  return (
+                    <button
+                      key={account.handle}
+                      type="button"
+                      onClick={() => setActiveInstagramHandle(account.handle)}
+                      aria-pressed={isActive}
+                      className="group flex flex-col items-center gap-3"
+                    >
+                      <span
+                        className={`flex h-20 w-20 items-center justify-center rounded-full border text-xl font-black transition-all md:h-24 md:w-24 ${
+                          isActive
+                            ? "border-cyan-300 bg-cyan-300 text-[#04141a] shadow-lg shadow-cyan-400/20"
+                            : "border-white/15 bg-white/8 text-white group-hover:border-white/35 group-hover:bg-white/12"
+                        }`}
+                      >
+                        <img
+                          src={getInstagramAvatarUrl(account.handle)}
+                          alt={`@${account.handle} avatar`}
+                          className="h-full w-full rounded-full object-cover"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                            const fallback = event.currentTarget.nextElementSibling as HTMLSpanElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                        <span className="hidden h-full w-full items-center justify-center rounded-full">
+                          {account.avatarLabel}
+                        </span>
+                      </span>
+                      <span className={isActive ? "text-sm font-semibold text-white" : "text-sm text-white/55"}>
+                        @{account.handle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-4 md:p-6">
+              <div
+                key={`${activeInstagramAccount.handle}-${activeInstagramAccount.widgetPid ?? IG_WIDGET_PID}`}
+                className={`commonninja_component pid-${activeInstagramAccount.widgetPid ?? IG_WIDGET_PID}`}
+              />
+            </div>
+          </section>
+        )}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
         {loading ? (
           <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
