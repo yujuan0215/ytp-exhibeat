@@ -210,13 +210,56 @@ def pick_time_tag(event: dict[str, Any]) -> str | None:
     return "#晚上"
 
 
+def pick_discount_tag(event: dict[str, Any]) -> str | None:
+    show = first_show_info(event)
+    raw_parts = [
+        str(event.get("discountInfo", "")),
+        str(event.get("webSales", "")),
+        str(show.get("onSales", "")),
+        str(show.get("price", "")),
+        str(event.get("descriptionFilterHtml", "")),
+        str(event.get("title", "")),
+    ]
+    text = normalize_text(" ".join(raw_parts))
+    if not text:
+        return None
+
+    positive_keywords = [
+        "早鳥",
+        "優惠",
+        "折扣",
+        "特價",
+        "限時",
+        "促銷",
+        "折",
+        "%off",
+        "off",
+        "discount",
+        "sale",
+    ]
+    negative_keywords = [
+        "無折扣",
+        "恕不折扣",
+        "不折扣",
+        "不提供優惠",
+        "原價",
+    ]
+
+    if any(keyword in text for keyword in negative_keywords):
+        return None
+    if any(keyword in text for keyword in positive_keywords):
+        return "#打折中"
+    return None
+
+
 def build_default_tags(event: dict[str, Any]) -> list[str]:
-    # Fixed categories requested: area, indoor/outdoor, price, visit time.
+    # Fixed categories requested: area, indoor/outdoor, price, visit time, discount status.
     candidates = [
         pick_area_tag(event),
         pick_indoor_outdoor_tag(event),
         pick_price_tag(event),
         pick_time_tag(event),
+        pick_discount_tag(event),
     ]
     result: list[str] = []
     seen: set[str] = set()
