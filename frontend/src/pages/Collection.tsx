@@ -9,6 +9,7 @@ import { Sparkles, Zap, Loader2, ChevronDown, Lock } from "lucide-react";
 import { getFavorites } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 const DEFAULT_REF_COORD = { lat: 25.033, lng: 121.5654 }; // Taipei 101 area fallback
@@ -125,6 +126,17 @@ export function Collection() {
     }
     return list.sort((a, b) => getEndDateTimestamp(a) - getEndDateTimestamp(b));
   }, [collectionExhibitions, referenceCoord, sortMode]);
+  const collectionTranslationTexts = useMemo(
+    () => [
+      ...sortedCollection.flatMap((item) => [item.title, item.location, item.aiSummary ?? ""]),
+      ...visibleRecs.flatMap((rec) => [rec.title, rec.location, rec.tag]),
+    ],
+    [sortedCollection, visibleRecs],
+  );
+  const translateCollectionText = useDynamicTranslation(
+    collectionTranslationTexts,
+    "collection shared exhibition content",
+  );
 
   const endingSoon = collectionExhibitions.filter(e => {
     const end = new Date(e.dateStr.replace(/.*-> /, "").trim());
@@ -221,7 +233,12 @@ export function Collection() {
             </div>
           ) : sortedCollection.length > 0 ? (
             sortedCollection.map(exhibition => (
-              <ExhibitionCard key={exhibition.id} exhibition={exhibition} isCollectionVariant={true} />
+              <ExhibitionCard
+                key={exhibition.id}
+                exhibition={exhibition}
+                isCollectionVariant={true}
+                translateText={translateCollectionText}
+              />
             ))
           ) : (
             <div className="col-span-full flex justify-center items-center h-60 text-white/50">
@@ -255,18 +272,18 @@ export function Collection() {
                 >
                   <img
                     src={rec.imageUrl}
-                    alt={rec.title}
+                    alt={translateCollectionText(rec.title)}
                     className={`w-16 h-16 ${isV1 ? "rounded-md" : "rounded-lg"} object-cover flex-shrink-0`}
                     onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                   />
                   <div className="min-w-0 flex-1">
                     <span className="text-[10px] text-secondary font-medium tracking-wider mb-1 block truncate">
-                      {rec.tag}
+                      {translateCollectionText(rec.tag)}
                     </span>
                     <h4 className="font-bold text-sm text-white mb-1 leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[34px]">
-                      {rec.title}
+                      {translateCollectionText(rec.title)}
                     </h4>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{rec.location}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{translateCollectionText(rec.location)}</p>
                   </div>
                 </Link>
               ))

@@ -8,6 +8,7 @@ import { useLocation } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation } from "lucide-react";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 declare global {
   interface Window {
@@ -288,6 +289,11 @@ export function Map() {
   }, [activeFilter, exhibitions]);
 
   const hasMore = sidebarItems.length < totalFilteredCount;
+  const mapTranslationTexts = useMemo(
+    () => exhibitions.flatMap((item) => [item.title, item.location]),
+    [exhibitions],
+  );
+  const translateMapText = useDynamicTranslation(mapTranslationTexts, "map exhibition title and venue");
 
   useEffect(() => {
     setVisibleCount(5);
@@ -424,15 +430,17 @@ export function Map() {
         const bounds = new maps.LatLngBounds();
 
         markers = resolvedData.map(({ item, coord }) => {
-          const safeTitle = escapeHtml(item.title);
-          const safeLocation = escapeHtml(item.location);
+          const translatedTitle = translateMapText(item.title);
+          const translatedLocation = translateMapText(item.location);
+          const safeTitle = escapeHtml(translatedTitle);
+          const safeLocation = escapeHtml(translatedLocation);
           const safeDate = escapeHtml(item.dateStr);
           const eventUrl = buildEventPageUrl(item);
 
           const marker = new maps.Marker({
             position: coord,
             map,
-            title: item.title,
+            title: translatedTitle,
             icon: {
               path: maps.SymbolPath.CIRCLE,
               scale: 9,
@@ -474,7 +482,7 @@ export function Map() {
       mapInstanceRef.current = null;
       infoWindowRef.current = null;
     };
-  }, [apiKey, mapId, markerData, useCloudStyle]);
+  }, [apiKey, mapId, markerData, translateMapText, useCloudStyle]);
 
   if (!apiKey) {
     return (
@@ -563,10 +571,10 @@ export function Map() {
                 }}
               >
                 <div className="flex gap-3">
-                  <img src={item.imageUrl} alt={item.title} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
+                  <img src={item.imageUrl} alt={translateMapText(item.title)} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-start justify-between gap-2">
-                      <p className="line-clamp-2 text-sm font-bold text-white">{item.title}</p>
+                      <p className="line-clamp-2 text-sm font-bold text-white">{translateMapText(item.title)}</p>
                       <button
                         type="button"
                         onClick={(e) => void handleToggleFavorite(e, item)}
@@ -577,7 +585,7 @@ export function Map() {
                       </button>
                     </div>
                     <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
-                      <MapPin className="h-3 w-3" /> {item.location}
+                      <MapPin className="h-3 w-3" /> {translateMapText(item.location)}
                     </p>
                     <p className="flex items-center gap-1 text-[11px] text-white/50">
                       <Clock3 className="h-3 w-3" /> {item.dateStr.replace(" -> ", " — ")}

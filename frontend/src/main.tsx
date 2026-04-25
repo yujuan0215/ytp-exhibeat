@@ -5,14 +5,18 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
+import { I18nProvider, RuntimeUiTranslator } from './lib/i18n'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <RuntimeUiTranslator />
+            <App />
+          </AuthProvider>
+        </I18nProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,

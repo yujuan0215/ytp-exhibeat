@@ -8,8 +8,17 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
-export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { exhibition: Exhibition; isCollectionVariant?: boolean }) {
+export function ExhibitionCard({
+  exhibition,
+  isCollectionVariant = false,
+  translateText,
+}: {
+  exhibition: Exhibition;
+  isCollectionVariant?: boolean;
+  translateText?: (text: string) => string;
+}) {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const [favorited, setFavorited] = useState(false);
@@ -18,6 +27,11 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const translateDynamicLocal = useDynamicTranslation(
+    [exhibition.title, exhibition.location, exhibition.aiSummary ?? ""],
+    "event card",
+  );
+  const translateDynamic = translateText ?? translateDynamicLocal;
 
   useEffect(() => {
     setFavorited(isFavorited(exhibition.id));
@@ -54,7 +68,7 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
             src={exhibition.imageUrl}
-            alt={exhibition.title}
+            alt={translateDynamic(exhibition.title)}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             onError={(e) => {
               const imgs = [
@@ -84,10 +98,11 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           <Link
             to={detailHref}
             state={{ exhibition }}
+            data-dynamic-translate="true"
             className="font-bold text-lg leading-tight flex-1 min-w-0 line-clamp-2 hover:text-primary transition-colors"
-            title={exhibition.title}
+            title={translateDynamic(exhibition.title)}
           >
-            {exhibition.title}
+            {translateDynamic(exhibition.title)}
           </Link>
           {!isCollectionVariant && (
             <span
@@ -106,7 +121,7 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 opacity-70" />
-            <span className="line-clamp-1">{exhibition.location}</span>
+            <span className="line-clamp-1" data-dynamic-translate="true">{translateDynamic(exhibition.location)}</span>
           </div>
         </div>
 
@@ -115,7 +130,7 @@ export function ExhibitionCard({ exhibition, isCollectionVariant = false }: { ex
             <div className="rounded-md bg-surface-container-low border-l-2 border-primary/60 px-3 py-2.5">
               <p className="text-xs leading-relaxed line-clamp-2">
                 <span className="font-bold text-purple-400 mr-2">AI 摘要：</span>
-                <span className="text-muted-foreground">{exhibition.aiSummary}</span>
+                <span className="text-muted-foreground" data-dynamic-translate="true">{translateDynamic(exhibition.aiSummary)}</span>
               </p>
             </div>
           </div>
