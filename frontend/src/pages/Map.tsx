@@ -1232,7 +1232,7 @@ export function Map() {
           ref={searchRef}
           className="pointer-events-auto absolute left-4 top-4 z-30 w-[min(420px,calc(100vw-2rem))]"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
               <input
