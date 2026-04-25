@@ -167,8 +167,15 @@ export const sendMessageToAgent = async (message: string) => {
   return payload;
 };
 
-export const getHomeRecommendations = async (): Promise<Exhibition[]> => {
-  const response = await fetch('/api/recommendations/home');
+export const getHomeRecommendations = async (params: {
+  limit?: number;
+  offset?: number;
+} = {}): Promise<Exhibition[]> => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) search.set(key, String(value));
+  });
+  const response = await fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`);
   if (!response.ok) throw new Error("Failed to fetch home recommendations");
   const data = await response.json();
   return data.exhibitions;

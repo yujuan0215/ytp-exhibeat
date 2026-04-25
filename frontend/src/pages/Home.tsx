@@ -1,22 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, ArrowRight } from "lucide-react";
+import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
 import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
-const PAGE_SIZE = 6;
+const DEFAULT_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [12, 24, 36];
+type PageToken = number | "...";
 
 // Sort definitions — operate on filtered array
 type SortKey = "relevancy" | "newest" | "oldest" | "ending_soon";
+type HomeFilterKey = "all" | "free" | "family" | "digital" | "photo" | "museum";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "relevancy", label: "相關度優先" },
   { key: "newest", label: "最新發布" },
   { key: "oldest", label: "最舊發布" },
   { key: "ending_soon", label: "即將結束" },
+];
+const HOME_FILTERS: Array<{ key: HomeFilterKey; label: string }> = [
+  { key: "all", label: "全部推薦" },
+  { key: "free", label: "免費入場" },
+  { key: "family", label: "親子友善" },
+  { key: "digital", label: "數位/互動" },
+  { key: "photo", label: "攝影影像" },
+  { key: "museum", label: "美術館/博物館" },
 ];
 
 function parseBackendDate(str: string): number {
@@ -82,43 +92,102 @@ function matchTagSearch(exhibition: Exhibition, query: string) {
   const tags = (exhibition.tags ?? []).map((tag) => normalizeSearchText(String(tag).replace(/^#+/, "")));
   return tags.some((tag) => tag.includes(keyword));
 }
+function matchesHomeFilter(exhibition: Exhibition, filter: HomeFilterKey): boolean {
+  if (filter === "all") return true;
+  const haystack = [
+    exhibition.title,
+    exhibition.location,
+    exhibition.aiSummary ?? "",
+    exhibition.price ?? "",
+    ...exhibition.tags,
+  ].join(" ").toLowerCase();
+
+  if (filter === "free") return exhibition._meta?.isFree === true || haystack.includes("free") || haystack.includes("免費");
+  if (filter === "family") return /親子|兒童|孩子|family|child/.test(haystack);
+  if (filter === "digital") return /數位|互動|沉浸|科技|光影|digital|interactive/.test(haystack);
+  if (filter === "photo") return /攝影|影像|photo|film|image/.test(haystack);
+  if (filter === "museum") return /美術館|博物館|museum|gallery/.test(haystack);
+  return true;
+}
+
+function buildPageTokens(totalPages: number, currentPage: number): PageToken[] {
+  if (totalPages <= 9) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+  const pages = new Set<number>([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+  const normalized = Array.from(pages).filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
+  const tokens: PageToken[] = [];
+  for (let i = 0; i < normalized.length; i += 1) {
+    const page = normalized[i];
+    const prev = normalized[i - 1];
+    if (prev && page - prev > 1) tokens.push("...");
+    tokens.push(page);
+  }
+  return tokens;
+}
+
+function parseInitialPage(searchParams: URLSearchParams): number {
+  const raw = Number(searchParams.get("page"));
+  if (!Number.isFinite(raw) || raw < 1) return 1;
+  return Math.trunc(raw);
+}
+
+function parseInitialPageSize(searchParams: URLSearchParams): number {
+  const raw = Number(searchParams.get("pageSize"));
+  if (!Number.isFinite(raw)) return DEFAULT_PAGE_SIZE;
+  const pageSize = Math.trunc(raw);
+  return PAGE_SIZE_OPTIONS.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE;
+}
 
 export function Home() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
-  const [visible, setVisible] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
+  const [pageSize, setPageSize] = useState(() => parseInitialPageSize(searchParams));
+  const [pageInput, setPageInput] = useState(() => String(parseInitialPage(searchParams)));
+  const [pageInputError, setPageInputError] = useState("");
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
+  const [activeFilter, setActiveFilter] = useState<HomeFilterKey>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [sortOpen, setSortOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
-  const isTagSearch = rawQuery.trim().startsWith("#");
+  const effectiveSearch = searchTerm.trim() || rawQuery.trim();
+  const isTagSearch = effectiveSearch.startsWith("#");
 
 
   useEffect(() => {
-    getHomeRecommendations()
-      .then(data => { setAllExhibitions(data); setLoading(false); })
+    getHomeRecommendations({ limit: 120, offset: 0 })
+      .then(data => {
+        setAllExhibitions(data);
+        setLoading(false);
+      })
       .catch(err => { console.error(err); setLoading(false); });
   }, []);
 
-  // Reset visible count when filter/sort changes
-  useEffect(() => { setVisible(PAGE_SIZE); }, [activeSort]);
+  useEffect(() => { setCurrentPage(1); }, [activeSort, activeFilter, searchTerm]);
 
   const filtered = useMemo(() => {
-    const searched = !rawQuery.trim()
+    const searched = !effectiveSearch
       ? allExhibitions
       : allExhibitions.filter((exhibition) =>
           isTagSearch
-            ? matchTagSearch(exhibition, rawQuery)
-            : matchKeywordSearch(exhibition, rawQuery),
+            ? matchTagSearch(exhibition, effectiveSearch)
+            : matchKeywordSearch(exhibition, effectiveSearch),
         );
-    return sortExhibitions(searched, activeSort);
-  }, [allExhibitions, activeSort, isTagSearch, rawQuery]);
+    const matched = searched.filter((item) => matchesHomeFilter(item, activeFilter));
+    return sortExhibitions(matched, activeSort);
+  }, [activeFilter, activeSort, allExhibitions, effectiveSearch, isTagSearch]);
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
-  const grid = filtered.slice(0, visible);
-  const hasMore = visible < filtered.length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const grid = filtered.slice(startIndex, startIndex + pageSize);
+  const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
   const sharedHomeTexts = useMemo(
     () => [
       ...heroCandidates.map((item) => item.title),
@@ -136,6 +205,42 @@ export function Home() {
     }
     setHeroIndex((idx) => (idx >= heroCandidates.length ? 0 : idx));
   }, [heroCandidates.length]);
+
+  useEffect(() => {
+    setPageInput(String(safeCurrentPage));
+    setPageInputError("");
+  }, [safeCurrentPage]);
+
+  const jumpToPage = () => {
+    if (!pageInput.trim()) {
+      setPageInputError("請輸入頁碼。");
+      return;
+    }
+    const parsed = Number(pageInput);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+      setPageInputError("頁碼必須是整數。");
+      return;
+    }
+    if (parsed < 1 || parsed > totalPages) {
+      setPageInputError(`頁碼需介於 1 到 ${totalPages}。`);
+      return;
+    }
+    const nextPage = parsed;
+    setCurrentPage(nextPage);
+    setPageInput(String(nextPage));
+    setPageInputError("");
+  };
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set("page", String(safeCurrentPage));
+    next.set("pageSize", String(pageSize));
+    const currentString = searchParams.toString();
+    const nextString = next.toString();
+    if (nextString !== currentString) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [pageSize, safeCurrentPage, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (heroCandidates.length <= 1) return;
@@ -229,10 +334,40 @@ export function Home() {
       </section>
 
       <section className="max-w-7xl mx-auto px-8 py-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-end gap-8 mb-12">
+        <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="space-y-4">
+            <div className="relative w-full md:max-w-xl">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                type="search"
+                placeholder="搜尋展覽名稱、地點或需求（例：免費、親子、攝影）"
+                className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {HOME_FILTERS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setActiveFilter(option.key)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeFilter === option.key
+                      ? "bg-[#00d6ff] text-[#042028]"
+                      : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             onClick={() => setSortOpen(o => !o)}
-            className="flex items-center gap-2 text-sm text-white/65 hover:text-white transition-colors"
+            className="flex items-center gap-2 justify-self-start text-sm text-white/65 hover:text-white transition-colors lg:justify-self-end"
           >
             <span className="opacity-80">≡</span>
             {SORT_OPTIONS.find(s => s.key === activeSort)?.label ?? "排序"}
@@ -280,19 +415,109 @@ export function Home() {
         )}
         </section>
 
-        {!loading && hasMore && (
-          <div className="mt-16 text-center">
-            <Button
-              variant="outline"
-              className="px-10 py-4 border border-[#48474d]/30 rounded-full font-bold text-white/65 hover:border-primary hover:text-primary transition-all bg-transparent gap-2"
-              onClick={() => setVisible(v => v + PAGE_SIZE)}
-            >
-              探索更多精彩展演 <ArrowRight className="w-4 h-4" />
-            </Button>
+        {!loading && filtered.length > 0 && (
+          <div className="mt-12 flex flex-col items-center gap-3">
+            <p className="text-center text-white/45 text-sm">
+              第 {safeCurrentPage} / {totalPages} 頁，每頁 {pageSize} 筆，本頁 {grid.length} 筆，共 {filtered.length} 項推薦
+            </p>
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <label htmlFor="home-page-size">每頁顯示</label>
+              <select
+                id="home-page-size"
+                value={pageSize}
+                onChange={(event) => {
+                  const nextPageSize = Number(event.target.value) || DEFAULT_PAGE_SIZE;
+                  setPageSize(nextPageSize);
+                  setCurrentPage(1);
+                }}
+                className="rounded-lg border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size} 筆
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                className="rounded-full bg-white/8 px-4 text-white hover:bg-white/15 disabled:opacity-40"
+              >
+                上一頁
+              </Button>
+              {pageTokens.map((token, index) => {
+                if (token === "...") {
+                  return (
+                    <span key={`home-ellipsis-${index}`} className="px-1 text-xs text-white/45">
+                      ...
+                    </span>
+                  );
+                }
+                const pageStart = (token - 1) * pageSize + 1;
+                const pageEnd = Math.min(token * pageSize, filtered.length);
+                const active = token === safeCurrentPage;
+                return (
+                  <button
+                    key={token}
+                    type="button"
+                    onClick={() => setCurrentPage(token)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? "bg-[#00d6ff] text-[#042028]"
+                        : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                    }`}
+                    title={`第 ${token} 頁（${pageStart}-${pageEnd} 筆）`}
+                  >
+                    {token}
+                  </button>
+                );
+              })}
+              <Button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="rounded-full bg-white/8 px-4 text-white hover:bg-white/15 disabled:opacity-40"
+              >
+                下一頁
+              </Button>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-xs text-white/70">
+              <span>跳到第</span>
+              <input
+                value={pageInput}
+                onChange={(event) => {
+                  setPageInput(event.target.value.replace(/[^\d]/g, ""));
+                  if (pageInputError) setPageInputError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") jumpToPage();
+                }}
+                inputMode="numeric"
+                className="w-16 rounded-lg border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-center text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <span>頁</span>
+              <Button
+                type="button"
+                onClick={jumpToPage}
+                className="rounded-full bg-white/10 px-4 text-white hover:bg-white/15"
+              >
+                前往
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                className="rounded-full bg-white/10 px-4 text-white hover:bg-white/15"
+              >
+                最後一頁
+              </Button>
+            </div>
+            {pageInputError ? (
+              <p className="text-xs text-rose-300">{pageInputError}</p>
+            ) : null}
           </div>
-        )}
-        {!loading && !hasMore && filtered.length > 0 && (
-          <p className="mt-12 text-center text-white/30 text-sm">已顯示全部 {filtered.length} 項推薦</p>
         )}
       </section>
     </div>
