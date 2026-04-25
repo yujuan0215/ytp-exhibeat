@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Exhibition } from "@/data/mock";
-import { getHomeRecommendations, listLegalStays } from "@/lib/api";
+import { getHomeRecommendations, listLegalStays, listTagStats, type TagStat } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -271,6 +271,79 @@ function buildMarkerIcon(maps: any, kind: "event" | "stay", selected = false) {
   };
 }
 
+function normalizeHashtag(value: string): string {
+  const stripped = String(value ?? "").trim().replace(/^#+/, "").replace(/\s+/g, "");
+  if (!stripped) return "";
+  return `#${stripped}`;
+}
+
+function normalizeSearchText(value: string) {
+  return String(value).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function parseSearchTokens(query: string): { keywordTerms: string[]; tagTerms: string[] } {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) {
+    return { keywordTerms: [], tagTerms: [] };
+  }
+  const tagTerms = Array.from(normalized.matchAll(/#([^\s#]+)/g))
+    .map((match) => match[1]?.trim())
+    .filter(Boolean) as string[];
+  const keywordTerms = normalized
+    .replace(/#[^\s#]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  return { keywordTerms, tagTerms };
+}
+
+function matchMixedSearch(
+  exhibition: Exhibition,
+  tokens: { keywordTerms: string[]; tagTerms: string[] },
+) {
+  const haystack = normalizeSearchText(
+    [
+      exhibition.title,
+      exhibition.location,
+      exhibition.aiSummary ?? "",
+      exhibition.dateStr,
+      ...(exhibition.tags ?? []),
+    ].join(" "),
+  );
+  const normalizedTags = (exhibition.tags ?? []).map((tag) =>
+    normalizeSearchText(String(tag).replace(/^#+/, "")),
+  );
+  const keywordMatched = tokens.keywordTerms.every((term) => haystack.includes(term));
+  const tagMatched = tokens.tagTerms.every((term) => normalizedTags.some((tag) => tag.includes(term)));
+  return keywordMatched && tagMatched;
+}
+
+function getActiveHashtagFragment(input: string): string {
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  const match = trimmedRight.match(/(?:^|\s)#([^\s#]*)$/);
+  return match?.[1]?.toLowerCase() ?? "";
+}
+
+function hasActiveHashtagToken(input: string): boolean {
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  return /(?:^|\s)#[^\s#]*$/.test(trimmedRight);
+}
+
+function replaceActiveHashtag(input: string, nextTag: string): string {
+  const normalizedTag = normalizeHashtag(nextTag);
+  const trimmedRight = String(input ?? "").replace(/\s+$/, "");
+  if (!normalizedTag) return trimmedRight;
+  const match = trimmedRight.match(/(?:^|\s)#[^\s#]*$/);
+  if (!match) {
+    return `${trimmedRight}${trimmedRight ? " " : ""}${normalizedTag}`.trim();
+  }
+  const start = match.index ?? 0;
+  const prefix = trimmedRight.slice(0, start);
+  const joiner = prefix && !/\s$/.test(prefix) ? " " : "";
+  return `${prefix}${joiner}${normalizedTag}`.trim();
+}
+
 export function Map() {
   const { user } = useAuth();
   const location = useLocation();
@@ -295,8 +368,11 @@ export function Map() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"all" | "nearby" | "free" | "ending">("all");
-  const [sidebarSearchTerm, setSidebarSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
+  const [isSearchPanelExpanded, setIsSearchPanelExpanded] = useState(false);
   const [selection, setSelection] = useState<MapSelection>(null);
   const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
@@ -326,6 +402,7 @@ export function Map() {
   const latestViewportRef = useRef<NonNullable<typeof mapViewport> | null>(null);
   const handledStayQueryIdRef = useRef<string | null>(null);
   const handledExplicitStayFocusRef = useRef<string | null>(null);
+  const searchRef = useRef<HTMLFormElement | null>(null);
   const prefillState = (location.state as { prefillStay?: LegalStay; prefillEvent?: Exhibition } | null) ?? null;
   const prefillStay = prefillState?.prefillStay ?? null;
   const prefillEvent = prefillState?.prefillEvent ?? null;
@@ -395,44 +472,21 @@ export function Map() {
     [taipeiExhibitions],
   );
 
-  const sidebarItems = useMemo(() => {
-    const list = [...taipeiExhibitions];
-    if (activeFilter === "free") {
-      return list.filter((e) => e.price === "FREE" || e._meta?.isFree).slice(0, visibleCount);
-    }
-    if (activeFilter === "ending") {
-      return list
-        .filter((e) => !!e._meta?.endDate)
-        .sort((a, b) => new Date(a._meta?.endDate || "").getTime() - new Date(b._meta?.endDate || "").getTime())
-        .slice(0, visibleCount);
-    }
-    if (activeFilter === "nearby") {
-      return list
-        .filter((e) => Boolean(getItemCoords(e)))
-        .slice(0, visibleCount);
-    }
-    return list.slice(0, visibleCount);
-  }, [activeFilter, taipeiExhibitions, visibleCount]);
-
-  const totalFilteredCount = useMemo(() => {
-    const list = [...taipeiExhibitions];
-    if (activeFilter === "free") return list.filter((e) => e.price === "FREE" || e._meta?.isFree).length;
-    if (activeFilter === "ending") return list.filter((e) => !!e._meta?.endDate).length;
-    if (activeFilter === "nearby") {
-      return list.filter((e) => Boolean(getItemCoords(e))).length;
-    }
-    return list.length;
-  }, [activeFilter, taipeiExhibitions]);
-
-  const hasMore = sidebarItems.length < totalFilteredCount;
-  const filteredSidebarItems = useMemo(() => {
-    const q = sidebarSearchTerm.trim().toLowerCase();
-    if (!q) return sidebarItems;
-    return sidebarItems.filter((item) => {
-      const haystack = `${item.title} ${item.location}`.toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [sidebarItems, sidebarSearchTerm]);
+  const effectiveSearch = searchQuery.trim();
+  const searchTokens = useMemo(() => parseSearchTokens(effectiveSearch), [effectiveSearch]);
+  const searchedTaipeiExhibitions = useMemo(
+    () =>
+      !effectiveSearch
+        ? taipeiExhibitions
+        : taipeiExhibitions.filter((exhibition) => matchMixedSearch(exhibition, searchTokens)),
+    [effectiveSearch, searchTokens, taipeiExhibitions],
+  );
+  const filteredSidebarItems = useMemo(
+    () => searchedTaipeiExhibitions.slice(0, visibleCount),
+    [searchedTaipeiExhibitions, visibleCount],
+  );
+  const totalFilteredCount = searchedTaipeiExhibitions.length;
+  const hasMore = filteredSidebarItems.length < totalFilteredCount;
   const selectedEventId = selection?.kind === "event" ? selection.id : null;
   const selectedItem = useMemo(
     () => (selectedEventId ? taipeiExhibitions.find((item) => item.id === selectedEventId) ?? null : null),
@@ -450,6 +504,7 @@ export function Map() {
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
   const queryReturnTo = searchParams.get("returnTo");
+  const showExpandedPanel = isSearchPanelExpanded || Boolean(selectedItem) || Boolean(selectedStay);
 
   function isTaipeiStay(stay: LegalStay): boolean {
     const city = stay.address.city.trim().toLowerCase().replace("台", "臺");
@@ -537,9 +592,61 @@ export function Map() {
     return next;
   }
 
+  const activeTagQuery = useMemo(() => getActiveHashtagFragment(searchQuery), [searchQuery]);
+  const tagSuggestionActive = useMemo(() => hasActiveHashtagToken(searchQuery), [searchQuery]);
+  const mergedTagStats = useMemo(() => {
+    const merged = new globalThis.Map<string, number>();
+    availableTagStats.forEach((row) => {
+      const tag = normalizeHashtag(row.tag);
+      if (!tag) return;
+      merged.set(tag, Math.max(0, Math.floor(Number(row.count) || 0)));
+    });
+    return Array.from(merged.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "zh-Hant"));
+  }, [availableTagStats]);
+  const searchSuggestions = useMemo(() => {
+    if (!tagSuggestionActive) return [] as Array<{ tag: string; count: number }>;
+    const rows: Array<{ tag: string; count: number }> = [];
+    for (const row of mergedTagStats) {
+      const cleanTag = row.tag.replace(/^#+/, "").toLowerCase();
+      if (activeTagQuery && !cleanTag.startsWith(activeTagQuery)) continue;
+      rows.push(row);
+    }
+    return rows.slice(0, 30);
+  }, [activeTagQuery, mergedTagStats, tagSuggestionActive]);
+
+  useEffect(() => {
+    listTagStats()
+      .then((data) => {
+        setAvailableTagStats(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        console.warn("Failed to load search suggestions", error);
+        setAvailableTagStats([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) {
+        setSearchSuggestionsOpen(false);
+      }
+    };
+    if (!searchSuggestionsOpen) return;
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [searchSuggestionsOpen]);
+
   useEffect(() => {
     setVisibleCount(5);
-  }, [activeFilter]);
+  }, [effectiveSearch]);
+
+  useEffect(() => {
+    if (selectedItem || selectedStay || effectiveSearch) {
+      setIsSearchPanelExpanded(true);
+    }
+  }, [effectiveSearch, selectedItem, selectedStay]);
 
   useEffect(() => {
     const syncFavorites = () => {
@@ -678,6 +785,43 @@ export function Map() {
     setSearchParams(next, { replace: true });
     setSelection({ kind: "event", id: item.id });
     setSelectedStay(null);
+
+    // Make list-click behave like marker-click even when the marker is created
+    // asynchronously after viewport reconciliation.
+    let attempts = 0;
+    const tryFocusAfterRender = () => {
+      const markerExists = Boolean(markerLookupRef.current[lookupKey]);
+      if (markerExists) {
+        focusMarkerOnMap(lookupKey, false, false);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 12) {
+        window.requestAnimationFrame(tryFocusAfterRender);
+      }
+    };
+    window.requestAnimationFrame(tryFocusAfterRender);
+  };
+
+  const applySearchQuery = (value: string) => {
+    const next = value.trim();
+    setSearchQuery(next);
+    setSearchSuggestionsOpen(false);
+    setActiveSuggestionIndex(-1);
+    if (next) setIsSearchPanelExpanded(true);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedSuggestion =
+      activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex]?.tag : null;
+    const nextQuery = selectedSuggestion ? replaceActiveHashtag(searchQuery, selectedSuggestion) : searchQuery;
+    applySearchQuery(nextQuery);
+  };
+
+  const handleSuggestionClick = (suggestion: { tag: string; count: number }) => {
+    const nextQuery = replaceActiveHashtag(searchQuery, suggestion.tag);
+    applySearchQuery(nextQuery);
   };
 
   useEffect(() => {
@@ -1076,51 +1220,80 @@ export function Map() {
           </div>
         )}
 
+        {/* Single search bar: same screen position whether the left panel is open or not */}
+        <form
+          onSubmit={handleSearchSubmit}
+          ref={searchRef}
+          className="pointer-events-auto absolute left-4 top-4 z-30 w-[min(348px,calc(100vw-2rem))]"
+        >
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchQuery(value);
+                setActiveSuggestionIndex(-1);
+                setSearchSuggestionsOpen(hasActiveHashtagToken(value));
+                if (value.trim()) setIsSearchPanelExpanded(true);
+              }}
+              onFocus={() => {
+                setSearchSuggestionsOpen(hasActiveHashtagToken(searchQuery));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSearchSuggestionsOpen(false);
+                  setActiveSuggestionIndex(-1);
+                  return;
+                }
+                if (!searchSuggestionsOpen || searchSuggestions.length === 0) return;
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) => (prev + 1) % searchSuggestions.length);
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) =>
+                    prev <= 0 ? searchSuggestions.length - 1 : prev - 1,
+                  );
+                }
+              }}
+              placeholder="搜尋展覽名稱或地點（#標籤）"
+              className="h-12 w-full rounded-full border border-white/10 bg-[#1f1f26]/95 pl-11 pr-12 text-base text-white shadow-xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          {searchSuggestionsOpen && (
+            <div className="absolute left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1625] shadow-xl">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion.tag}-${index}`}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onMouseEnter={() => setActiveSuggestionIndex(index)}
+                    className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors ${
+                      index === activeSuggestionIndex
+                        ? "bg-white/10 text-white"
+                        : "text-white/80 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span>{suggestion.tag}</span>
+                    <span className="text-xs text-white/50">{suggestion.count}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2.5 text-sm text-white/45">無符合標籤</div>
+              )}
+            </div>
+          )}
+        </form>
+
+        {showExpandedPanel ? (
         <aside
-          className="absolute bottom-0 left-0 top-0 z-10 flex w-[380px] max-w-[92vw] flex-col overflow-hidden border border-white/10 bg-[#0f0f1a] p-6 shadow-2xl"
+          className="absolute bottom-0 left-0 top-0 z-10 flex w-[380px] max-w-[92vw] flex-col overflow-hidden border border-white/10 bg-[#0f0f1a] px-6 pb-6 pt-[4.75rem] shadow-2xl"
         >
           {!selectedItem && !selectedStay ? (
             <>
-              <header className="sticky top-0 z-20 -mx-6 mb-4 border-b border-white/10 bg-[#0f0f1a] px-6 pb-4 pt-1">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                  <input
-                    type="search"
-                    value={sidebarSearchTerm}
-                    onChange={(event) => setSidebarSearchTerm(event.target.value)}
-                    placeholder="搜尋展覽名稱或地點"
-                    className="h-10 w-full rounded-full border border-white/10 bg-[#1f1f26] pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-              </header>
-
-              <div className="mb-5 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveFilter("all")}
-                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "all" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-                >
-                  全部展覽
-                </button>
-                <button
-                  onClick={() => setActiveFilter("nearby")}
-                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "nearby" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-                >
-                  就近推薦
-                </button>
-                <button
-                  onClick={() => setActiveFilter("free")}
-                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "free" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-                >
-                  免費參展
-                </button>
-                <button
-                  onClick={() => setActiveFilter("ending")}
-                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "ending" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-                >
-                  即將結束
-                </button>
-              </div>
-
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 pr-1">
                 {filteredSidebarItems.map((item) => (
                   <div
@@ -1179,9 +1352,20 @@ export function Map() {
               >
                 <Navigation className="h-4 w-4" /> 探索更多展覽
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!searchQuery.trim()) {
+                    setIsSearchPanelExpanded(false);
+                  }
+                }}
+                className={`mt-2 w-full border border-white/15 py-2 text-sm text-white/70 hover:bg-white/5 ${isV1 ? "rounded-md" : "rounded-full"}`}
+              >
+                收合搜尋面板
+              </button>
             </>
           ) : selectedStay ? (
-            <div className="flex flex-col gap-5">
+            <div className="min-h-0 flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
               {queryReturnTo ? (
                 <button
                   type="button"
@@ -1191,12 +1375,12 @@ export function Map() {
                   返回聊天
                 </button>
               ) : null}
-              <div className="relative border border-white/10 bg-[#111827] p-5">
+              <div className="relative border border-white/10 bg-[#111827]">
                 {selectedStay.primaryImageUrl ? (
                   <img
                     src={selectedStay.primaryImageUrl}
                     alt={selectedStay.name}
-                    className="mb-4 h-44 w-full rounded-xl object-cover"
+                    className="h-48 w-full object-cover"
                   />
                 ) : null}
                 <button
@@ -1231,10 +1415,20 @@ export function Map() {
                     <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
                   </div>
                 </div>
-                <div className="pt-8">
+                <div className="p-5 pt-8">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || "點選地圖上的旅宿，可快速查看住宿資訊與位置。"}</p>
+                  {selectedStay.urls.website ? (
+                    <a
+                      href={selectedStay.urls.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`mt-4 inline-flex items-center gap-2 bg-[#00d6ff] px-4 py-2 text-sm font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
+                    >
+                      <ExternalLink className="h-4 w-4" /> 查看旅宿詳情
+                    </a>
+                  ) : null}
                   {selectedStay.primaryImageUrl ? (
                     <p className="mt-2 text-[11px] text-white/45">
                       圖片來源：{selectedStay.imageSourcePolicy?.attribution || "資料來源網站"}
@@ -1268,20 +1462,9 @@ export function Map() {
               >
                 <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
               </a>
-
-              {selectedStay.urls.website ? (
-                <a
-                  href={selectedStay.urls.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`inline-flex items-center justify-center gap-2 bg-[#00d6ff] px-4 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
-                >
-                  <ExternalLink className="h-4 w-4" /> 查看官方網站
-                </a>
-              ) : null}
             </div>
           ) : selectedItem ? (
-            <div className="flex flex-col gap-5">
+            <div className="min-h-0 flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
               {queryReturnTo ? (
                 <button
                   type="button"
@@ -1291,7 +1474,7 @@ export function Map() {
                   返回聊天
                 </button>
               ) : null}
-              <div className="relative">
+              <div className="relative border border-white/10 bg-[#111827]">
                 <img
                   src={selectedItem.imageUrl}
                   alt={selectedItem.title}
@@ -1311,23 +1494,35 @@ export function Map() {
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
                 <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
-                  <AddToTripListMenu kind="event" exhibition={selectedItem} align="end" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => void handleToggleFavorite(e, selectedItem)}
+                      title={user ? (favoriteIds.has(selectedItem.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                      className="rounded-full border border-white/20 bg-black/45 p-2 text-white/80 hover:bg-black/60"
+                    >
+                      <Heart
+                        className={`h-4 w-4 transition-all ${
+                          favoriteIds.has(selectedItem.id)
+                            ? "fill-purple-500 text-purple-500"
+                            : "text-white/70 hover:text-white"
+                        }`}
+                      />
+                    </button>
+                    <AddToTripListMenu kind="event" exhibition={selectedItem} align="end" />
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="p-5 pt-8">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#df8eff]">展演活動</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedItem.title}</h2>
-                  <button
-                    type="button"
-                    onClick={(e) => void handleToggleFavorite(e, selectedItem)}
-                    title={user ? (favoriteIds.has(selectedItem.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
-                    className="shrink-0 p-1.5"
+                  <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedSummary}</p>
+                  <a
+                    href={buildEventPageUrl(selectedItem)}
+                    className={`mt-4 inline-flex items-center gap-2 bg-[#df8eff] px-4 py-2 text-sm font-semibold text-[#2f0f42] hover:bg-[#d680f6] ${isV1 ? "rounded-md" : "rounded-full"}`}
                   >
-                    <Heart className={`h-5 w-5 transition-all ${favoriteIds.has(selectedItem.id) ? "fill-purple-500 text-purple-500" : "text-white/55 hover:text-white/85"}`} />
-                  </button>
+                    <ExternalLink className="h-4 w-4" /> 查看活動詳情
+                  </a>
                 </div>
-                <p className="text-sm leading-relaxed text-white/72">{selectedSummary}</p>
               </div>
 
               <div className="space-y-2 border-y border-white/10 py-4">
@@ -1351,16 +1546,10 @@ export function Map() {
               >
                 <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
               </a>
-
-              <a
-                href={buildEventPageUrl(selectedItem)}
-                className={`inline-flex items-center justify-center gap-2 bg-[#df8eff] px-4 py-2.5 font-semibold text-[#2f0f42] hover:bg-[#d680f6] ${isV1 ? "rounded-md" : "rounded-full"}`}
-              >
-                <ExternalLink className="h-4 w-4" /> 查看完整活動頁
-              </a>
             </div>
           ) : null}
         </aside>
+        ) : null}
       </div>
       <SignInPrompt
         open={showSignInPrompt}
