@@ -261,6 +261,8 @@ export const listLegalStays = async (params: {
   town?: string;
   class?: string;
   service_status?: number;
+  locale?: string;
+  lang?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<LegalStaysResponse> => {
@@ -278,6 +280,8 @@ export const getLegalStaysGeoJson = async (params: {
   town?: string;
   class?: string;
   service_status?: number;
+  locale?: string;
+  lang?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<LegalStaysGeoJson> => {

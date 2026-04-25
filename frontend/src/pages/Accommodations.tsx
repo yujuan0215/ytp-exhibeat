@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { listLegalStays, type LegalStay } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
+import { useI18n } from "@/lib/i18n";
 import {
   getStayFavoriteIds,
   STAY_FAVORITES_CHANGE_EVENT,
@@ -42,6 +43,7 @@ export function Accommodations() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
+  const { locale } = useI18n();
   const isV1 = theme === "v1";
   const [stays, setStays] = useState<LegalStay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export function Accommodations() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listLegalStays({ city: "Taipei City", limit: PAGE_SIZE, offset: 0 })
+    listLegalStays({ city: "Taipei City", locale, lang: locale, limit: PAGE_SIZE, offset: 0 })
       .then((result) => {
         if (cancelled) return;
         setStays(result.stays);
@@ -67,7 +69,7 @@ export function Accommodations() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const sync = () => setFavoriteStayIds(new Set(getStayFavoriteIds()));
