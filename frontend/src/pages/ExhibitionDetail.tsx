@@ -22,6 +22,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
+import { SignInPrompt } from "@/components/SignInPrompt";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
@@ -165,6 +166,7 @@ export function ExhibitionDetail() {
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [activeTagOptionIndex, setActiveTagOptionIndex] = useState(-1);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const venueMapRef = useRef<HTMLElement | null>(null);
   const tagPickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -343,7 +345,7 @@ export function ExhibitionDetail() {
   const handleToggleFavorite = async () => {
     if (!exhibition) return;
     if (!user) {
-      navigate("/login", { state: { from: location.pathname } });
+      setShowSignInPrompt(true);
       return;
     }
     const next = await toggleFavorite(exhibition);
@@ -354,7 +356,7 @@ export function ExhibitionDetail() {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      navigate("/login", { state: { from: location.pathname } });
+      setShowSignInPrompt(true);
       return;
     }
     await toggleFavorite(item);
@@ -892,11 +894,15 @@ export function ExhibitionDetail() {
                           title={user ? (isFavorited(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
                           className="shrink-0 p-1"
                         >
-                          <Heart
-                            className={`h-4 w-4 transition-all ${
-                              isFavorited(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"
-                            }`}
-                          />
+                          {user ? (
+                            <Heart
+                              className={`h-4 w-4 transition-all ${
+                                isFavorited(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"
+                              }`}
+                            />
+                          ) : (
+                            <Lock className="h-4 w-4 text-white/60 hover:text-white/85" />
+                          )}
                         </button>
                       </div>
                       <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
@@ -987,6 +993,13 @@ export function ExhibitionDetail() {
           </div>
         </div>
       )}
+      <SignInPrompt
+        open={showSignInPrompt}
+        from={location.pathname + location.search}
+        title="收藏活動需要先登入"
+        description="登入或註冊後即可使用收藏功能，並同步你的收藏清單。"
+        onClose={() => setShowSignInPrompt(false)}
+      />
     </div>
   );
 }
