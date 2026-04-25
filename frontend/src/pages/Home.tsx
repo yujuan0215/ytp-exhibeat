@@ -9,29 +9,6 @@ import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const PAGE_SIZE = 6;
 
-// Filter definitions — each checks the raw exhibition fields
-type FilterKey = "全部展演" | "雨天備案" | "夜間推薦" | "親子友善" | "限時免費";
-
-const FILTER_PREDICATES: Record<FilterKey, (e: Exhibition) => boolean> = {
-  "全部展演": () => true,
-  "雨天備案": (e) => {
-    const text = `${e.title} ${e.location} ${e.aiSummary} ${e.tags.join(" ")}`.toLowerCase();
-    return text.includes("室內") || text.includes("博物館") || text.includes("美術館") || text.includes("科博") || text.includes("自然");
-  },
-  "夜間推薦": (e) => {
-    const text = `${e.title} ${e.aiSummary} ${e.tags.join(" ")}`.toLowerCase();
-    return text.includes("夜") || text.includes("光影") || text.includes("螢光") || text.includes("霓虹") || text.includes("燈");
-  },
-  "親子友善": (e) => {
-    const text = `${e.title} ${e.aiSummary} ${e.tags.join(" ")}`.toLowerCase();
-    return text.includes("親子") || text.includes("兒童") || text.includes("互動") || text.includes("科學") || text.includes("自然");
-  },
-  "限時免費": (e) => {
-    const t = `${e.title} ${e.tags.join(" ")} ${e.aiSummary}`.toLowerCase();
-    return e.price === "FREE" || t.includes("免費") || t.includes("免票");
-  },
-};
-
 // Sort definitions — operate on filtered array
 type SortKey = "relevancy" | "newest" | "oldest" | "ending_soon";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -78,7 +55,6 @@ export function Home() {
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("全部展演");
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
   const [sortOpen, setSortOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
@@ -90,12 +66,11 @@ export function Home() {
   }, []);
 
   // Reset visible count when filter/sort changes
-  useEffect(() => { setVisible(PAGE_SIZE); }, [activeFilter, activeSort]);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [activeSort]);
 
   const filtered = useMemo(() => {
-    const pred = FILTER_PREDICATES[activeFilter];
-    return sortExhibitions(allExhibitions.filter(pred), activeSort);
-  }, [allExhibitions, activeFilter, activeSort]);
+    return sortExhibitions(allExhibitions, activeSort);
+  }, [allExhibitions, activeSort]);
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
@@ -211,22 +186,7 @@ export function Home() {
       </section>
 
       <section className="max-w-7xl mx-auto px-8 py-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
-        <div className="flex flex-wrap gap-3">
-          {(["全部展演", "雨天備案", "夜間推薦", "親子友善", "限時免費"] as FilterKey[]).map(filter => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-5 py-2 rounded-full text-sm border transition-all duration-200 ${
-                activeFilter === filter
-                  ? "bg-secondary text-[#003a42] font-bold shadow-[0_0_12px_rgba(0,227,253,0.2)] border-transparent"
-                  : "bg-[#131318] border-[#48474d]/40 text-white/70 hover:text-white"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-end gap-8 mb-12">
           <button
             onClick={() => setSortOpen(o => !o)}
             className="flex items-center gap-2 text-sm text-white/65 hover:text-white transition-colors"
