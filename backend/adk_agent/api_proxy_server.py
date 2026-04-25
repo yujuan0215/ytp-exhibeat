@@ -1179,6 +1179,129 @@ def _is_recommendation_intent(text: str) -> bool:
     )
 
 
+def _is_itinerary_intent(text: str) -> bool:
+    normalized = (text or "").lower()
+    if not normalized:
+        return False
+    itinerary_keywords = (
+        "行程",
+        "規劃",
+        "规划",
+        "itinerary",
+        "route",
+        "schedule",
+        "timeline",
+        "交通",
+        "時間安排",
+        "注意事項",
+    )
+    if any(keyword in normalized for keyword in itinerary_keywords):
+        return True
+    # Explicit list-to-plan prompt pattern used by collection prefill.
+    return "請根據以下" in (text or "") and "行程清單" in (text or "")
+
+
+def _is_list_itinerary_prompt(text: str) -> bool:
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    return ("請根據以下" in raw and "行程清單" in raw) and bool(
+        _re.search(r"(^|\n)\s*\d+\.\s*\[(展演|旅宿)\]", raw)
+    )
+
+
+def _extract_list_items_from_prompt(text: str) -> list[dict[str, str]]:
+    lines = [line.strip() for line in (text or "").splitlines()]
+    items: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+
+    for line in lines:
+        if not line:
+            continue
+        header = _re.match(r"^\s*(\d+)\.\s*\[(展演|旅宿)\]\s*(.+)$", line)
+        if header:
+            if current:
+                items.append(current)
+            current = {
+                "kind": "event" if header.group(2) == "展演" else "stay",
+                "title": header.group(3).strip(),
+            }
+            continue
+        if not current:
+            continue
+        field = _re.match(r"^(地點|地址|檔期|日期|價格|票價)[：:]\s*(.+)$", line)
+        if not field:
+            continue
+        key_map = {
+            "地點": "location",
+            "地址": "address",
+            "檔期": "date",
+            "日期": "date",
+            "價格": "price",
+            "票價": "price",
+        }
+        mapped = key_map.get(field.group(1))
+        if mapped:
+            current[mapped] = field.group(2).strip()
+
+    if current:
+        items.append(current)
+    return items
+
+
+def _inject_list_itinerary_payload(run_response_bytes: bytes, latest_user_text: str = "") -> bytes:
+    if not _is_list_itinerary_prompt(latest_user_text):
+        return run_response_bytes
+    list_items = _extract_list_items_from_prompt(latest_user_text)
+    if not list_items:
+        return run_response_bytes
+
+    try:
+        payload = json.loads(run_response_bytes.decode("utf-8"))
+    except Exception:
+        return run_response_bytes
+    if not isinstance(payload, list) or not payload:
+        return run_response_bytes
+
+    list_name_match = _re.search(r"「([^」]+)」", latest_user_text or "")
+    list_name = list_name_match.group(1).strip() if list_name_match else "行程清單"
+
+    itinerary: list[dict[str, object]] = []
+    base_hour = 10
+    for idx, item in enumerate(list_items):
+        start_hour = min(base_hour + idx * 2, 21)
+        end_hour = min(start_hour + (2 if item.get("kind") == "event" else 10), 23)
+        itinerary.append(
+            {
+                "id": f"list_item_{idx + 1}",
+                "type": "event" if item.get("kind") == "event" else "stay",
+                "title": item.get("title", "").strip(),
+                "time_range": f"{start_hour:02d}:00 - {end_hour:02d}:00",
+                "estimated_stay_minutes": 120 if item.get("kind") == "event" else 600,
+                "reason": "此站點來自你提供的行程清單。",
+                "venue_name": item.get("location", "").strip() or item.get("address", "").strip(),
+                "address": item.get("address", "").strip() or item.get("location", "").strip(),
+                "date": item.get("date", "").strip(),
+                "price": item.get("price", "").strip(),
+                "travel_mode": "步行/大眾運輸",
+                "estimated_travel_minutes": 25 if idx > 0 else 0,
+                "travel_summary": "此段交通時間為估算值，建議出發前再確認即時路線。",
+            }
+        )
+
+    itinerary_payload = {
+        "date": "",
+        "summary": f"以下為根據「{list_name}」清單整理的行程草案，共 {len(itinerary)} 站。",
+        "itinerary": itinerary,
+    }
+
+    target = next((item for item in reversed(payload) if isinstance(item, dict)), None)
+    if not isinstance(target, dict):
+        return run_response_bytes
+    target["itinerary_payload"] = itinerary_payload
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+
 def _is_accommodation_intent(text: str) -> bool:
     normalized = (text or "").lower()
     if not normalized:
@@ -1414,7 +1537,7 @@ def _inject_recommendation_carousel_payload(run_response_bytes: bytes, latest_us
         if len(merged) >= 12:
             break
 
-    if not merged and _is_recommendation_intent(latest_user_text):
+    if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
         merged = (
             _fallback_accommodation_cards(text=latest_user_text, limit=6)
             if wants_accommodation
@@ -1532,7 +1655,8 @@ async def proxy_adk(request: Request, path: str):
             }
             transformed = response.content
             if response.status_code < 400:
-                transformed = _inject_recommendation_carousel_payload(response.content, latest_user_text=latest_user_text)
+                transformed = _inject_list_itinerary_payload(transformed, latest_user_text=latest_user_text)
+                transformed = _inject_recommendation_carousel_payload(transformed, latest_user_text=latest_user_text)
             return Response(content=transformed, status_code=response.status_code, headers=headers)
 
         req = client.build_request(

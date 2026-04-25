@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { sendMessageToAgent } from "../lib/api";
 import type { AgentRecommendationItem } from "../lib/api";
+import type { AgentItineraryStop } from "../lib/api";
 import { AGENT_PREFILL_STORAGE_KEY, type AgentPrefillEnvelope } from "../lib/tripLists";
 
 export type AgentUserMessage = {
@@ -22,7 +23,16 @@ export type AgentRecommendationMessage = {
   events: AgentRecommendationItem[];
 };
 
-export type Message = AgentUserMessage | AgentTextMessage | AgentRecommendationMessage;
+export type AgentItineraryMessage = {
+  role: "agent";
+  kind: "itinerary_cards";
+  title?: string;
+  introText?: string;
+  date?: string;
+  stops: AgentItineraryStop[];
+};
+
+export type Message = AgentUserMessage | AgentTextMessage | AgentRecommendationMessage | AgentItineraryMessage;
 
 type AgentContextValue = {
   messages: Message[];
@@ -76,6 +86,18 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             events: result.events,
           },
         ]);
+      } else if (result.kind === "itinerary_cards") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "agent",
+            kind: "itinerary_cards",
+            title: result.title,
+            introText: result.introText,
+            date: result.date,
+            stops: result.stops,
+          },
+        ]);
       } else {
         setMessages((prev) => [...prev, { role: "agent", kind: "text", text: result.text }]);
       }
@@ -104,6 +126,18 @@ export function AgentProvider({ children }: { children: ReactNode }) {
               title: result.title,
               introText: result.introText,
               events: result.events,
+            },
+          ]);
+        } else if (result.kind === "itinerary_cards") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "agent",
+              kind: "itinerary_cards",
+              title: result.title,
+              introText: result.introText,
+              date: result.date,
+              stops: result.stops,
             },
           ]);
         } else {
