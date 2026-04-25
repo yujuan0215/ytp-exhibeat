@@ -153,15 +153,30 @@ export function ExhibitionCard({
           </div>
         )}
 
-        <Link
-          to={detailHref}
-          state={{ exhibition }}
-          className={`w-full py-2.5 mt-auto ${isV1 ? "rounded-md" : "rounded-full"} text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"
-          }`}
-        >
-          查看詳情 <ArrowRight className="w-4 h-4" />
-        </Link>
+        <div className="mt-auto flex flex-col gap-2">
+          {isCollectionVariant ? (
+            <Link
+              to={`/map?eventId=${encodeURIComponent(exhibition.id)}`}
+              state={{ prefillEvent: exhibition }}
+              className={`w-full py-2.5 ${isV1 ? "rounded-md" : "rounded-full"} text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                isV1
+                  ? "bg-surface-container-highest hover:bg-secondary hover:text-on-secondary"
+                  : "bg-white/5 hover:bg-cyan-500 hover:text-[#042028]"
+              }`}
+            > 查看地圖
+              <MapPin className="w-4 h-4" />
+            </Link>
+          ) : null}
+          <Link
+            to={detailHref}
+            state={{ exhibition }}
+            className={`w-full py-2.5 ${isV1 ? "rounded-md" : "rounded-full"} text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"
+            }`}
+          >
+            查看詳情 <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </CardContent>
       <SignInPrompt
         open={showSignInPrompt}
