@@ -246,7 +246,7 @@ export function Map() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "nearby" | "free" | "ending">("all");
   const [selection, setSelection] = useState<MapSelection>(null);
-  const [selectedStaySnapshot, setSelectedStaySnapshot] = useState<LegalStay | null>(null);
+  const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
@@ -257,7 +257,9 @@ export function Map() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
-  const markerLookupRef = useRef<Record<string, { marker: any; content: string; selection: MapSelection }>>({});
+  const markerLookupRef = useRef<
+    Record<string, { marker: any; content: string; selection: MapSelection; stayData?: LegalStay }>
+  >({});
   const stayMarkerKeysRef = useRef<string[]>([]);
   const taipeiStayCacheRef = useRef<LegalStay[]>([]);
   const taipeiStayOffsetRef = useRef(0);
@@ -343,23 +345,11 @@ export function Map() {
 
   const hasMore = sidebarItems.length < totalFilteredCount;
   const selectedEventId = selection?.kind === "event" ? selection.id : null;
-  const selectedStayId = selection?.kind === "stay" ? selection.id : null;
   const selectedItem = useMemo(
     () => (selectedEventId ? exhibitions.find((item) => item.id === selectedEventId) ?? null : null),
     [exhibitions, selectedEventId],
   );
-  const selectedStay = useMemo(
-    () => {
-      if (!selectedStayId) return null;
-      return (
-        loadedTaipeiStays.find((stay) => stay.id === selectedStayId) ??
-        legalStays.find((stay) => stay.id === selectedStayId) ??
-        taipeiStayCacheRef.current.find((stay) => stay.id === selectedStayId) ??
-        (selectedStaySnapshot?.id === selectedStayId ? selectedStaySnapshot : null)
-      );
-    },
-    [legalStays, loadedTaipeiStays, selectedStayId, selectedStaySnapshot],
-  );
+  const selectedStayIdState = selectedStay?.id ?? null;
   const selectedTicketPrice = selectedItem
     ? selectedItem.price === "FREE" || selectedItem._meta?.isFree
       ? "FREE"
@@ -451,27 +441,24 @@ export function Map() {
     };
   }, []);
 
-  const focusMarkerOnMap = (lookupKey: string, syncEventQuery = true) => {
+  const focusMarkerOnMap = (lookupKey: string, syncEventQuery = true, recenter = true) => {
     const map = mapInstanceRef.current;
     const infoWindow = infoWindowRef.current;
     const entry = markerLookupRef.current[lookupKey];
     if (!map || !infoWindow || !entry) return;
 
     const pos = entry.marker.getPosition?.();
-    if (pos) {
+    if (recenter && pos) {
       map.panTo(pos);
       map.setZoom(Math.max(map.getZoom?.() ?? 11, 13));
     }
     infoWindow.setContent(entry.content);
     infoWindow.open({ anchor: entry.marker, map });
     setSelection(entry.selection);
-    if (entry.selection?.kind === "stay" && entry.selection.id) {
-      const stay =
-        taipeiStayCacheRef.current.find((item) => item.id === entry.selection?.id) ??
-        legalStays.find((item) => item.id === entry.selection?.id) ??
-        loadedTaipeiStays.find((item) => item.id === entry.selection?.id) ??
-        null;
-      setSelectedStaySnapshot(stay);
+    if (entry.selection?.kind === "stay" && entry.stayData) {
+      setSelectedStay(entry.stayData);
+    } else if (entry.selection?.kind === "event") {
+      setSelectedStay(null);
     }
     const next = new URLSearchParams(searchParams);
     if (entry.selection?.kind === "event" && entry.selection.id) {
@@ -630,10 +617,10 @@ export function Map() {
 
     const cachedVisible = pickVisibleStays(taipeiStayCacheRef.current, mapViewport);
     const nextVisible = [...cachedVisible];
-    if (selection?.kind === "stay") {
+    if (selectedStayIdState) {
       const pinned =
-        taipeiStayCacheRef.current.find((stay) => stay.id === selection.id) ??
-        loadedTaipeiStays.find((stay) => stay.id === selection.id) ??
+        taipeiStayCacheRef.current.find((stay) => stay.id === selectedStayIdState) ??
+        loadedTaipeiStays.find((stay) => stay.id === selectedStayIdState) ??
         null;
       if (pinned && !nextVisible.some((stay) => stay.id === pinned.id)) {
         nextVisible.unshift(pinned);
@@ -664,8 +651,8 @@ export function Map() {
         if (!latestViewport || latestViewport.zoom < MIN_STAY_ZOOM) return;
         const visibleAfterLoad = pickVisibleStays(taipeiStayCacheRef.current, latestViewport);
         const nextVisibleAfterLoad = [...visibleAfterLoad];
-        if (selection?.kind === "stay") {
-          const pinned = taipeiStayCacheRef.current.find((stay) => stay.id === selection.id) ?? null;
+        if (selectedStayIdState) {
+          const pinned = taipeiStayCacheRef.current.find((stay) => stay.id === selectedStayIdState) ?? null;
           if (pinned && !nextVisibleAfterLoad.some((stay) => stay.id === pinned.id)) {
             nextVisibleAfterLoad.unshift(pinned);
           }
@@ -679,13 +666,8 @@ export function Map() {
       .finally(() => {
         taipeiStayLoadingRef.current = false;
       });
-  }, [loadedTaipeiStays, mapViewport, selection]);
+  }, [loadedTaipeiStays, mapViewport, selectedStayIdState]);
 
-  useEffect(() => {
-    if (selection?.kind !== "stay") {
-      setSelectedStaySnapshot(null);
-    }
-  }, [selection]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -731,10 +713,24 @@ export function Map() {
         marker,
         content: popupContent,
         selection: { kind: "stay", id: stay.id },
+        stayData: stay,
       };
       stayMarkerKeysRef.current.push(lookupKey);
       marker.addListener("click", () => focusMarkerOnMap(lookupKey));
     });
+
+    // Unlike event markers (created once), stay markers are viewport-driven and
+    // get recreated on pan/zoom. Re-anchor the popup to the new marker instance
+    // so it doesn't disappear right after first click.
+    if (selection?.kind === "stay") {
+      const selectedKey = `stay:${selection.id}`;
+      const selectedEntry = markerLookupRef.current[selectedKey];
+      const infoWindow = infoWindowRef.current;
+      if (selectedEntry && infoWindow) {
+        infoWindow.setContent(selectedEntry.content);
+        infoWindow.open({ anchor: selectedEntry.marker, map });
+      }
+    }
   }, [legalStays]);
 
   useEffect(() => {
@@ -897,6 +893,7 @@ export function Map() {
                     const next = new URLSearchParams(searchParams);
                     next.delete("eventId");
                     setSearchParams(next, { replace: true });
+                    setSelectedStay(null);
                     setSelection(null);
                   }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
@@ -961,6 +958,7 @@ export function Map() {
                     const next = new URLSearchParams(searchParams);
                     next.delete("eventId");
                     setSearchParams(next, { replace: true });
+                    setSelectedStay(null);
                     setSelection(null);
                   }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
