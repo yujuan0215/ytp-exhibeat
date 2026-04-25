@@ -9,13 +9,14 @@ import {
   Loader2,
   Lock,
   MapPin,
+  Plus,
   Sparkles,
   Star,
   TrendingUp,
   X,
 } from "lucide-react";
 import type { Exhibition } from "@/data/mock";
-import { getCollectionRecommendations, getHomeRecommendations } from "@/lib/api";
+import { getCollectionRecommendations, getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -23,6 +24,8 @@ import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
+const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
+const HIDDEN_BASE_TAG_STORAGE_KEY = "exhibeat_hidden_base_tags_by_exhibition_v1";
 
 const MOCK_COMMENTS = [
   { name: "Lydia Wang", time: "3 小時前", text: "展場的互動體驗做得很好，尤其是聲光區讓我停留很久，推薦平日晚上來，人比較少。" },
@@ -58,6 +61,62 @@ function parseTwdPrice(raw: string): number | null {
   const nums = normalized.match(/\d+/g)?.map((x) => parseInt(x, 10)).filter(Number.isFinite) ?? [];
   if (!nums.length) return null;
   return Math.max(...nums);
+}
+
+function normalizeHashtagInput(value: string): string {
+  const stripped = String(value).trim().replace(/^#+/, "").replace(/\s+/g, "");
+  if (!stripped) return "";
+  return `#${stripped}`;
+}
+
+function loadCustomTagMap(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TAG_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const normalized: Record<string, string[]> = {};
+    Object.entries(parsed).forEach(([key, value]) => {
+      if (!Array.isArray(value)) return;
+      normalized[key] = value
+        .map((item) => normalizeHashtagInput(String(item ?? "")))
+        .filter(Boolean);
+    });
+    return normalized;
+  } catch {
+    return {};
+  }
+}
+
+function saveCustomTagsForExhibition(exhibitionId: string, tags: string[]) {
+  const map = loadCustomTagMap();
+  map[exhibitionId] = Array.from(new Set(tags.map((item) => normalizeHashtagInput(item)).filter(Boolean)));
+  localStorage.setItem(CUSTOM_TAG_STORAGE_KEY, JSON.stringify(map));
+}
+
+function loadHiddenBaseTagMap(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_BASE_TAG_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const normalized: Record<string, string[]> = {};
+    Object.entries(parsed).forEach(([key, value]) => {
+      if (!Array.isArray(value)) return;
+      normalized[key] = value
+        .map((item) => normalizeHashtagInput(String(item ?? "")))
+        .filter(Boolean);
+    });
+    return normalized;
+  } catch {
+    return {};
+  }
+}
+
+function saveHiddenBaseTagsForExhibition(exhibitionId: string, tags: string[]) {
+  const map = loadHiddenBaseTagMap();
+  map[exhibitionId] = Array.from(new Set(tags.map((item) => normalizeHashtagInput(item)).filter(Boolean)));
+  localStorage.setItem(HIDDEN_BASE_TAG_STORAGE_KEY, JSON.stringify(map));
 }
 
 /**
@@ -100,7 +159,13 @@ export function ExhibitionDetail() {
   const [ratingTrendOpen, setRatingTrendOpen] = useState(false);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(false);
+  const [tagStats, setTagStats] = useState<TagStat[]>([]);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [hiddenBaseTags, setHiddenBaseTags] = useState<string[]>([]);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [tagInput, setTagInput] = useState("");
   const venueMapRef = useRef<HTMLElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setFavorited(id ? isFavorited(id) : false);
@@ -159,6 +224,31 @@ export function ExhibitionDetail() {
       });
   }, [id]);
 
+  useEffect(() => {
+    listTagStats()
+      .then((rows) => setTagStats(rows))
+      .catch(() => setTagStats([]));
+  }, []);
+
+  useEffect(() => {
+    if (!exhibition?.id) return;
+    const customMap = loadCustomTagMap();
+    const hiddenMap = loadHiddenBaseTagMap();
+    setCustomTags(Array.isArray(customMap[exhibition.id]) ? customMap[exhibition.id] : []);
+    setHiddenBaseTags(Array.isArray(hiddenMap[exhibition.id]) ? hiddenMap[exhibition.id] : []);
+  }, [exhibition?.id]);
+
+  useEffect(() => {
+    if (!tagPickerOpen) return;
+    const onDocumentMouseDown = (event: globalThis.MouseEvent) => {
+      if (!tagPickerRef.current?.contains(event.target as Node)) {
+        setTagPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocumentMouseDown);
+    return () => document.removeEventListener("mousedown", onDocumentMouseDown);
+  }, [tagPickerOpen]);
+
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
     if (exhibition?.imageUrl) imageSet.add(exhibition.imageUrl);
@@ -200,12 +290,38 @@ export function ExhibitionDetail() {
     });
   }, [exhibition, likes]);
 
+  const baseTags = useMemo(() => {
+    if (!exhibition) return [];
+    return (exhibition.tags ?? [])
+      .map((t) => normalizeHashtagInput(t))
+      .filter(Boolean);
+  }, [exhibition]);
+
   const pixivStyleTags = useMemo(() => {
     if (!exhibition) return [];
-    const raw = [...(exhibition.tags ?? [])].map((t) => t.trim()).filter(Boolean);
-    if (raw.length === 0) return ["展覽", "藝文"];
-    return raw;
-  }, [exhibition]);
+    const hiddenSet = new Set(hiddenBaseTags.map((tag) => normalizeHashtagInput(tag)).filter(Boolean));
+    const raw = [...baseTags.filter((tag) => !hiddenSet.has(tag)), ...customTags]
+      .map((t) => normalizeHashtagInput(t))
+      .filter(Boolean);
+    return Array.from(new Set(raw));
+  }, [baseTags, customTags, exhibition, hiddenBaseTags]);
+
+  const normalizedTagQuery = useMemo(
+    () => String(tagInput).trim().replace(/^#+/, "").toLowerCase(),
+    [tagInput],
+  );
+
+  const tagAutocompleteOptions = useMemo(() => {
+    const rows = normalizedTagQuery
+      ? tagStats.filter((row) => row.tag.replace(/^#+/, "").toLowerCase().startsWith(normalizedTagQuery))
+      : tagStats;
+    return rows.slice(0, 30);
+  }, [normalizedTagQuery, tagStats]);
+
+  const currentTagSet = useMemo(
+    () => new Set(pixivStyleTags.map((tag) => normalizeHashtagInput(tag)).filter(Boolean)),
+    [pixivStyleTags],
+  );
 
   useEffect(() => {
     setActiveImageIndex(0);
@@ -279,6 +395,59 @@ export function ExhibitionDetail() {
 
   const scrollToVenueMap = () => {
     venueMapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const appendCustomTag = (rawValue: string) => {
+    if (!exhibition?.id) return;
+    const normalized = normalizeHashtagInput(rawValue);
+    if (!normalized) return;
+    const existingBaseTags = new Set(baseTags);
+    setCustomTags((prev) => {
+      if (prev.includes(normalized) || existingBaseTags.has(normalized)) return prev;
+      const next = [...prev, normalized];
+      saveCustomTagsForExhibition(exhibition.id, next);
+      return next;
+    });
+    setTagInput("");
+  };
+
+  const handleCreateCustomTag = () => {
+    appendCustomTag(tagInput);
+  };
+
+  const handleAddTagFromOption = (rawValue: string) => {
+    if (!exhibition?.id) return;
+    const normalized = normalizeHashtagInput(rawValue);
+    if (!normalized) return;
+    if (baseTags.includes(normalized)) {
+      setHiddenBaseTags((prev) => {
+        const next = prev.filter((tag) => normalizeHashtagInput(tag) !== normalized);
+        saveHiddenBaseTagsForExhibition(exhibition.id, next);
+        return next;
+      });
+      return;
+    }
+    appendCustomTag(normalized);
+  };
+
+  const handleRemoveCurrentTag = (rawValue: string) => {
+    if (!exhibition?.id) return;
+    const normalized = normalizeHashtagInput(rawValue);
+    if (!normalized) return;
+    if (baseTags.includes(normalized)) {
+      setHiddenBaseTags((prev) => {
+        if (prev.includes(normalized)) return prev;
+        const next = [...prev, normalized];
+        saveHiddenBaseTagsForExhibition(exhibition.id, next);
+        return next;
+      });
+      return;
+    }
+    setCustomTags((prev) => {
+      const next = prev.filter((tag) => normalizeHashtagInput(tag) !== normalized);
+      saveCustomTagsForExhibition(exhibition.id, next);
+      return next;
+    });
   };
 
   return (
@@ -422,21 +591,118 @@ export function ExhibitionDetail() {
       <div className="max-w-7xl mx-auto px-8 mt-8 grid grid-cols-12 gap-12">
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-12">
           <section className="rounded-xl border border-[#48474d]/20 bg-[#1f1f26] p-5">
-            <div className="border-b border-white/10 pb-3">
+            <div ref={tagPickerRef} className="relative border-b border-white/10 pb-9">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-white/40">標籤</p>
               <div className="-mx-1 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
                 <div className="flex min-h-[1.75rem] flex-nowrap items-center gap-x-3 px-1 py-0.5">
-                  {pixivStyleTags.map((tag, i) => (
-                    <button
-                      key={`${tag}-${i}`}
-                      type="button"
-                      className="shrink-0 whitespace-nowrap rounded px-1 py-0.5 text-left text-[13px] leading-snug text-[#8eb4d4] transition-colors hover:bg-[#2a3244] hover:text-[#a8d4f0] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8eb4d4]/60"
-                    >
-                      {tag}
-                    </button>
-                  ))}
+                  {pixivStyleTags.length > 0 ? (
+                    pixivStyleTags.map((tag, i) => (
+                      <button
+                        key={`${tag}-${i}`}
+                        type="button"
+                        className="shrink-0 whitespace-nowrap rounded px-1 py-0.5 text-left text-[13px] leading-snug text-[#8eb4d4] transition-colors hover:bg-[#2a3244] hover:text-[#a8d4f0] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8eb4d4]/60"
+                      >
+                        {tag}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="text-[12px] text-white/40">尚未設定標籤</span>
+                  )}
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setTagPickerOpen((open) => !open)}
+                className="absolute bottom-1 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#8eb4d4]/45 bg-[#2a3244] text-[#a8d4f0] transition-colors hover:bg-[#33415a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb4d4]/70"
+                aria-label="新增 hashtag"
+                title="新增 hashtag"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+
+              {tagPickerOpen && (
+                <div className="absolute right-0 top-full z-30 mt-3 w-full max-w-md rounded-xl border border-white/10 bg-[#141a28] p-3 shadow-xl">
+                  <p className="mb-2 text-xs font-semibold text-white/70">標籤管理</p>
+                  <div className="mb-3 rounded-md border border-white/10 bg-[#101726] p-2">
+                    <p className="mb-2 text-[11px] text-white/45">目前標籤（可刪除）</p>
+                    <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">
+                      {pixivStyleTags.length > 0 ? (
+                        pixivStyleTags.map((tag) => (
+                          <button
+                            key={`manage-current-${tag}`}
+                            type="button"
+                            onClick={() => handleRemoveCurrentTag(tag)}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#1f1f26] px-2 py-1 text-xs text-white/80 hover:bg-[#2b3345]"
+                            title="刪除此標籤"
+                          >
+                            <span>{tag}</span>
+                            <X className="h-3 w-3 text-white/60" />
+                          </button>
+                        ))
+                      ) : (
+                        <p className="text-xs text-white/45">目前沒有標籤</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateCustomTag();
+                        }
+                        if (e.key === "Escape") {
+                          setTagPickerOpen(false);
+                        }
+                      }}
+                      placeholder="#輸入標籤前幾個字"
+                      className="h-9 flex-1 rounded-md border border-white/10 bg-[#1f1f26] px-3 text-sm text-white outline-none focus:border-[#8eb4d4]/70"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateCustomTag}
+                      className="h-9 rounded-md border border-[#8eb4d4]/45 px-3 text-xs font-semibold text-[#a8d4f0] hover:bg-[#2a3244]"
+                    >
+                      新增
+                    </button>
+                  </div>
+
+                  <div className="mt-2 rounded-md border border-white/10 bg-[#101726]">
+                    <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[11px] text-white/45">
+                      <span>所有標籤</span>
+                      <span>展演數量</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {tagAutocompleteOptions.length > 0 ? (
+                        tagAutocompleteOptions.map((row) => {
+                          const normalized = normalizeHashtagInput(row.tag);
+                          const exists = currentTagSet.has(normalized);
+                          return (
+                            <button
+                              key={row.tag}
+                              type="button"
+                              onClick={() => handleAddTagFromOption(row.tag)}
+                              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                                exists ? "text-white/40" : "text-white/85 hover:bg-white/5"
+                              }`}
+                              disabled={exists}
+                            >
+                              <span>{row.tag}</span>
+                              <span className="text-xs text-white/50">{row.count}</span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="px-3 py-2 text-xs text-white/45">無符合標籤</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 space-y-5 text-sm text-white/80">

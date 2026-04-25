@@ -2,9 +2,41 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Search, Bell, Settings, LogIn, LogOut, User as UserIcon, Heart, Sparkles, Menu, X, Languages } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { listAvailableTags } from "@/lib/api";
+import { listTagStats, type TagStat } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LOCALE_OPTIONS, useI18n } from "@/lib/i18n";
+
+const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
+
+function normalizeHashtag(value: string): string {
+  const stripped = String(value ?? "").trim().replace(/^#+/, "").replace(/\s+/g, "");
+  if (!stripped) return "";
+  return `#${stripped}`;
+}
+
+function loadCustomTagCounts(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TAG_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const counts: Record<string, number> = {};
+    Object.values(parsed).forEach((value) => {
+      if (!Array.isArray(value)) return;
+      const deduped = new Set<string>();
+      value.forEach((item) => {
+        const normalized = normalizeHashtag(String(item ?? ""));
+        if (normalized) deduped.add(normalized);
+      });
+      deduped.forEach((tag) => {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      });
+    });
+    return counts;
+  } catch {
+    return {};
+  }
+}
 
 export function Navbar() {
   const location = useLocation();
@@ -18,7 +50,7 @@ export function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -38,13 +70,13 @@ export function Navbar() {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    listAvailableTags()
+    listTagStats()
       .then((data) => {
-        setAvailableTags(Array.isArray(data) ? data : []);
+        setAvailableTagStats(Array.isArray(data) ? data : []);
       })
       .catch((error) => {
         console.warn("Failed to load search suggestions", error);
-        setAvailableTags([]);
+        setAvailableTagStats([]);
       });
   }, []);
 
@@ -65,18 +97,34 @@ export function Navbar() {
   const normalizedQuery = searchQuery.trim();
   const isTagSearch = normalizedQuery.startsWith("#");
   const bareTagQuery = normalizedQuery.replace(/^#+/, "").trim().toLowerCase();
+  const mergedTagStats = useMemo(() => {
+    const merged = new Map<string, number>();
+    availableTagStats.forEach((row) => {
+      const tag = normalizeHashtag(row.tag);
+      if (!tag) return;
+      merged.set(tag, Math.max(0, Math.floor(Number(row.count) || 0)));
+    });
+    const customCounts = loadCustomTagCounts();
+    Object.entries(customCounts).forEach(([tag, count]) => {
+      const normalized = normalizeHashtag(tag);
+      if (!normalized) return;
+      merged.set(normalized, (merged.get(normalized) ?? 0) + Math.max(0, count));
+    });
+    return Array.from(merged.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => (b.count - a.count) || a.tag.localeCompare(b.tag, "zh-Hant"));
+  }, [availableTagStats, location.pathname, location.search, searchQuery]);
+
   const searchSuggestions = useMemo(() => {
-    if (!isTagSearch || bareTagQuery.length < 1) return [];
-    const tagSet = new Set<string>();
-    for (const rawTag of availableTags) {
-      const cleanTag = String(rawTag).trim().replace(/^#+/, "");
-      if (!cleanTag) continue;
-      if (cleanTag.toLowerCase().startsWith(bareTagQuery)) {
-        tagSet.add(`#${cleanTag}`);
-      }
+    if (!isTagSearch) return [] as Array<{ tag: string; count: number }>;
+    const rows: Array<{ tag: string; count: number }> = [];
+    for (const row of mergedTagStats) {
+      const cleanTag = row.tag.replace(/^#+/, "").toLowerCase();
+      if (bareTagQuery && !cleanTag.startsWith(bareTagQuery)) continue;
+      rows.push(row);
     }
-    return Array.from(tagSet).slice(0, 8);
-  }, [availableTags, bareTagQuery, isTagSearch]);
+    return rows.slice(0, 30);
+  }, [bareTagQuery, isTagSearch, mergedTagStats]);
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-foreground/90 ${
@@ -92,7 +140,7 @@ export function Navbar() {
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const selectedSuggestion =
-      activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex] : null;
+      activeSuggestionIndex >= 0 ? searchSuggestions[activeSuggestionIndex]?.tag : null;
     const q = (selectedSuggestion ?? searchQuery).trim();
     const search = q ? `?q=${encodeURIComponent(q)}` : "";
     setSearchSuggestionsOpen(false);
@@ -100,11 +148,11 @@ export function Navbar() {
     navigate(`/${search}`);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
+  const handleSuggestionClick = (suggestion: { tag: string; count: number }) => {
+    setSearchQuery(suggestion.tag);
     setSearchSuggestionsOpen(false);
     setActiveSuggestionIndex(-1);
-    navigate(`/?q=${encodeURIComponent(suggestion)}`);
+    navigate(`/?q=${encodeURIComponent(suggestion.tag)}`);
   };
 
   const initials = user?.display_name
@@ -142,12 +190,12 @@ export function Navbar() {
               setSearchQuery(value);
               setActiveSuggestionIndex(-1);
               const trimmed = value.trim();
-              const shouldOpen = trimmed.startsWith("#") && trimmed.replace(/^#+/, "").trim().length >= 1;
+              const shouldOpen = trimmed.startsWith("#");
               setSearchSuggestionsOpen(shouldOpen);
             }}
             onFocus={() => {
               const trimmed = searchQuery.trim();
-              const shouldOpen = trimmed.startsWith("#") && trimmed.replace(/^#+/, "").trim().length >= 1;
+              const shouldOpen = trimmed.startsWith("#");
               setSearchSuggestionsOpen(shouldOpen);
             }}
             onKeyDown={(e) => {
@@ -175,17 +223,18 @@ export function Navbar() {
               {searchSuggestions.length > 0 ? (
                 searchSuggestions.map((suggestion, index) => (
                   <button
-                    key={suggestion}
+                    key={`${suggestion.tag}-${index}`}
                     type="button"
                     onClick={() => handleSuggestionClick(suggestion)}
                     onMouseEnter={() => setActiveSuggestionIndex(index)}
-                    className={`block w-full px-3 py-2.5 text-left text-sm transition-colors ${
+                    className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors ${
                       index === activeSuggestionIndex
                         ? "bg-white/10 text-white"
                         : "text-white/80 hover:bg-white/5 hover:text-white"
                     }`}
                   >
-                    {suggestion}
+                    <span>{suggestion.tag}</span>
+                    <span className="text-xs text-white/50">{suggestion.count}</span>
                   </button>
                 ))
               ) : (

@@ -158,6 +158,29 @@ def list_available_tags() -> list[str]:
     return sorted(tags)
 
 
+def list_available_tag_stats() -> list[dict[str, int | str]]:
+    counts: dict[str, int] = {}
+    for item in load_exhibitions_dataset():
+        raw_tags = item.get("tag", [])
+        if isinstance(raw_tags, str):
+            raw_tags = [raw_tags]
+        if not isinstance(raw_tags, list):
+            continue
+        deduped_in_event: set[str] = set()
+        for raw in raw_tags:
+            value = str(raw).strip()
+            if not value:
+                continue
+            normalized = value if value.startswith("#") else f"#{value}"
+            deduped_in_event.add(normalized)
+        for tag in deduped_in_event:
+            counts[tag] = counts.get(tag, 0) + 1
+    return [
+        {"tag": tag, "count": count}
+        for tag, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 def filter_legal_stays(
     *,
     q: str = "",
@@ -691,6 +714,11 @@ async def get_home_recommendations():
 @app.get("/api/tags")
 async def get_available_tags():
     return {"tags": list_available_tags()}
+
+
+@app.get("/api/tags/stats")
+async def get_available_tag_stats():
+    return {"tags": list_available_tag_stats()}
 
 
 @app.get("/api/recommendations/collection/more")
