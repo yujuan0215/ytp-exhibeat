@@ -518,6 +518,15 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
     title = rec["title"]
     image_url  = _pick_image(uid, rec.get("image_url", ""))
     ai_summary = _gemini_summarize(uid, title, rec.get("description", ""))
+    normalized_location_name = rec.get("location_name", "")
+    normalized_city = rec.get("city", "")
+    # Data fix: these two TIFA programs are performed at 國家戲劇院.
+    if title in {
+        "2026TIFA 柏林德意志劇院 ✕ 克里斯多福．魯賓《不過就是世界末日》",
+        "2026TIFA 克莉絲朵．派特 ✕ 強納森．楊《集會遊戲》",
+    }:
+        normalized_location_name = "國家戲劇院"
+        normalized_city = "台北市"
 
     date_range    = rec.get("date_range", "")
     end_date_str  = date_range.split(" -> ")[-1] if " -> " in date_range else ""
@@ -542,7 +551,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         "title":      title,
         "price":      _format_price(rec.get("price_text", ""), rec.get("is_free", False)),
         "dateStr":    date_range,
-        "location":   f"{rec['location_name']} • {rec['city']}",
+        "location":   f"{normalized_location_name} • {normalized_city}",
         "aiSummary":  ai_summary,
         "tags":       display_tags,
         "imageUrl":   image_url,

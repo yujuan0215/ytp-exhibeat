@@ -255,22 +255,23 @@ export function Collection() {
 
   return (
     <div className="flex w-full flex-col gap-10 px-8 py-10">
-      <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
-        <div>
-          <h2 className="text-secondary mb-2 text-sm font-bold tracking-widest uppercase">Personal Gallery</h2>
-          <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
-          <p className="mt-2 max-w-xl text-sm text-white/55">喜歡的展演與行程清單分開管理；清單可交給 AI 助理協助排行程。</p>
-        </div>
-        {user && !selectedListId ? (
-          <Button
-            type="button"
-            onClick={handleCreateTripList}
-            className={`${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] px-5 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff]`}
-          >
-            新建清單
-          </Button>
-        ) : null}
-      </header>
+      {!selectedListId ? (
+        <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
+          <div>
+            <h2 className="text-secondary mb-2 text-sm font-bold tracking-widest uppercase">Personal Gallery</h2>
+            <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
+          </div>
+          {user ? (
+            <Button
+              type="button"
+              onClick={handleCreateTripList}
+              className={`${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] px-5 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff]`}
+            >
+              新建清單
+            </Button>
+          ) : null}
+        </header>
+      ) : null}
 
       {status === "loading" ? (
         <div className="flex justify-center gap-3 py-20 text-white/50">
@@ -303,8 +304,8 @@ export function Collection() {
         </div>
       ) : selectedListId ? (
         <div className="relative">
-          <div className="min-w-0 lg:pr-[22rem]">{listDetailMain}</div>
-          <aside className={`mt-8 w-full shrink-0 border border-white/10 bg-surface-container-low p-4 lg:fixed lg:right-8 lg:top-24 lg:mt-0 lg:h-[calc(100vh-8rem)] lg:w-80 lg:overflow-y-auto ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
+          <div className="min-w-0 lg:pl-[22rem]">{listDetailMain}</div>
+          <aside className={`mt-8 w-full shrink-0 border border-white/10 bg-surface-container-low p-4 lg:fixed lg:left-8 lg:top-24 lg:mt-0 lg:h-[calc(100vh-8rem)] lg:w-80 lg:overflow-y-auto ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
             <div className="pr-1">
               <TripListRail
                 lists={tripLists}

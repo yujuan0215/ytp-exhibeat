@@ -7,7 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
-import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
+import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink, Search } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 import {
@@ -260,6 +260,7 @@ export function Map() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "nearby" | "free" | "ending">("all");
+  const [sidebarSearchTerm, setSidebarSearchTerm] = useState("");
   const [selection, setSelection] = useState<MapSelection>(null);
   const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
@@ -379,6 +380,14 @@ export function Map() {
   }, [activeFilter, exhibitions]);
 
   const hasMore = sidebarItems.length < totalFilteredCount;
+  const filteredSidebarItems = useMemo(() => {
+    const q = sidebarSearchTerm.trim().toLowerCase();
+    if (!q) return sidebarItems;
+    return sidebarItems.filter((item) => {
+      const haystack = `${item.title} ${item.location}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sidebarItems, sidebarSearchTerm]);
   const selectedEventId = selection?.kind === "event" ? selection.id : null;
   const selectedItem = useMemo(
     () => (selectedEventId ? exhibitions.find((item) => item.id === selectedEventId) ?? null : null),
@@ -887,35 +896,43 @@ export function Map() {
   }
 
   return (
-    <section className="px-8 py-6 h-[calc(100vh-6.5rem)]">
-      <div className={`grid h-full gap-0 overflow-hidden border border-white/10 bg-[#0b1220] shadow-2xl ${isV1 ? "rounded-md" : "rounded-3xl"} lg:grid-cols-[minmax(0,1fr)_380px]`}>
-        <div className="relative h-full min-h-0 border-r border-white/10">
-          <div ref={mapRef} className="absolute inset-0 h-full w-full" />
-          {loading && (
-            <div className="absolute left-5 top-5 rounded-md border border-white/10 bg-[#111827]/85 px-3 py-2 text-xs text-white/80">
-              載入活動資料中…
-            </div>
-          )}
-          {error && (
-            <div className="absolute left-5 top-16 rounded-md border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-              {error}
-            </div>
-          )}
-          {mapInitError && (
-            <div className="absolute left-5 top-28 max-w-[min(560px,calc(100%-2.5rem))] rounded-md border border-amber-300/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-              {mapInitError}
-            </div>
-          )}
-        </div>
+    <section className="h-full w-full overflow-hidden">
+      <div className="relative h-full w-full overflow-hidden bg-[#0b1220]">
+        <div ref={mapRef} className="absolute inset-0 h-full w-full" />
+        {loading && (
+          <div className="absolute left-5 top-5 rounded-md border border-white/10 bg-[#111827]/85 px-3 py-2 text-xs text-white/80">
+            載入活動資料中…
+          </div>
+        )}
+        {error && (
+          <div className="absolute left-5 top-16 rounded-md border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            {error}
+          </div>
+        )}
+        {mapInitError && (
+          <div className="absolute left-5 top-28 max-w-[min(560px,calc(100%-2.5rem))] rounded-md border border-amber-300/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            {mapInitError}
+          </div>
+        )}
 
-        <aside className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#0f0f1a] p-6">
+        <aside
+          className={`absolute z-10 border border-white/10 bg-[#0f0f1a] shadow-2xl overflow-y-auto overscroll-contain p-6 ${
+            isV1 ? "rounded-md" : "rounded-2xl"
+          } left-4 right-4 bottom-4 max-h-[55%] lg:left-4 lg:right-auto lg:top-4 lg:bottom-4 lg:w-[380px] lg:max-h-none`}
+        >
           {!selectedItem && !selectedStay ? (
             <>
               <header className="mb-5">
-                <h1 className="text-4xl font-bold text-white">台北展演地圖</h1>
-                <p className="mt-2 text-sm text-white/60">
-                  探索你附近的 {exhibitions.length} 個展覽活動
-                </p>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+                  <input
+                    type="search"
+                    value={sidebarSearchTerm}
+                    onChange={(event) => setSidebarSearchTerm(event.target.value)}
+                    placeholder="搜尋展覽名稱或地點"
+                    className="h-10 w-full rounded-full border border-white/10 bg-[#1f1f26] pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
               </header>
 
               <div className="mb-5 flex flex-wrap gap-2">
@@ -946,7 +963,7 @@ export function Map() {
               </div>
 
               <div className="space-y-3">
-                {sidebarItems.map((item) => (
+                {filteredSidebarItems.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => focusMarkerOnMap(`event:${item.id}`)}
@@ -988,6 +1005,11 @@ export function Map() {
                     </div>
                   </div>
                 ))}
+                {filteredSidebarItems.length === 0 ? (
+                  <div className={`border border-white/10 bg-[#171725] p-4 text-center text-sm text-white/55 ${isV1 ? "rounded-md" : "rounded-xl"}`}>
+                    找不到符合關鍵字的展覽
+                  </div>
+                ) : null}
               </div>
 
               <button

@@ -331,9 +331,6 @@ export function Accommodations() {
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <header>
           <h1 className="text-4xl font-bold text-white">找住宿</h1>
-          <p className="mt-2 text-sm text-white/60">
-            依關鍵字、旅宿類型、行政區與資料完整度篩選住宿；點「詳細資訊」可展開下拉內容。
-          </p>
         </header>
 
         <div className="relative w-full md:max-w-lg">
