@@ -6,6 +6,8 @@ import { AgentChat } from "../AgentChat";
 export function Layout() {
   const { pathname } = useLocation();
   const isAgentPage = pathname === "/agent";
+  const isMapPage = pathname === "/map";
+  const hideFooter = isAgentPage || isMapPage;
 
   return (
     <div className={`min-h-screen bg-background text-foreground flex flex-col font-body selection:bg-primary/30 overflow-x-hidden ${isAgentPage ? "h-screen overflow-hidden" : ""}`}>
@@ -13,7 +15,7 @@ export function Layout() {
       <main className={`flex-1 w-full max-w-7xl mx-auto relative pt-20 ${isAgentPage ? "h-screen overflow-hidden" : ""}`}>
         <Outlet />
       </main>
-      {!isAgentPage && <Footer />}
+      {!hideFooter && <Footer />}
       <AgentChat />
     </div>
   );
