@@ -45,6 +45,9 @@ REQUEST_TIMEOUT_SECONDS = 30
 SYNC_TTL = timedelta(hours=6)
 TDX_TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
 PAGE_FETCH_TIMEOUT_SECONDS = 8
+DEFAULT_SEARCH_DIVERSITY = 0.25
+DEFAULT_RECOMMENDATION_DIVERSITY = 0.35
+DEFAULT_ITINERARY_DIVERSITY = 0.2
 
 CATEGORY_CODE_TO_LABEL = {
     "1": "音樂",
@@ -1129,14 +1132,120 @@ def _load_occurrence_rows(
     if not query:
         return rows
 
+    filtered = _filter_rows_by_query(rows, query)
+    if filtered:
+        return filtered
+
+    if _is_local_art_query(query):
+        return _fallback_local_art_rows(rows)
+
+    return filtered
+
+
+def _query_tokens(query: str) -> list[str]:
     normalized = query.lower().strip()
-    tokens = [token for token in re.split(r"[\s,，、/]+", normalized) if token]
+    raw_tokens = [token for token in re.split(r"[\s,，、/]+", normalized) if token]
+    generic_tokens = {
+        "室內",
+        "室內的",
+        "indoor",
+        "本週日",
+        "這週日",
+        "週日",
+        "星期日",
+        "禮拜日",
+        "行程",
+        "展覽",
+        "藝術",
+    }
+    return [token.strip("「」『』《》()（）\"'") for token in raw_tokens if token not in generic_tokens]
+
+
+def _filter_rows_by_query(rows: list[sqlite3.Row], query: str) -> list[sqlite3.Row]:
+    normalized = query.lower().strip()
+    tokens = _query_tokens(query)
     filtered: list[sqlite3.Row] = []
     for row in rows:
         haystack = (row["search_text"] or "").lower()
         if normalized in haystack or any(token in haystack for token in tokens):
             filtered.append(row)
     return filtered
+
+
+def _diversity_seed(*parts: Any) -> str:
+    raw = "|".join(str(part or "") for part in parts)
+    today_bucket = _today().isoformat()
+    return f"{today_bucket}|{raw}"
+
+
+def _diversity_jitter(row: sqlite3.Row, seed: str, strength: float, scale: float = 8.0) -> float:
+    bounded_strength = min(max(float(strength or 0.0), 0.0), 1.0)
+    if bounded_strength <= 0:
+        return 0.0
+    digest = hashlib.sha256(f"{seed}|{row['event_uid']}|{row['occurrence_id']}".encode("utf-8")).hexdigest()
+    unit = int(digest[:8], 16) / 0xFFFFFFFF
+    return (unit - 0.5) * 2 * scale * bounded_strength
+
+
+def _district_diversity_penalty(row: sqlite3.Row, seen_districts: set[str], strength: float) -> float:
+    bounded_strength = min(max(float(strength or 0.0), 0.0), 1.0)
+    if bounded_strength <= 0:
+        return 0.0
+    district = row["district"] or ""
+    return 6.0 * bounded_strength if district and district in seen_districts else 0.0
+
+
+def _is_local_art_query(query: str) -> bool:
+    normalized = query.replace("台", "臺").lower()
+    return any(
+        term in normalized
+        for term in (
+            "本土藝術",
+            "本地藝術",
+            "在地藝術",
+            "臺灣藝術",
+            "臺灣藝術家",
+            "國內藝術",
+            "local art",
+            "taiwanese art",
+        )
+    )
+
+
+def _local_art_signal_score(row: sqlite3.Row) -> int:
+    text = f"{row['title'] or ''} {row['summary'] or ''} {row['search_text'] or ''}".replace("台", "臺")
+    score = 0
+    for term, weight in (
+        ("臺灣", 8),
+        ("本土", 8),
+        ("在地", 6),
+        ("國內", 5),
+        ("膠彩", 6),
+        ("水墨", 6),
+        ("書畫", 5),
+        ("攝影", 3),
+        ("個展", 4),
+        ("臺北", 2),
+    ):
+        if term in text:
+            score += weight
+    return score
+
+
+def _fallback_local_art_rows(rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
+    candidates = [
+        row
+        for row in rows
+        if row["category_label"] == "展覽" and _local_art_signal_score(row) > 0
+    ]
+    candidates.sort(
+        key=lambda row: (
+            -_local_art_signal_score(row),
+            row["start_date"] or "9999-12-31",
+            row["title"] or "",
+        )
+    )
+    return candidates
 
 
 def _score_row(row: sqlite3.Row, query: str, district: str, target_date: date | None) -> int:
@@ -1165,6 +1274,9 @@ def _score_row(row: sqlite3.Row, query: str, district: str, target_date: date | 
         score += 2
     if row["latitude"] is not None and row["longitude"] is not None:
         score += 3
+
+    if _is_local_art_query(query):
+        score += _local_art_signal_score(row)
     
     # 📉 排名微調：降權「畢業展」，提升一般大眾興趣活動的曝光度
     if "畢業展" in (row["title"] or ""):
@@ -1675,6 +1787,7 @@ def search_events(
     free_only: bool = False,
     indoor_only: bool = False,
     limit: int = 8,
+    diversity: float = DEFAULT_SEARCH_DIVERSITY,
 ) -> dict[str, Any]:
     """
     搜尋台北市的真實藝文活動資料。
@@ -1693,16 +1806,21 @@ def search_events(
         city="臺北市",
     )
 
-    results: list[dict[str, Any]] = []
+    seed = _diversity_seed("search", query, date, district, category, free_only, indoor_only)
+    results: list[tuple[float, dict[str, Any]]] = []
     seen: set[tuple[str, str]] = set()
     for row in rows:
         key = (row["event_uid"], row["address"] or "")
         if key in seen:
             continue
         seen.add(key)
-        results.append(_row_to_result(row, _score_row(row, query, district, target_date)))
+        score = _score_row(row, query, district, target_date)
+        result = _row_to_result(row, score)
+        result["diversity_score"] = round(_diversity_jitter(row, seed, diversity), 3)
+        results.append((score + result["diversity_score"], result))
 
-    results.sort(key=lambda item: (-item["score"], item.get("start_date") or "9999-12-31", item["title"]))
+    results.sort(key=lambda item: (-item[0], item[1].get("start_date") or "9999-12-31", item[1]["title"]))
+    events = [item[1] for item in results[:bounded_limit]]
     return {
         "source": "文化部藝文活動 OpenAPI",
         "database_path": str(DB_PATH),
@@ -1715,9 +1833,11 @@ def search_events(
             "free_only": free_only,
             "indoor_only": indoor_only,
             "limit": bounded_limit,
+            "diversity": min(max(diversity, 0.0), 1.0),
         },
-        "count": min(len(results), bounded_limit),
-        "events": results[:bounded_limit],
+        "diversity_seed": seed,
+        "count": len(events),
+        "events": events,
     }
 
 
@@ -1732,6 +1852,7 @@ def recommend_events(
     indoor_only: bool = False,
     limit: int = 6,
     include_reviews: bool = False,
+    diversity: float = DEFAULT_RECOMMENDATION_DIVERSITY,
 ) -> dict[str, Any]:
     """
     根據使用者當下需求，對台北展覽做情境式推薦排序。
@@ -1756,22 +1877,27 @@ def recommend_events(
         indoor_only=indoor_only,
     )
 
-    ranked: list[tuple[float, sqlite3.Row, list[str]]] = []
+    seed = _diversity_seed("recommend", query, date, district, category, interests, weather_context, free_only, indoor_only)
+    ranked: list[tuple[float, float, sqlite3.Row, list[str]]] = []
     seen_event_uids: set[str] = set()
     for row in rows:
         if row["event_uid"] in seen_event_uids:
             continue
         event = _row_to_recommendable_event(row)
         score = score_event(preference, event, target_date or _today())
+        jitter = _diversity_jitter(row, seed, diversity, scale=10.0)
         reasons = shared_build_reasons(preference, event, target_date or _today())
-        ranked.append((score, row, reasons))
+        ranked.append((score + jitter, jitter, row, reasons))
         seen_event_uids.add(row["event_uid"])
 
-    ranked.sort(key=lambda item: (-item[0], item[1]["start_date"] or "9999-12-31", item[1]["title"]))
+    ranked.sort(key=lambda item: (-item[0], item[2]["start_date"] or "9999-12-31", item[2]["title"]))
 
     events: list[dict[str, Any]] = []
-    for score, row, reasons in ranked[:bounded_limit]:
-        result = _row_to_result(row, int(round(score)), include_copy_seed=True, include_reviews=include_reviews)
+    for adjusted_score, jitter, row, reasons in ranked[:bounded_limit]:
+        raw_score = adjusted_score - jitter
+        result = _row_to_result(row, int(round(raw_score)), include_copy_seed=True, include_reviews=include_reviews)
+        result["score"] = int(round(raw_score))
+        result["diversity_score"] = round(jitter, 3)
         result["recommendation_reasons"] = reasons
         result["rag_context"] = _rag_supporting_snippets(
             query=f"{query} {interests}",
@@ -1800,7 +1926,9 @@ def recommend_events(
             "indoor_only": indoor_only,
             "limit": bounded_limit,
             "include_reviews": include_reviews and _places_enabled(),
+            "diversity": min(max(diversity, 0.0), 1.0),
         },
+        "diversity_seed": seed,
         "count": len(events),
         "events": events,
     }
@@ -2085,6 +2213,7 @@ def plan_itinerary(
     free_only: bool = False,
     indoor_only: bool = False,
     limit: int = 3,
+    diversity: float = DEFAULT_ITINERARY_DIVERSITY,
 ) -> dict[str, Any]:
     """
     根據真實活動資料，規劃台北市的半日或一日藝文行程。
@@ -2120,8 +2249,13 @@ def plan_itinerary(
             "error": "找不到符合條件的台北活動，請放寬條件後再試。",
         }
 
-    scored_rows = [(row, _score_row(row, query, district, target_date)) for row in rows]
-    scored_rows.sort(key=lambda item: (-item[1], item[0]["start_date"] or "9999-12-31", item[0]["title"]))
+    seed = _diversity_seed("itinerary", query, target_date.isoformat(), district, category, free_only, indoor_only)
+    scored_rows = []
+    for row in rows:
+        base_score = _score_row(row, query, district, target_date)
+        jitter = _diversity_jitter(row, seed, diversity, scale=6.0)
+        scored_rows.append((row, base_score, jitter))
+    scored_rows.sort(key=lambda item: (-(item[1] + item[2]), item[0]["start_date"] or "9999-12-31", item[0]["title"]))
 
     current_time = day_start
     current_coords: tuple[float, float] | None = None
@@ -2130,8 +2264,9 @@ def plan_itinerary(
     bounded_limit = min(max(limit, 1), 6)
 
     while len(selected) < bounded_limit:
-        feasible: list[tuple[float, sqlite3.Row, int, datetime, datetime, dict[str, Any]]] = []
-        for row, score in scored_rows:
+        feasible: list[tuple[float, sqlite3.Row, int, float, datetime, datetime, dict[str, Any]]] = []
+        seen_districts = {item.get("district", "") for item in selected if item.get("district")}
+        for row, score, jitter in scored_rows:
             if row["event_uid"] in used_events:
                 continue
             window_start, window_end = _time_window_from_row(row, target_date)
@@ -2142,14 +2277,19 @@ def plan_itinerary(
             suggested_end = suggested_start + duration
             if suggested_end > window_end or suggested_end > day_end:
                 continue
-            utility = float(score) - float(travel["estimated_minutes"]) / 3
-            feasible.append((utility, row, score, suggested_start, suggested_end, travel))
+            utility = (
+                float(score)
+                + float(jitter)
+                - _district_diversity_penalty(row, seen_districts, diversity)
+                - float(travel["estimated_minutes"]) / 3
+            )
+            feasible.append((utility, row, score, jitter, suggested_start, suggested_end, travel))
 
         if not feasible:
             break
 
-        feasible.sort(key=lambda item: (-item[0], item[3], -item[2]))
-        _, row, score, suggested_start, suggested_end, travel = feasible[0]
+        feasible.sort(key=lambda item: (-item[0], item[4], -item[2]))
+        _, row, score, jitter, suggested_start, suggested_end, travel = feasible[0]
         dest_coords = (row["latitude"], row["longitude"]) if row["latitude"] is not None and row["longitude"] is not None else None
         dest_transit = _get_transit_access(
             row["latitude"],
@@ -2182,6 +2322,7 @@ def plan_itinerary(
                 "promote_url": row["promote_url"] or "",
                 "ticket_url": row["ticket_url"] or "",
                 "score": score,
+                "diversity_score": round(jitter, 3),
                 "reason": (
                     f"符合條件且分數較高；"
                     f"{'免費活動，' if row['is_free'] else ''}"
@@ -2209,7 +2350,9 @@ def plan_itinerary(
             "free_only": free_only,
             "indoor_only": indoor_only,
             "limit": bounded_limit,
+            "diversity": min(max(diversity, 0.0), 1.0),
         },
+        "diversity_seed": seed,
         "notes": [
             "活動資料已先同步進本地 SQLite，減少每次直接打官方 API 的延遲與不穩定。",
             "移動時間仍是簡化估算，不是即時路線規劃結果。",
@@ -2486,4 +2629,3 @@ def generate_itinerary(user_id: str = "local-user", date: str = "") -> dict[str,
         "summary": f"為你規劃了這一天包含 {len(events)} 個展演點的探索行程。",
         "timeline": itinerary
     }
-

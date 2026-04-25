@@ -916,6 +916,51 @@ async def delete_favorite(
 ADK_PORT = int(os.environ.get("ADK_PORT", "8001"))
 ADK_HOST = f"http://127.0.0.1:{ADK_PORT}"
 
+
+def _preferred_reply_language(text: str) -> str:
+    cjk_count = len(_re.findall(r"[\u4e00-\u9fff]", text))
+    latin_count = len(_re.findall(r"[A-Za-z]", text))
+    if latin_count >= 3 and cjk_count == 0:
+        return "en"
+    if cjk_count > 0:
+        return "zh-TW"
+    return ""
+
+
+def _inject_reply_language_hint(body_bytes: bytes) -> bytes:
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except Exception:
+        return body_bytes
+
+    message = payload.get("newMessage") or payload.get("new_message") or {}
+    parts = message.get("parts") if isinstance(message, dict) else None
+    if not isinstance(parts, list):
+        return body_bytes
+
+    text_chunks = [part.get("text", "") for part in parts if isinstance(part, dict)]
+    latest_text = "\n".join(chunk for chunk in text_chunks if chunk).strip()
+    language = _preferred_reply_language(latest_text)
+    if not language:
+        return body_bytes
+
+    hint = (
+        "\n\n[Reply language instruction: The user's latest message is in English. "
+        "Reply in English only. Keep original Chinese exhibition titles and addresses if needed, "
+        "but all explanations, labels, and follow-up questions must be in English.]"
+        if language == "en"
+        else "\n\n[回覆語言指示：使用者最後一則訊息是中文，請全程使用繁體中文回覆。]"
+    )
+
+    for part in reversed(parts):
+        if isinstance(part, dict) and isinstance(part.get("text"), str):
+            if "Reply language instruction:" in part["text"] or "回覆語言指示：" in part["text"]:
+                return body_bytes
+            part["text"] += hint
+            return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    return body_bytes
+
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_adk(request: Request, path: str):
     import urllib.parse
@@ -929,7 +974,7 @@ async def proxy_adk(request: Request, path: str):
 
     # /run may take several seconds when Gemini is generating content.
     # Use explicit, longer timeout values to avoid premature 500s from proxy.
-    timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
+    timeout = httpx.Timeout(connect=10.0, read=300.0, write=120.0, pool=120.0)
 
     async def body_stream():
         async for chunk in request.stream():
@@ -940,6 +985,7 @@ async def proxy_adk(request: Request, path: str):
     # 403 ("origin not allowed"), even though traffic is local.
     blocked_headers = {
         "host",
+        "content-length",
         "origin",
         "referer",
         "sec-fetch-site",
@@ -954,16 +1000,37 @@ async def proxy_adk(request: Request, path: str):
         # ADK /run is occasionally flaky with transient 5xx. Retry once so the
         # chat UI doesn't fail on recoverable backend hiccups.
         if path == "run" and request.method == "POST":
-            body_bytes = await request.body()
+            body_bytes = _inject_reply_language_hint(await request.body())
             attempts = 2
             response = None
             for idx in range(attempts):
-                response = await client.request(
-                    request.method,
-                    url,
-                    headers=forwarded_headers,
-                    content=body_bytes,
-                )
+                try:
+                    response = await client.request(
+                        request.method,
+                        url,
+                        headers=forwarded_headers,
+                        content=body_bytes,
+                    )
+                except httpx.TimeoutException as exc:
+                    logger.warning(
+                        "ADK /run timed out (attempt %s/%s): %s",
+                        idx + 1,
+                        attempts,
+                        exc,
+                    )
+                    if idx + 1 < attempts:
+                        await asyncio.sleep(0.35)
+                        continue
+                    raise HTTPException(
+                        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                        detail="Backend agent took too long to respond. Please try again.",
+                    ) from exc
+                except httpx.HTTPError as exc:
+                    logger.error("Proxy transport error for /api/run: %s", exc)
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail="Backend agent service is temporarily unavailable.",
+                    ) from exc
                 if response.status_code < 500:
                     break
                 logger.warning(
