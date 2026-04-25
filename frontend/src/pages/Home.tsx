@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
@@ -51,13 +52,48 @@ function sortExhibitions(list: Exhibition[], key: SortKey): Exhibition[] {
   }
 }
 
+function normalizeSearchText(value: string) {
+  return String(value).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function splitSearchTerms(query: string) {
+  return normalizeSearchText(query).split(" ").filter(Boolean);
+}
+
+function matchKeywordSearch(exhibition: Exhibition, query: string) {
+  const haystack = normalizeSearchText(
+    [
+      exhibition.title,
+      exhibition.location,
+      exhibition.aiSummary ?? "",
+      exhibition.dateStr,
+      ...(exhibition.tags ?? []),
+    ].join(" "),
+  );
+  const terms = splitSearchTerms(query);
+  if (!terms.length) return true;
+  return terms.every((term) => haystack.includes(term));
+}
+
+function matchTagSearch(exhibition: Exhibition, query: string) {
+  const raw = query.trim().replace(/^#+/, "");
+  const keyword = normalizeSearchText(raw);
+  if (!keyword) return true;
+  const tags = (exhibition.tags ?? []).map((tag) => normalizeSearchText(String(tag).replace(/^#+/, "")));
+  return tags.some((tag) => tag.includes(keyword));
+}
+
 export function Home() {
+  const location = useLocation();
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [activeSort, setActiveSort] = useState<SortKey>("relevancy");
   const [sortOpen, setSortOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
+  const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
+  const isTagSearch = rawQuery.trim().startsWith("#");
+
 
   useEffect(() => {
     getHomeRecommendations()
@@ -69,8 +105,15 @@ export function Home() {
   useEffect(() => { setVisible(PAGE_SIZE); }, [activeSort]);
 
   const filtered = useMemo(() => {
-    return sortExhibitions(allExhibitions, activeSort);
-  }, [allExhibitions, activeSort]);
+    const searched = !rawQuery.trim()
+      ? allExhibitions
+      : allExhibitions.filter((exhibition) =>
+          isTagSearch
+            ? matchTagSearch(exhibition, rawQuery)
+            : matchKeywordSearch(exhibition, rawQuery),
+        );
+    return sortExhibitions(searched, activeSort);
+  }, [allExhibitions, activeSort, isTagSearch, rawQuery]);
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];

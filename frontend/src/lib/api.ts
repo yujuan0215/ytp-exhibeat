@@ -174,6 +174,16 @@ export const getHomeRecommendations = async (): Promise<Exhibition[]> => {
   return data.exhibitions;
 };
 
+export const listAvailableTags = async (): Promise<string[]> => {
+  const response = await fetch('/api/tags');
+  if (!response.ok) throw new Error("Failed to fetch tag suggestions");
+  const data = await response.json();
+  if (!Array.isArray(data?.tags)) return [];
+  return data.tags
+    .map((tag: unknown) => String(tag ?? "").trim())
+    .filter(Boolean);
+};
+
 export const getCollectionRecommendations = async () => {
   const response = await fetch('/api/recommendations/collection');
   if (!response.ok) throw new Error("Failed to fetch collection recommendations");

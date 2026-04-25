@@ -86,6 +86,8 @@ app = FastAPI(title="ExhiBeat Recommender & Proxy API")
 ensure_database_ready()
 
 _legal_stays_cache: dict | None = None
+_exhibitions_cache: list[dict] | None = None
+_exhibitions_cache_mtime: float | None = None
 _translation_cache: dict[str, dict[str, str]] = {}
 _offline_translation_cache: dict[tuple[str, str], str] | None = None
 _offline_translation_mtime: float | None = None
@@ -117,6 +119,43 @@ def load_legal_stays_dataset() -> dict:
         )
     _legal_stays_cache = json.loads(LEGAL_STAYS_PATH.read_text(encoding="utf-8"))
     return _legal_stays_cache
+
+
+def load_exhibitions_dataset() -> list[dict]:
+    global _exhibitions_cache, _exhibitions_cache_mtime
+    if not EXHIBITIONS_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Exhibitions dataset missing: {EXHIBITIONS_PATH}",
+        )
+    current_mtime = EXHIBITIONS_PATH.stat().st_mtime
+    if _exhibitions_cache is not None and _exhibitions_cache_mtime == current_mtime:
+        return _exhibitions_cache
+    payload = json.loads(EXHIBITIONS_PATH.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Exhibitions dataset format is invalid.",
+        )
+    _exhibitions_cache = [item for item in payload if isinstance(item, dict)]
+    _exhibitions_cache_mtime = current_mtime
+    return _exhibitions_cache
+
+
+def list_available_tags() -> list[str]:
+    tags: set[str] = set()
+    for item in load_exhibitions_dataset():
+        raw_tags = item.get("tag", [])
+        if isinstance(raw_tags, str):
+            raw_tags = [raw_tags]
+        if not isinstance(raw_tags, list):
+            continue
+        for raw in raw_tags:
+            value = str(raw).strip()
+            if not value:
+                continue
+            tags.add(value if value.startswith("#") else f"#{value}")
+    return sorted(tags)
 
 
 def filter_legal_stays(
@@ -647,6 +686,12 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
 async def get_home_recommendations():
     exhibitions = get_recommendations_for_persona("taipei_after_work", 18)
     return {"exhibitions": exhibitions}
+
+
+@app.get("/api/tags")
+async def get_available_tags():
+    return {"tags": list_available_tags()}
+
 
 @app.get("/api/recommendations/collection/more")
 async def get_more_collection_recommendations():
