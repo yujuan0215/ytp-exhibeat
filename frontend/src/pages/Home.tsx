@@ -159,7 +159,7 @@ export function Home() {
 
 
   useEffect(() => {
-    getHomeRecommendations({ limit: 120, offset: 0 })
+    getHomeRecommendations({ limit: 1000, offset: 0 })
       .then(data => {
         setAllExhibitions(data);
         setLoading(false);

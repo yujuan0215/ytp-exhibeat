@@ -55,6 +55,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip ACCUPASS 北區藝文 listing (本週主打推薦 + 熱門活動).",
     )
+    p.add_argument(
+        "--skip-iculture",
+        action="store_true",
+        help="Skip iCulture (cloud.culture.tw) full-category fetch.",
+    )
     return p.parse_args()
 
 
@@ -96,6 +101,13 @@ def main() -> int:
                 [py, str(CRAWLER_DIR / "crawl_accupass_north_channel2.py"), *head_flag],
             )
         )
+    if not args.skip_iculture:
+        codes.append(
+            run_step(
+                "iCulture full categories → data/iculture_exhibitions.json",
+                ["node", str(REPO_ROOT / "fetch_exhibitions.js"), str(REPO_ROOT / "data" / "iculture_exhibitions.json")],
+            )
+        )
 
     if args.merge:
         tidbits = REPO_ROOT / "data" / "artemperor_tidbits.json"
@@ -118,7 +130,9 @@ def main() -> int:
             op1 = REPO_ROOT / "data" / "opentix_exhibitions.json"
             op2 = REPO_ROOT / "data" / "opentix2_exhibitions.json"
             art = REPO_ROOT / "data" / "artemperor_exhibitions.json"
-            inputs = [p for p in (op1, op2, art) if p.is_file()]
+            acc = REPO_ROOT / "data" / "accupass_north_taipei_exhibitions.json"
+            iculture = REPO_ROOT / "data" / "iculture_exhibitions.json"
+            inputs = [p for p in (op1, op2, art, acc, iculture) if p.is_file()]
             if len(inputs) < 1:
                 print("!! Skip merge: no input JSON files in data/", file=sys.stderr)
             else:

@@ -673,7 +673,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
 # ─── Recommender ─────────────────────────────────────────────────────────────
 def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dict]:
     persona_map = {
-        "taipei_after_work":  {"cities": "台北市,新北市,基隆市",         "tags": "art,photogenic,culture"},
+        "taipei_after_work":  {"cities": "台北市,新北市",         "tags": "art,photogenic,culture"},
         "history_nerd":        {"cities": "台中市,台南市,高雄市,基隆市",  "tags": "history,culture,indigenous"},
         "free_city_explorer":  {"cities": "台北市,新北市,基隆市,桃園市", "tags": "culture,photogenic,general", "free": True},
     }
@@ -707,7 +707,7 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
-    limit: int = Query(18, ge=1, le=120),
+    limit: int = Query(18, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
     requested = offset + limit
