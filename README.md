@@ -4,17 +4,14 @@
 
 ---
 
-## 先看重點（3 分鐘快速理解）
-
-ExhiBeat 在做什麼？
+## 核心內容
 
 - **展演整合**：集中多來源活動內容，降低找活動的時間成本
 - **多元探索**：用關鍵字、標籤、地圖三種視角快速篩選
 - **AI 增強推薦**：透過 AI Agent 與推薦邏輯，協助你找到更符合偏好的活動
 - **從發現到決策**：不只看清單，還能收藏、比較、規劃行程
 
-如果你是使用者：
-
+使用流程：
 1. 打開首頁看推薦
 2. 用搜尋 + `#標籤` 篩選
 3. 進詳情頁看內容與地圖
@@ -24,7 +21,7 @@ ExhiBeat 在做什麼？
 
 ## 為什麼需要 ExhiBeat
 
-在台北，展演資訊並不缺，但「好用的整合」很少。
+在台北，展演資訊充足，但缺乏整合品質一致且可快速決策的平台。
 
 常見痛點：
 
@@ -40,7 +37,7 @@ ExhiBeat 的價值是把這條路徑縮短：
 
 ## Live View
 
-[You can liveview at http://placeholder.com](http://placeholder.com)
+[Live view](http://placeholder.com)
 
 ---
 
@@ -48,7 +45,7 @@ ExhiBeat 的價值是把這條路徑縮短：
 
 ### 1) Requirement install
 
-建議環境：
+環境需求：
 
 - Python 3.11 / 3.12
 - Node.js 22+
@@ -58,15 +55,15 @@ ExhiBeat 的價值是把這條路徑縮短：
 
 - 前端：`frontend/package.json`
 - 後端：`backend/adk_agent/requirements.txt`
-- 推薦模組（可選）：`backend/app/recommender/requirements.txt`
+- 推薦模組（選配）：`backend/app/recommender/requirements.txt`
 
-> 前端可以用 npm；但後端是 Python 服務，仍需安裝 `requirements.txt`，不建議全面改成 npm。
+前端使用 npm 安裝與管理依賴；後端為 Python 服務，需安裝 `requirements.txt`。
 
 ---
 
 ### 2) Get API key
 
-若要啟用 Gemini 相關功能，請先準備 Google API Key：
+啟用 Gemini 相關功能前，請先準備 Google API Key：
 
 1. 前往 [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. 建立 API Key
