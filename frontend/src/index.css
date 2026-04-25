@@ -298,3 +298,135 @@
     background-clip: padding-box;
   }
 }
+
+/* Animated hearts (Uiverse style) */
+.heart-container {
+  --heart-color: rgb(189, 91, 255);
+  --heart-size: 20px;
+  position: relative;
+  width: var(--heart-size);
+  height: var(--heart-size);
+  transition: transform 0.2s ease;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.heart-container:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.heart-container .svg-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heart-container .svg-outline,
+.heart-container .svg-filled {
+  fill: var(--heart-color);
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.heart-container .svg-outline {
+  opacity: 0.85;
+}
+
+.heart-container .svg-filled {
+  display: none;
+}
+
+.heart-container .svg-celebrate {
+  position: absolute;
+  width: calc(var(--heart-size) * 2.2);
+  height: calc(var(--heart-size) * 2.2);
+  stroke: var(--heart-color);
+  fill: none;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  animation: keyframes-svg-celebrate 0.5s forwards;
+  pointer-events: none;
+}
+
+.heart-container[data-checked="true"] .svg-filled {
+  display: block;
+  animation: keyframes-svg-filled 0.45s;
+}
+
+.heart-container:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+@keyframes keyframes-svg-filled {
+  0% {
+    transform: scale(0);
+  }
+  25% {
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1);
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes keyframes-svg-celebrate {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* Map stay toggle (Uiverse style, adapted to class-based selector) */
+.stay-toggle-input {
+  display: none;
+}
+
+.stay-toggleSwitch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 50px;
+  height: 30px;
+  background-color: rgb(82, 82, 82);
+  border-radius: 999px;
+  cursor: pointer;
+  transition-duration: 0.2s;
+}
+
+.stay-toggleSwitch::after {
+  content: "";
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 5px;
+  background-color: transparent;
+  border-radius: 50%;
+  transition-duration: 0.2s;
+  box-shadow: 5px 2px 7px rgba(8, 8, 8, 0.26);
+  border: 5px solid white;
+}
+
+.stay-toggle-input:checked + .stay-toggleSwitch::after {
+  transform: translateX(100%);
+  transition-duration: 0.2s;
+  background-color: white;
+}
+
+.stay-toggle-input:checked + .stay-toggleSwitch {
+  background-color: #00d6ff;
+  transition-duration: 0.2s;
+}

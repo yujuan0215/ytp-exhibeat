@@ -5,12 +5,12 @@ import {
   MapPin,
   Phone,
   Search,
-  Heart,
   ChevronDown,
   ChevronUp,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 import { listLegalStays, type LegalStay } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import {
@@ -460,12 +460,11 @@ export function Accommodations() {
                       className={`absolute right-3 top-3 z-10 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-black/35 backdrop-blur-md hover:bg-black/55`}
                       title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
                     >
-                      <Heart
-                        className={`h-5 w-5 transition-all ${
-                          favoriteStayIds.has(stay.id)
-                            ? "fill-purple-500 text-purple-500"
-                            : "text-white/75 hover:text-white"
-                        }`}
+                      <AnimatedHeart
+                        checked={favoriteStayIds.has(stay.id)}
+                        size={20}
+                        className="text-white"
+                        title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
                       />
                     </button>
                   </div>

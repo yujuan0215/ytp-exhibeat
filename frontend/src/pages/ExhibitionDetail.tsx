@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Calendar,
   Clock3,
-  Heart,
   Loader2,
   Lock,
   MapPin,
@@ -23,6 +22,7 @@ import { useTheme } from "@/lib/theme";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 import { SignInPrompt } from "@/components/SignInPrompt";
+import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
@@ -618,7 +618,12 @@ export function ExhibitionDetail() {
                 aria-label={user ? (favorited ? "已收藏" : "加入收藏") : "登入後即可收藏"}
               >
                 {user ? (
-                  <Heart className={`w-5 h-5 ${favorited ? "fill-purple-400 text-purple-400" : ""}`} />
+                  <AnimatedHeart
+                    checked={favorited}
+                    size={20}
+                    className="text-white"
+                    title={user ? (favorited ? "已收藏" : "加入收藏") : "登入後即可收藏"}
+                  />
                 ) : (
                   <Lock className="w-5 h-5" />
                 )}
@@ -912,10 +917,11 @@ export function ExhibitionDetail() {
                           className="shrink-0 p-1"
                         >
                           {user ? (
-                            <Heart
-                              className={`h-4 w-4 transition-all ${
-                                isFavorited(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"
-                              }`}
+                            <AnimatedHeart
+                              checked={isFavorited(item.id)}
+                              size={16}
+                              className="text-white"
+                              title={user ? (isFavorited(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
                             />
                           ) : (
                             <Lock className="h-4 w-4 text-white/60 hover:text-white/85" />
