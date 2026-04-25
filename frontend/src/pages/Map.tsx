@@ -4,7 +4,7 @@ import { getHomeRecommendations } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
@@ -147,10 +147,18 @@ function buildEventPageUrl(item: Exhibition): string {
   return `/exhibition/${encodeURIComponent(item.id)}`;
 }
 
+function getItemCoords(item: Exhibition): LatLng | null {
+  const meta = item._meta as ({ latitude?: number; longitude?: number } | undefined);
+  if (typeof meta?.latitude === "number" && typeof meta?.longitude === "number") {
+    return { lat: meta.latitude, lng: meta.longitude };
+  }
+  return null;
+}
+
 function buildGoogleMapsUrl(item: Exhibition): string {
-  const hasCoord = typeof item._meta?.latitude === "number" && typeof item._meta?.longitude === "number";
-  if (hasCoord) {
-    return `https://www.google.com/maps/search/?api=1&query=${item._meta!.latitude},${item._meta!.longitude}`;
+  const coord = getItemCoords(item);
+  if (coord) {
+    return `https://www.google.com/maps/search/?api=1&query=${coord.lat},${coord.lng}`;
   }
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`;
 }
@@ -197,6 +205,7 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 export function Map() {
   const { user } = useAuth();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -215,6 +224,7 @@ export function Map() {
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [mapInitError, setMapInitError] = useState<string | null>(null);
+  const [mapReadyVersion, setMapReadyVersion] = useState(0);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
@@ -257,10 +267,7 @@ export function Map() {
     () =>
       exhibitions.map((item) => ({
         item,
-        coord:
-          typeof item._meta?.latitude === "number" && typeof item._meta?.longitude === "number"
-            ? { lat: item._meta.latitude, lng: item._meta.longitude }
-            : null,
+        coord: getItemCoords(item),
         geocodeQuery: `${item.location.replace("•", " ")} ${item.title} 台灣`,
       })),
     [exhibitions],
@@ -279,7 +286,7 @@ export function Map() {
     }
     if (activeFilter === "nearby") {
       return list
-        .filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number")
+        .filter((e) => Boolean(getItemCoords(e)))
         .slice(0, visibleCount);
     }
     return list.slice(0, visibleCount);
@@ -290,7 +297,7 @@ export function Map() {
     if (activeFilter === "free") return list.filter((e) => e.price === "FREE" || e._meta?.isFree).length;
     if (activeFilter === "ending") return list.filter((e) => !!e._meta?.endDate).length;
     if (activeFilter === "nearby") {
-      return list.filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number").length;
+      return list.filter((e) => Boolean(getItemCoords(e))).length;
     }
     return list.length;
   }, [activeFilter, exhibitions]);
@@ -308,6 +315,7 @@ export function Map() {
   const selectedSummary =
     selectedItem?.aiSummary ||
     "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
+  const queryEventId = searchParams.get("eventId");
 
   useEffect(() => {
     setVisibleCount(5);
@@ -360,7 +368,7 @@ export function Map() {
     };
   }, []);
 
-  const focusEventOnMap = (eventId: string) => {
+  const focusEventOnMap = (eventId: string, syncQuery = true) => {
     const map = mapInstanceRef.current;
     const infoWindow = infoWindowRef.current;
     const entry = markerLookupRef.current[eventId];
@@ -374,6 +382,11 @@ export function Map() {
     infoWindow.setContent(entry.content);
     infoWindow.open({ anchor: entry.marker, map });
     setSelectedEventId(eventId);
+    if (syncQuery) {
+      const next = new URLSearchParams(searchParams);
+      next.set("eventId", eventId);
+      setSearchParams(next, { replace: true });
+    }
   };
 
   useEffect(() => {
@@ -480,6 +493,7 @@ export function Map() {
         });
 
         if (resolvedData.length > 1) map.fitBounds(bounds);
+        setMapReadyVersion((prev) => prev + 1);
       })
       .catch((e) => {
         console.error(e);
@@ -495,6 +509,20 @@ export function Map() {
       infoWindowRef.current = null;
     };
   }, [apiKey, mapId, markerData, useCloudStyle]);
+
+  useEffect(() => {
+    if (!queryEventId) {
+      setSelectedEventId(null);
+      return;
+    }
+    const exists = exhibitions.some((item) => item.id === queryEventId);
+    if (!exists) return;
+    if (markerLookupRef.current[queryEventId]) {
+      focusEventOnMap(queryEventId, false);
+      return;
+    }
+    setSelectedEventId(queryEventId);
+  }, [queryEventId, exhibitions, mapReadyVersion]);
 
   if (!apiKey) {
     return (
@@ -629,7 +657,12 @@ export function Map() {
                 />
                 <button
                   type="button"
-                  onClick={() => setSelectedEventId(null)}
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("eventId");
+                    setSearchParams(next, { replace: true });
+                    setSelectedEventId(null);
+                  }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />

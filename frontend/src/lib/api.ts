@@ -8,6 +8,18 @@ const APP_NAME = "gemini_agent";
 const USER_ID = "local-dev-user";
 const TOKEN_STORAGE_KEY = "exhibeat_token";
 
+export type AgentRecommendationItem = {
+  id: string;
+  title: string;
+  dateStr: string;
+  location: string;
+  imageUrl: string;
+};
+
+export type AgentMessagePayload =
+  | { kind: "text"; text: string }
+  | { kind: "recommendation_carousel"; introText?: string; title?: string; events: AgentRecommendationItem[] };
+
 export function getAuthToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
@@ -92,14 +104,60 @@ export const sendMessageToAgent = async (message: string) => {
   const data = await response.json();
 
   let reply = "Sorry, I couldn't process that.";
+  let payload: AgentMessagePayload = { kind: "text", text: reply };
   if (Array.isArray(data)) {
-    const finalEvent = data.slice().reverse().find(e => e.message?.text || e.output?.text || e.content?.text || e.content?.parts?.[0]?.text);
+    const finalEvent = data.slice().reverse().find(
+      (e) =>
+        e?.recommendation_carousel ||
+        e?.output?.recommendation_carousel ||
+        e?.message?.recommendation_carousel ||
+        e?.content?.recommendation_carousel ||
+        e?.data?.recommendation_carousel ||
+        e?.message?.text ||
+        e?.output?.text ||
+        e?.content?.text ||
+        e?.content?.parts?.[0]?.text,
+    );
     if (finalEvent) {
       reply = finalEvent.message?.text || finalEvent.output?.text || finalEvent.content?.text || finalEvent.content?.parts?.[0]?.text || JSON.stringify(finalEvent);
+      const structured =
+        finalEvent?.recommendation_carousel ||
+        finalEvent?.output?.recommendation_carousel ||
+        finalEvent?.message?.recommendation_carousel ||
+        finalEvent?.content?.recommendation_carousel ||
+        finalEvent?.data?.recommendation_carousel;
+
+      if (structured && Array.isArray(structured.events)) {
+        const events = structured.events
+          .map((event: any): AgentRecommendationItem | null => {
+            if (!event?.id || !event?.title) return null;
+            return {
+              id: String(event.id),
+              title: String(event.title),
+              dateStr: String(event.dateStr ?? event.date ?? "日期待確認"),
+              location: String(event.location ?? "地點待確認"),
+              imageUrl: String(event.imageUrl ?? event.image_url ?? ""),
+            };
+          })
+          .filter((event: AgentRecommendationItem | null): event is AgentRecommendationItem => Boolean(event));
+
+        if (events.length > 0) {
+          payload = {
+            kind: "recommendation_carousel",
+            introText: typeof structured.introText === "string" ? structured.introText : undefined,
+            title: typeof structured.title === "string" ? structured.title : undefined,
+            events,
+          };
+        } else {
+          payload = { kind: "text", text: reply };
+        }
+      } else {
+        payload = { kind: "text", text: reply };
+      }
     }
   }
 
-  return { reply };
+  return payload;
 };
 
 export const getHomeRecommendations = async (): Promise<Exhibition[]> => {

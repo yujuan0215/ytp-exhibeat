@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAgent } from '../hooks/useAgent';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { RecommendationCarousel } from './agent/RecommendationCarousel';
 
 export function AgentChat() {
   const { pathname } = useLocation();
@@ -64,15 +65,19 @@ export function AgentChat() {
               key={i} 
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div 
-                className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
-                  msg.role === 'user' 
-                    ? 'bg-purple-600/90 text-white rounded-br-sm backdrop-blur-sm' 
-                    : 'bg-white/5 text-purple-50 border border-white/10 rounded-bl-sm backdrop-blur-sm'
-                }`}
-              >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-              </div>
+              {msg.role === 'agent' && msg.kind === 'recommendation_carousel' ? (
+                <RecommendationCarousel title={msg.title} introText={msg.introText} events={msg.events} />
+              ) : (
+                <div 
+                  className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-purple-600/90 text-white rounded-br-sm backdrop-blur-sm' 
+                      : 'bg-white/5 text-purple-50 border border-white/10 rounded-bl-sm backdrop-blur-sm'
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                </div>
+              )}
             </div>
           ))}
           {isLoading && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MessageCircle, Send } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useAgent } from "@/hooks/useAgent";
+import { RecommendationCarousel } from "@/components/agent/RecommendationCarousel";
 
 export function Agent() {
   const { theme } = useTheme();
@@ -37,15 +38,19 @@ export function Agent() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
-              <div
-                className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
-                  msg.role === "user"
-                    ? "bg-purple-600/90 text-white rounded-br-sm backdrop-blur-sm"
-                    : "bg-white/5 text-purple-50 border border-white/10 rounded-bl-sm backdrop-blur-sm"
-                }`}
-              >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-              </div>
+              {msg.role === "agent" && msg.kind === "recommendation_carousel" ? (
+                <RecommendationCarousel title={msg.title} introText={msg.introText} events={msg.events} />
+              ) : (
+                <div
+                  className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
+                    msg.role === "user"
+                      ? "bg-purple-600/90 text-white rounded-br-sm backdrop-blur-sm"
+                      : "bg-white/5 text-purple-50 border border-white/10 rounded-bl-sm backdrop-blur-sm"
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                </div>
+              )}
             </div>
           ))}
           {isLoading && (

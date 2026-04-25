@@ -1,10 +1,27 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { sendMessageToAgent } from '../lib/api';
+import type { AgentRecommendationItem } from '../lib/api';
 
-export type Message = {
-  role: 'user' | 'agent';
+export type AgentUserMessage = {
+  role: 'user';
   text: string;
 };
+
+export type AgentTextMessage = {
+  role: 'agent';
+  kind: 'text';
+  text: string;
+};
+
+export type AgentRecommendationMessage = {
+  role: 'agent';
+  kind: 'recommendation_carousel';
+  title?: string;
+  introText?: string;
+  events: AgentRecommendationItem[];
+};
+
+export type Message = AgentUserMessage | AgentTextMessage | AgentRecommendationMessage;
 
 type AgentContextValue = {
   messages: Message[];
@@ -16,7 +33,7 @@ const AgentContext = createContext<AgentContextValue | null>(null);
 
 export function AgentProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'agent', text: 'Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?' }
+    { role: 'agent', kind: 'text', text: 'Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,12 +45,23 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     
     try {
       const result = await sendMessageToAgent(text);
-      // Fallback check depending on exactly how your ADK returns data
-      const replyText = result.reply || result.response || result.message || JSON.stringify(result);
-      setMessages(prev => [...prev, { role: 'agent', text: replyText }]);
+      if (result.kind === 'recommendation_carousel') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'agent',
+            kind: 'recommendation_carousel',
+            title: result.title,
+            introText: result.introText,
+            events: result.events,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [...prev, { role: 'agent', kind: 'text', text: result.text }]);
+      }
     } catch (e: any) {
       console.error(e);
-      setMessages(prev => [...prev, { role: 'agent', text: `Connection Error: ${e.message}` }]);
+      setMessages(prev => [...prev, { role: 'agent', kind: 'text', text: `Connection Error: ${e.message}` }]);
     } finally {
       setIsLoading(false);
     }
