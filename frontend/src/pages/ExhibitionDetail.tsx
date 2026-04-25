@@ -20,6 +20,7 @@ import { getCollectionRecommendations, getHomeRecommendations } from "@/lib/api"
 import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
+import { useDynamicTranslation } from "@/hooks/useDynamicTranslation";
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 const SHOT_IMAGES = [
@@ -113,6 +114,24 @@ export function ExhibitionDetail() {
     const [venue, city] = exhibition.location.split("•").map((s) => s.trim());
     return { venue: venue ?? "", city: city ?? "" };
   }, [exhibition]);
+  const detailTranslationTexts = useMemo(() => {
+    const currentTexts = exhibition
+      ? [
+          exhibition.title,
+          exhibition.location,
+          exhibition.aiSummary ?? "",
+          locationParts.venue,
+          locationParts.city,
+        ]
+      : [];
+    const suggestionTexts = suggestions.flatMap((item) => [
+      item.title,
+      item.location,
+      item.tags?.[0] ?? "",
+    ]);
+    return [...currentTexts, ...suggestionTexts];
+  }, [exhibition, locationParts.city, locationParts.venue, suggestions]);
+  const translateDetailText = useDynamicTranslation(detailTranslationTexts, "exhibition detail page content");
 
   const handleToggleFavorite = async () => {
     if (!exhibition) return;
@@ -150,6 +169,9 @@ export function ExhibitionDetail() {
       ? exhibition.price
       : "NT$450";
   const venue = locationParts.venue || exhibition.location;
+  const translatedTitle = translateDetailText(exhibition.title);
+  const translatedVenue = translateDetailText(venue);
+  const translatedCity = translateDetailText(locationParts.city || "台北市");
   const likes = Math.max(120, (exhibition.title.length * 13) % 300 + 120);
   const actionLabel = isFree ? "前往展演資訊（外部）" : "前往購票連結（外部）";
   const actionHint = isFree ? "免費展演通常可直接入場，請以主辦單位公告為準。" : "購票前將導向外部票務平台。";
@@ -161,7 +183,7 @@ export function ExhibitionDetail() {
       <section className="relative h-[665px] w-full overflow-hidden">
         <img
           src={heroImage}
-          alt={exhibition.title}
+          alt={translatedTitle}
           className="w-full h-full object-cover"
           onError={(e) => {
             (e.target as HTMLImageElement).src = FALLBACK_HERO;
@@ -186,15 +208,15 @@ export function ExhibitionDetail() {
           </div>
 
           <h1 className="text-6xl md:text-7xl font-extrabold tracking-tighter font-headline text-white max-w-4xl leading-[1.1]">
-            {exhibition.title.includes("：") ? (
+            {translatedTitle.includes("：") ? (
               <>
-                {exhibition.title.split("：")[0]}：
+                {translatedTitle.split("：")[0]}：
                 <br />
                 <span className="text-[#df8eff]">
-                  {exhibition.title.split("：")[1]}
+                  {translatedTitle.split("：")[1]}
                 </span>
               </>
-            ) : exhibition.title}
+            ) : translatedTitle}
           </h1>
 
           <div className="flex items-center gap-6 mt-2">
@@ -202,7 +224,7 @@ export function ExhibitionDetail() {
               <Calendar className="w-4 h-4 text-secondary" /> <span className="text-on-surface-variant font-medium">{formatDate(exhibition.dateStr)}</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-secondary" /> <span className="text-on-surface-variant font-medium">{venue}</span>
+              <MapPin className="w-4 h-4 text-secondary" /> <span className="text-on-surface-variant font-medium">{translatedVenue}</span>
             </span>
           </div>
         </div>
@@ -220,7 +242,9 @@ export function ExhibitionDetail() {
               <p
                 className="text-sm text-white/80 leading-relaxed"
               >
-                {exhibition.aiSummary || "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。"}
+                {exhibition.aiSummary
+                  ? translateDetailText(exhibition.aiSummary)
+                  : "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。"}
               </p>
             </div>
             <Panel title="社群評分" icon={<Star className="w-4 h-4 text-[#ff6b98]" />}>
@@ -313,8 +337,8 @@ export function ExhibitionDetail() {
               className="w-full h-48 object-cover rounded-lg"
             />
             <div className="p-4 flex flex-col gap-2">
-              <h3 className="font-bold text-on-surface font-headline">{venue}</h3>
-              <p className="text-xs text-on-surface-variant leading-relaxed">{locationParts.city || "台北市"} ・捷運站步行 10 分鐘</p>
+              <h3 className="font-bold text-on-surface font-headline">{translatedVenue}</h3>
+              <p className="text-xs text-on-surface-variant leading-relaxed">{translatedCity} ・捷運站步行 10 分鐘</p>
               <Link
                 to="/map"
                 className="mt-2 text-xs font-bold text-secondary flex items-center gap-1 group"
@@ -334,11 +358,11 @@ export function ExhibitionDetail() {
                   state={{ exhibition: item }}
                   className="flex gap-4 group cursor-pointer"
                 >
-                  <img src={item.imageUrl || FALLBACK_HERO} alt={item.title} className="w-20 h-20 object-cover rounded-lg shrink-0 group-hover:scale-105 transition-transform" />
+                  <img src={item.imageUrl || FALLBACK_HERO} alt={translateDetailText(item.title)} className="w-20 h-20 object-cover rounded-lg shrink-0 group-hover:scale-105 transition-transform" />
                   <div className="flex flex-col justify-center gap-1 min-w-0">
-                    <p className="text-xs text-[#ff6b98] font-bold line-clamp-1">{item.tags?.[0] || "藝術特展"}</p>
-                    <p className="text-sm font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2">{item.title}</p>
-                    <p className="text-[10px] text-on-surface-variant uppercase tracking-tight line-clamp-1">{item.location}</p>
+                    <p className="text-xs text-[#ff6b98] font-bold line-clamp-1">{item.tags?.[0] ? translateDetailText(item.tags[0]) : "藝術特展"}</p>
+                    <p className="text-sm font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2">{translateDetailText(item.title)}</p>
+                    <p className="text-[10px] text-on-surface-variant uppercase tracking-tight line-clamp-1">{translateDetailText(item.location)}</p>
                   </div>
                 </Link>
               ))}
