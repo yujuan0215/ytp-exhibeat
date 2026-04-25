@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAgent } from '../hooks/useAgent';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { RecommendationCarousel } from './agent/RecommendationCarousel';
+import { ItineraryCards } from './agent/ItineraryCards';
 
 export function AgentChat() {
   const { pathname } = useLocation();
@@ -67,6 +68,8 @@ export function AgentChat() {
             >
               {msg.role === 'agent' && msg.kind === 'recommendation_carousel' ? (
                 <RecommendationCarousel title={msg.title} introText={msg.introText} events={msg.events} />
+              ) : msg.role === 'agent' && msg.kind === 'itinerary_cards' ? (
+                <ItineraryCards title={msg.title} introText={msg.introText} date={msg.date} stops={msg.stops} />
               ) : (
                 <div 
                   className={`max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${

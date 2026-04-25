@@ -3,6 +3,7 @@ import { Loader2, MessageCircle, Send } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useAgent } from "@/hooks/useAgent";
 import { RecommendationCarousel } from "@/components/agent/RecommendationCarousel";
+import { ItineraryCards } from "@/components/agent/ItineraryCards";
 
 export function Agent() {
   const { theme } = useTheme();
@@ -47,6 +48,8 @@ export function Agent() {
             <div key={i} className={`flex min-w-0 flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
               {msg.role === "agent" && msg.kind === "recommendation_carousel" ? (
                 <RecommendationCarousel title={msg.title} introText={msg.introText} events={msg.events} />
+              ) : msg.role === "agent" && msg.kind === "itinerary_cards" ? (
+                <ItineraryCards title={msg.title} introText={msg.introText} date={msg.date} stops={msg.stops} />
               ) : (
                 <div
                   className={`max-w-[92%] sm:max-w-[85%] px-4 py-2 rounded-2xl shadow-sm ${
