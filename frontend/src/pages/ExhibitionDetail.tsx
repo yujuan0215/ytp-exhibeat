@@ -164,6 +164,7 @@ export function ExhibitionDetail() {
   const [hiddenBaseTags, setHiddenBaseTags] = useState<string[]>([]);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [activeTagOptionIndex, setActiveTagOptionIndex] = useState(-1);
   const venueMapRef = useRef<HTMLElement | null>(null);
   const tagPickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -324,6 +325,18 @@ export function ExhibitionDetail() {
   );
 
   useEffect(() => {
+    if (!tagPickerOpen) {
+      setActiveTagOptionIndex(-1);
+      return;
+    }
+    setActiveTagOptionIndex((prev) => {
+      if (tagAutocompleteOptions.length === 0) return -1;
+      if (prev < 0) return -1;
+      return prev >= tagAutocompleteOptions.length ? tagAutocompleteOptions.length - 1 : prev;
+    });
+  }, [tagAutocompleteOptions, tagPickerOpen]);
+
+  useEffect(() => {
     setActiveImageIndex(0);
   }, [galleryImages]);
 
@@ -448,6 +461,14 @@ export function ExhibitionDetail() {
       saveCustomTagsForExhibition(exhibition.id, next);
       return next;
     });
+  };
+
+  const handleSubmitFromEditor = () => {
+    if (activeTagOptionIndex >= 0 && activeTagOptionIndex < tagAutocompleteOptions.length) {
+      handleAddTagFromOption(tagAutocompleteOptions[activeTagOptionIndex].tag);
+      return;
+    }
+    handleCreateCustomTag();
   };
 
   return (
@@ -649,11 +670,29 @@ export function ExhibitionDetail() {
                     <input
                       type="text"
                       value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
+                      onChange={(e) => {
+                        setTagInput(e.target.value);
+                        setActiveTagOptionIndex(-1);
+                      }}
                       onKeyDown={(e) => {
+                        if (e.key === "ArrowDown") {
+                          if (tagAutocompleteOptions.length === 0) return;
+                          e.preventDefault();
+                          setActiveTagOptionIndex((prev) => (prev + 1) % tagAutocompleteOptions.length);
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          if (tagAutocompleteOptions.length === 0) return;
+                          e.preventDefault();
+                          setActiveTagOptionIndex((prev) =>
+                            prev <= 0 ? tagAutocompleteOptions.length - 1 : prev - 1,
+                          );
+                          return;
+                        }
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          handleCreateCustomTag();
+                          handleSubmitFromEditor();
+                          return;
                         }
                         if (e.key === "Escape") {
                           setTagPickerOpen(false);
@@ -678,7 +717,7 @@ export function ExhibitionDetail() {
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {tagAutocompleteOptions.length > 0 ? (
-                        tagAutocompleteOptions.map((row) => {
+                        tagAutocompleteOptions.map((row, index) => {
                           const normalized = normalizeHashtagInput(row.tag);
                           const exists = currentTagSet.has(normalized);
                           return (
@@ -686,8 +725,13 @@ export function ExhibitionDetail() {
                               key={row.tag}
                               type="button"
                               onClick={() => handleAddTagFromOption(row.tag)}
+                              onMouseEnter={() => setActiveTagOptionIndex(index)}
                               className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                                exists ? "text-white/40" : "text-white/85 hover:bg-white/5"
+                                exists
+                                  ? "text-white/40"
+                                  : "text-white/85 hover:bg-white/5"
+                              } ${
+                                activeTagOptionIndex === index ? "bg-white/10" : ""
                               }`}
                               disabled={exists}
                             >
