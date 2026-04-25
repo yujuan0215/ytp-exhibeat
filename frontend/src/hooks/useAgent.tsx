@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { sendMessageToAgent } from '../lib/api';
 
 export type Message = {
@@ -6,7 +6,15 @@ export type Message = {
   text: string;
 };
 
-export function useAgent() {
+type AgentContextValue = {
+  messages: Message[];
+  isLoading: boolean;
+  sendMessage: (text: string) => Promise<void>;
+};
+
+const AgentContext = createContext<AgentContextValue | null>(null);
+
+export function AgentProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'agent', text: 'Hi! I am your ExhiBeat assistant. How can I help you find exhibitions or events today?' }
   ]);
@@ -31,5 +39,18 @@ export function useAgent() {
     }
   };
 
-  return { messages, isLoading, sendMessage };
+  const value = useMemo(
+    () => ({ messages, isLoading, sendMessage }),
+    [messages, isLoading],
+  );
+
+  return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;
+}
+
+export function useAgent() {
+  const context = useContext(AgentContext);
+  if (!context) {
+    throw new Error('useAgent must be used within an AgentProvider');
+  }
+  return context;
 }

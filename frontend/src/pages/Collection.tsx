@@ -13,6 +13,11 @@ import { useTheme } from "@/lib/theme";
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 const DEFAULT_REF_COORD = { lat: 25.033, lng: 121.5654 }; // Taipei 101 area fallback
 
+function getCoords(exhibition: Exhibition): { lat?: number; lng?: number } {
+  const meta = exhibition._meta as ({ latitude?: number; longitude?: number } | undefined);
+  return { lat: meta?.latitude, lng: meta?.longitude };
+}
+
 function getEndDateTimestamp(exhibition: Exhibition): number {
   if (exhibition._meta?.endDate) {
     const parsed = new Date(exhibition._meta.endDate).getTime();
@@ -109,10 +114,8 @@ export function Collection() {
     const list = [...collectionExhibitions];
     if (sortMode === "distance") {
       return list.sort((a, b) => {
-        const aLat = a._meta?.latitude;
-        const aLng = a._meta?.longitude;
-        const bLat = b._meta?.latitude;
-        const bLng = b._meta?.longitude;
+        const { lat: aLat, lng: aLng } = getCoords(a);
+        const { lat: bLat, lng: bLng } = getCoords(b);
         const aHasCoord = typeof aLat === "number" && typeof aLng === "number";
         const bHasCoord = typeof bLat === "number" && typeof bLng === "number";
         if (!aHasCoord && !bHasCoord) return a.title.localeCompare(b.title, "zh-Hant");

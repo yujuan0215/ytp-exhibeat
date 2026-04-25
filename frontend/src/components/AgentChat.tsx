@@ -1,17 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAgent } from '../hooks/useAgent';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 export function AgentChat() {
+  const { pathname } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const { messages, isLoading, sendMessage } = useAgent();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isAgentPage = pathname === '/agent';
 
   // Auto-scroll to bottom whenever messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (isAgentPage) setIsOpen(false);
+  }, [isAgentPage]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +29,8 @@ export function AgentChat() {
 
   return (
     <>
+      {!isAgentPage && (
+        <>
       {/* Floating Button Widget */}
       <button
         onClick={() => setIsOpen(true)}
@@ -99,6 +108,8 @@ export function AgentChat() {
           </div>
         </form>
       </div>
+        </>
+      )}
     </>
   );
 }
