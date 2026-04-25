@@ -286,6 +286,8 @@ export function Map() {
   const taipeiStayHasMoreRef = useRef(true);
   const taipeiStayLoadingRef = useRef(false);
   const latestViewportRef = useRef<NonNullable<typeof mapViewport> | null>(null);
+  const handledStayQueryIdRef = useRef<string | null>(null);
+  const handledExplicitStayFocusRef = useRef<string | null>(null);
   const prefillState = (location.state as { prefillStay?: LegalStay; prefillEvent?: Exhibition } | null) ?? null;
   const prefillStay = prefillState?.prefillStay ?? null;
   const prefillEvent = prefillState?.prefillEvent ?? null;
@@ -401,15 +403,6 @@ export function Map() {
     "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
-  // Important: Number(null) is 0 — missing query params must not be treated as valid coordinates.
-  const stayLatRaw = searchParams.get("stayLat");
-  const stayLngRaw = searchParams.get("stayLng");
-  const hasExplicitStayCoords =
-    stayLatRaw !== null && stayLatRaw !== "" && stayLngRaw !== null && stayLngRaw !== "";
-  const queryStayLat = hasExplicitStayCoords ? Number(stayLatRaw) : Number.NaN;
-  const queryStayLng = hasExplicitStayCoords ? Number(stayLngRaw) : Number.NaN;
-  const queryStayName = searchParams.get("stayName")?.trim() || "住宿地點";
-  const queryStayAddress = searchParams.get("stayAddress")?.trim() ?? "";
   const queryReturnTo = searchParams.get("returnTo");
 
   function isTaipeiStay(stay: LegalStay): boolean {
@@ -563,6 +556,10 @@ export function Map() {
   useEffect(() => {
     // Even when there are zero exhibitions, initialize the base map so users
     // can still see the map canvas instead of a blank panel.
+    // Wait for initial data request to settle first; otherwise the map mounts
+    // once with empty data and then re-mounts again after exhibitions arrive,
+    // which causes noticeable jumpiness on stay deep-links.
+    if (loading) return;
     if (!mapRef.current || !apiKey) return;
 
     let detached = false;
@@ -623,7 +620,7 @@ export function Map() {
               }),
         });
 
-        const infoWindow = new maps.InfoWindow();
+        const infoWindow = new maps.InfoWindow({ disableAutoPan: true });
         mapInstanceRef.current = map;
         infoWindowRef.current = infoWindow;
         markerLookupRef.current = {};
@@ -707,7 +704,7 @@ export function Map() {
       mapInstanceRef.current = null;
       infoWindowRef.current = null;
     };
-  }, [apiKey, mapId, markerData, useCloudStyle]);
+  }, [apiKey, loading, mapId, markerData, useCloudStyle]);
 
   useEffect(() => {
     if (!mapViewport || mapViewport.zoom < MIN_STAY_ZOOM) {
@@ -830,6 +827,7 @@ export function Map() {
       const selectedEntry = markerLookupRef.current[selectedKey];
       const infoWindow = infoWindowRef.current;
       if (selectedEntry && infoWindow) {
+        infoWindow.setOptions?.({ disableAutoPan: true });
         infoWindow.setContent(selectedEntry.content);
         infoWindow.open({ anchor: selectedEntry.marker, map });
       }
@@ -871,60 +869,20 @@ export function Map() {
   }, [prefillStay]);
 
   useEffect(() => {
-    if (!queryStayId) return;
+    if (!queryStayId) {
+      handledStayQueryIdRef.current = null;
+      return;
+    }
+    if (handledStayQueryIdRef.current === queryStayId) return;
     if (markerLookupRef.current[`stay:${queryStayId}`]) {
       focusMarkerOnMap(`stay:${queryStayId}`, false);
+      handledStayQueryIdRef.current = queryStayId;
     }
   }, [queryStayId, mapReadyVersion, legalStays]);
 
   useEffect(() => {
-    if (!hasExplicitStayCoords || !Number.isFinite(queryStayLat) || !Number.isFinite(queryStayLng)) return;
-    const map = mapInstanceRef.current;
-    const infoWindow = infoWindowRef.current;
-    const maps = window.google?.maps;
-    if (!map || !infoWindow || !maps) return;
-
-    if (transientStayMarkerRef.current) {
-      transientStayMarkerRef.current.setMap(null);
-      transientStayMarkerRef.current = null;
-    }
-
-    map.panTo({ lat: queryStayLat, lng: queryStayLng });
-    map.setZoom(Math.max(map.getZoom?.() ?? 11, 14));
-
-    const marker = new maps.Marker({
-      position: { lat: queryStayLat, lng: queryStayLng },
-      map,
-      title: queryStayName,
-      icon: buildMarkerIcon(maps, "stay", true),
-      zIndex: 1200,
-    });
-    transientStayMarkerRef.current = marker;
-
-    const popupContent = `<div style="max-width:260px;background:#111827;color:#e5e7eb;padding:10px 12px;border-radius:10px;line-height:1.45;">
-          <strong style="display:block;color:#d8f8ff;margin-bottom:4px;">${escapeHtml(queryStayName)}</strong>
-          ${
-            queryStayAddress
-              ? `<span style="display:block;color:#cbd5e1;margin-top:2px;">${escapeHtml(queryStayAddress)}</span>`
-              : ""
-          }
-        </div>`;
-    infoWindow.setContent(popupContent);
-    infoWindow.open({ anchor: marker, map });
-    marker.addListener("click", () => {
-      infoWindow.setContent(popupContent);
-      infoWindow.open({ anchor: marker, map });
-      setSelection({ kind: "stay", id: queryStayId || "__transient_stay__" });
-      if (prefillStay) setSelectedStay(prefillStay);
-    });
-
-    return () => {
-      marker.setMap(null);
-      if (transientStayMarkerRef.current === marker) {
-        transientStayMarkerRef.current = null;
-      }
-    };
-  }, [hasExplicitStayCoords, queryStayLat, queryStayLng, queryStayName, queryStayAddress, queryStayId, prefillStay, mapReadyVersion]);
+    handledExplicitStayFocusRef.current = null;
+  }, [queryStayId]);
 
   if (!apiKey) {
     return (
