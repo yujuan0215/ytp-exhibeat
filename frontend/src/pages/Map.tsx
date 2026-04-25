@@ -4,10 +4,10 @@ import { getHomeRecommendations } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
-import { Heart, MapPin, Clock3, Navigation } from "lucide-react";
+import { Heart, MapPin, Clock3, Navigation, ArrowLeft, ExternalLink } from "lucide-react";
 
 declare global {
   interface Window {
@@ -147,6 +147,22 @@ function buildEventPageUrl(item: Exhibition): string {
   return `/exhibition/${encodeURIComponent(item.id)}`;
 }
 
+function getItemCoords(item: Exhibition): LatLng | null {
+  const meta = item._meta as ({ latitude?: number; longitude?: number } | undefined);
+  if (typeof meta?.latitude === "number" && typeof meta?.longitude === "number") {
+    return { lat: meta.latitude, lng: meta.longitude };
+  }
+  return null;
+}
+
+function buildGoogleMapsUrl(item: Exhibition): string {
+  const coord = getItemCoords(item);
+  if (coord) {
+    return `https://www.google.com/maps/search/?api=1&query=${coord.lat},${coord.lng}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`;
+}
+
 function geocodeWithGoogle(geocoder: any, address: string): Promise<LatLng | null> {
   return new Promise((resolve) => {
     geocoder.geocode({ address }, (results: any[], status: string) => {
@@ -189,6 +205,7 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 export function Map() {
   const { user } = useAuth();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -207,6 +224,7 @@ export function Map() {
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [mapInitError, setMapInitError] = useState<string | null>(null);
+  const [mapReadyVersion, setMapReadyVersion] = useState(0);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
@@ -249,10 +267,7 @@ export function Map() {
     () =>
       exhibitions.map((item) => ({
         item,
-        coord:
-          typeof item._meta?.latitude === "number" && typeof item._meta?.longitude === "number"
-            ? { lat: item._meta.latitude, lng: item._meta.longitude }
-            : null,
+        coord: getItemCoords(item),
         geocodeQuery: `${item.location.replace("•", " ")} ${item.title} 台灣`,
       })),
     [exhibitions],
@@ -271,7 +286,7 @@ export function Map() {
     }
     if (activeFilter === "nearby") {
       return list
-        .filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number")
+        .filter((e) => Boolean(getItemCoords(e)))
         .slice(0, visibleCount);
     }
     return list.slice(0, visibleCount);
@@ -282,12 +297,25 @@ export function Map() {
     if (activeFilter === "free") return list.filter((e) => e.price === "FREE" || e._meta?.isFree).length;
     if (activeFilter === "ending") return list.filter((e) => !!e._meta?.endDate).length;
     if (activeFilter === "nearby") {
-      return list.filter((e) => typeof e._meta?.latitude === "number" && typeof e._meta?.longitude === "number").length;
+      return list.filter((e) => Boolean(getItemCoords(e))).length;
     }
     return list.length;
   }, [activeFilter, exhibitions]);
 
   const hasMore = sidebarItems.length < totalFilteredCount;
+  const selectedItem = useMemo(
+    () => (selectedEventId ? exhibitions.find((item) => item.id === selectedEventId) ?? null : null),
+    [exhibitions, selectedEventId],
+  );
+  const selectedTicketPrice = selectedItem
+    ? selectedItem.price === "FREE" || selectedItem._meta?.isFree
+      ? "FREE"
+      : String(selectedItem.price ?? "NT$450")
+    : "";
+  const selectedSummary =
+    selectedItem?.aiSummary ||
+    "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
+  const queryEventId = searchParams.get("eventId");
 
   useEffect(() => {
     setVisibleCount(5);
@@ -340,7 +368,7 @@ export function Map() {
     };
   }, []);
 
-  const focusEventOnMap = (eventId: string) => {
+  const focusEventOnMap = (eventId: string, syncQuery = true) => {
     const map = mapInstanceRef.current;
     const infoWindow = infoWindowRef.current;
     const entry = markerLookupRef.current[eventId];
@@ -354,6 +382,11 @@ export function Map() {
     infoWindow.setContent(entry.content);
     infoWindow.open({ anchor: entry.marker, map });
     setSelectedEventId(eventId);
+    if (syncQuery) {
+      const next = new URLSearchParams(searchParams);
+      next.set("eventId", eventId);
+      setSearchParams(next, { replace: true });
+    }
   };
 
   useEffect(() => {
@@ -460,6 +493,7 @@ export function Map() {
         });
 
         if (resolvedData.length > 1) map.fitBounds(bounds);
+        setMapReadyVersion((prev) => prev + 1);
       })
       .catch((e) => {
         console.error(e);
@@ -475,6 +509,20 @@ export function Map() {
       infoWindowRef.current = null;
     };
   }, [apiKey, mapId, markerData, useCloudStyle]);
+
+  useEffect(() => {
+    if (!queryEventId) {
+      setSelectedEventId(null);
+      return;
+    }
+    const exists = exhibitions.some((item) => item.id === queryEventId);
+    if (!exists) return;
+    if (markerLookupRef.current[queryEventId]) {
+      focusEventOnMap(queryEventId, false);
+      return;
+    }
+    setSelectedEventId(queryEventId);
+  }, [queryEventId, exhibitions, mapReadyVersion]);
 
   if (!apiKey) {
     return (
@@ -509,93 +557,163 @@ export function Map() {
         </div>
 
         <aside className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#0f0f1a] p-6">
-          <header className="mb-5">
-            <h1 className="text-4xl font-bold text-white">台北展演地圖</h1>
-            <p className="mt-2 text-sm text-white/60">
-              探索你附近的 {exhibitions.length} 個展覽活動
-            </p>
-          </header>
+          {!selectedItem ? (
+            <>
+              <header className="mb-5">
+                <h1 className="text-4xl font-bold text-white">台北展演地圖</h1>
+                <p className="mt-2 text-sm text-white/60">
+                  探索你附近的 {exhibitions.length} 個展覽活動
+                </p>
+              </header>
 
-          <div className="mb-5 flex flex-wrap gap-2">
-            <button
-              onClick={() => setActiveFilter("all")}
-              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "all" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-            >
-              全部展覽
-            </button>
-            <button
-              onClick={() => setActiveFilter("nearby")}
-              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "nearby" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-            >
-              就近推薦
-            </button>
-            <button
-              onClick={() => setActiveFilter("free")}
-              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "free" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-            >
-              免費參展
-            </button>
-            <button
-              onClick={() => setActiveFilter("ending")}
-              className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "ending" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
-            >
-              即將結束
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {sidebarItems.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => focusEventOnMap(item.id)}
-                className={`w-full border p-3 text-left transition-colors ${
-                  selectedEventId === item.id
-                    ? "border-cyan-300/60 bg-[#1c1f35]"
-                    : "border-white/5 bg-[#171725] hover:bg-[#1b1b2b]"
-                } ${isV1 ? "rounded-md" : "rounded-2xl"}`}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    focusEventOnMap(item.id);
-                  }
-                }}
-              >
-                <div className="flex gap-3">
-                  <img src={item.imageUrl} alt={item.title} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <p className="line-clamp-2 text-sm font-bold text-white">{item.title}</p>
-                      <button
-                        type="button"
-                        onClick={(e) => void handleToggleFavorite(e, item)}
-                        title={user ? (favoriteIds.has(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
-                        className="p-1"
-                      >
-                        <Heart className={`h-4 w-4 transition-all ${favoriteIds.has(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"}`} />
-                      </button>
-                    </div>
-                    <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
-                      <MapPin className="h-3 w-3" /> {item.location}
-                    </p>
-                    <p className="flex items-center gap-1 text-[11px] text-white/50">
-                      <Clock3 className="h-3 w-3" /> {item.dateStr.replace(" -> ", " — ")}
-                    </p>
-                  </div>
-                </div>
+              <div className="mb-5 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveFilter("all")}
+                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "all" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  全部展覽
+                </button>
+                <button
+                  onClick={() => setActiveFilter("nearby")}
+                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "nearby" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  就近推薦
+                </button>
+                <button
+                  onClick={() => setActiveFilter("free")}
+                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "free" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  免費參展
+                </button>
+                <button
+                  onClick={() => setActiveFilter("ending")}
+                  className={`px-4 py-1.5 text-xs font-semibold ${activeFilter === "ending" ? "bg-[#00d6ff] text-[#042028]" : "bg-white/10 text-white/70 hover:bg-white/15"} ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  即將結束
+                </button>
               </div>
-            ))}
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setVisibleCount((v) => Math.min(v + 5, totalFilteredCount))}
-            disabled={!hasMore}
-            className={`mt-5 flex w-full items-center justify-center gap-2 bg-[#df8eff] py-3 font-semibold text-[#2f0f42] hover:bg-[#d680f6] disabled:cursor-not-allowed disabled:opacity-60 ${isV1 ? "rounded-md" : "rounded-full"}`}
-          >
-            <Navigation className="h-4 w-4" /> 探索更多展覽
-          </button>
+              <div className="space-y-3">
+                {sidebarItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => focusEventOnMap(item.id)}
+                    className={`w-full border p-3 text-left transition-colors ${
+                      selectedEventId === item.id
+                        ? "border-cyan-300/60 bg-[#1c1f35]"
+                        : "border-white/5 bg-[#171725] hover:bg-[#1b1b2b]"
+                    } ${isV1 ? "rounded-md" : "rounded-2xl"}`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        focusEventOnMap(item.id);
+                      }
+                    }}
+                  >
+                    <div className="flex gap-3">
+                      <img src={item.imageUrl} alt={item.title} className={`h-20 w-24 object-cover ${isV1 ? "rounded-md" : "rounded-xl"}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-start justify-between gap-2">
+                          <p className="line-clamp-2 text-sm font-bold text-white">{item.title}</p>
+                          <button
+                            type="button"
+                            onClick={(e) => void handleToggleFavorite(e, item)}
+                            title={user ? (favoriteIds.has(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                            className="p-1"
+                          >
+                            <Heart className={`h-4 w-4 transition-all ${favoriteIds.has(item.id) ? "fill-purple-500 text-purple-500" : "text-white/50 hover:text-white/80"}`} />
+                          </button>
+                        </div>
+                        <p className="mb-1 flex items-center gap-1 text-[11px] text-white/60">
+                          <MapPin className="h-3 w-3" /> {item.location}
+                        </p>
+                        <p className="flex items-center gap-1 text-[11px] text-white/50">
+                          <Clock3 className="h-3 w-3" /> {item.dateStr.replace(" -> ", " — ")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setVisibleCount((v) => Math.min(v + 5, totalFilteredCount))}
+                disabled={!hasMore}
+                className={`mt-5 flex w-full items-center justify-center gap-2 bg-[#df8eff] py-3 font-semibold text-[#2f0f42] hover:bg-[#d680f6] disabled:cursor-not-allowed disabled:opacity-60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+              >
+                <Navigation className="h-4 w-4" /> 探索更多展覽
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col gap-5">
+              <div className="relative">
+                <img
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.title}
+                  className="h-48 w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("eventId");
+                    setSearchParams(next, { replace: true });
+                    setSelectedEventId(null);
+                  }}
+                  className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-2xl font-bold leading-tight text-white">{selectedItem.title}</h2>
+                  <button
+                    type="button"
+                    onClick={(e) => void handleToggleFavorite(e, selectedItem)}
+                    title={user ? (favoriteIds.has(selectedItem.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                    className="shrink-0 p-1.5"
+                  >
+                    <Heart className={`h-5 w-5 transition-all ${favoriteIds.has(selectedItem.id) ? "fill-purple-500 text-purple-500" : "text-white/55 hover:text-white/85"}`} />
+                  </button>
+                </div>
+                <p className="text-sm leading-relaxed text-white/72">{selectedSummary}</p>
+              </div>
+
+              <div className="space-y-2 border-y border-white/10 py-4">
+                <p className="flex items-center gap-2 text-sm text-white/80">
+                  <MapPin className="h-4 w-4 text-cyan-200" /> {selectedItem.location}
+                </p>
+                <p className="flex items-center gap-2 text-sm text-white/75">
+                  <Clock3 className="h-4 w-4 text-cyan-200" /> {selectedItem.dateStr.replace(" -> ", " — ")}
+                </p>
+                <p className="text-sm text-white/85">
+                  <span className="mr-2 text-white/50">票價</span>
+                  <span className="font-semibold text-[#df8eff]">{selectedTicketPrice}</span>
+                </p>
+              </div>
+
+              <a
+                href={buildGoogleMapsUrl(selectedItem)}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
+              >
+                <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
+              </a>
+
+              <a
+                href={buildEventPageUrl(selectedItem)}
+                className={`inline-flex items-center justify-center gap-2 bg-[#df8eff] px-4 py-2.5 font-semibold text-[#2f0f42] hover:bg-[#d680f6] ${isV1 ? "rounded-md" : "rounded-full"}`}
+              >
+                <ExternalLink className="h-4 w-4" /> 查看完整活動頁
+              </a>
+            </div>
+          )}
         </aside>
       </div>
       <SignInPrompt

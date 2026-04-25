@@ -1,12 +1,29 @@
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { Home } from "./pages/Home";
 import { Collection } from "./pages/Collection";
 import { Map } from "./pages/Map";
+import { Agent } from "./pages/Agent";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { ExhibitionDetail } from "./pages/ExhibitionDetail";
 import { InfoPage } from "./pages/InfoPage";
+import { useAuth } from "./lib/auth";
+
+function RequireAuth() {
+  const { user, status } = useAuth();
+  const location = useLocation();
+
+  if (status === "loading" || status === "idle") {
+    return null;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+  }
+
+  return <Outlet />;
+}
 
 function App() {
   return (
@@ -14,7 +31,10 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="map" element={<Map />} />
-        <Route path="collection" element={<Collection />} />
+        <Route path="agent" element={<Agent />} />
+        <Route element={<RequireAuth />}>
+          <Route path="collection" element={<Collection />} />
+        </Route>
         <Route path="exhibition/:id" element={<ExhibitionDetail />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />

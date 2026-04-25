@@ -5,13 +5,16 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
+import { AgentProvider } from './hooks/useAgent'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <App />
+          <AgentProvider>
+            <App />
+          </AgentProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
