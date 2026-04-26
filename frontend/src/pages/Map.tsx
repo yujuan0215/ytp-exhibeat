@@ -7,7 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
-import { MapPin, Clock3, Navigation, ArrowLeft, ExternalLink, Search } from "lucide-react";
+import { MapPin, Clock3, Navigation, ArrowLeft, ExternalLink, Search, Settings2, X } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
@@ -369,6 +369,7 @@ export function Map() {
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
   const [isSearchPanelExpanded, setIsSearchPanelExpanded] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showHotels, setShowHotels] = useState(true);
   const [selection, setSelection] = useState<MapSelection>(null);
   const [selectedStay, setSelectedStay] = useState<LegalStay | null>(null);
@@ -399,6 +400,7 @@ export function Map() {
   const handledStayQueryIdRef = useRef<string | null>(null);
   const handledExplicitStayFocusRef = useRef<string | null>(null);
   const searchRef = useRef<HTMLFormElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const stayToggleId = useId();
   const prefillState = (location.state as { prefillStay?: LegalStay; prefillEvent?: Exhibition } | null) ?? null;
   const prefillStay = prefillState?.prefillStay ?? null;
@@ -634,6 +636,17 @@ export function Map() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [searchSuggestionsOpen]);
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (!settingsMenuRef.current?.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [isSettingsOpen]);
 
   useEffect(() => {
     setVisibleCount(5);
@@ -948,6 +961,16 @@ export function Map() {
       : shouldLimit
         ? pickStableVisibleEvents(eventPoints, mapViewport)
         : eventPoints;
+    const pinnedEventId = queryEventId ?? (selection?.kind === "event" ? selection.id : null);
+    if (pinnedEventId) {
+      const pinned = eventPoints.find((point) => point.item.id === pinnedEventId);
+      if (pinned && !visiblePoints.some((point) => point.item.id === pinnedEventId)) {
+        visiblePoints.unshift(pinned);
+        if (visiblePoints.length > MAX_VISIBLE_EVENT_MARKERS) {
+          visiblePoints.pop();
+        }
+      }
+    }
     if (!mapViewport || !shouldLimit) {
       visibleEventIdsRef.current = new Set(visiblePoints.map((point) => point.item.id));
     }
@@ -995,7 +1018,7 @@ export function Map() {
       marker.addListener("click", () => focusMarkerOnMap(lookupKey));
     });
     eventMarkerKeysRef.current = Array.from(nextEventKeys);
-  }, [eventPoints, mapViewport]);
+  }, [eventPoints, mapViewport, queryEventId, selection]);
 
   useEffect(() => {
     if (!showHotels || !mapViewport || mapViewport.zoom < MIN_STAY_ZOOM) {
@@ -1171,8 +1194,14 @@ export function Map() {
       focusMarkerOnMap(`event:${queryEventId}`, false, false);
       return;
     }
+    const map = mapInstanceRef.current;
+    const coord = eventPoints.find((entry) => entry.item.id === queryEventId)?.coord;
+    if (map && coord) {
+      map.panTo(coord);
+      map.setZoom(Math.max(map.getZoom?.() ?? 11, MIN_EVENT_ZOOM));
+    }
     setSelection({ kind: "event", id: queryEventId });
-  }, [queryEventId, taipeiExhibitions, mapReadyVersion]);
+  }, [eventPoints, queryEventId, taipeiExhibitions, mapReadyVersion]);
 
   useEffect(() => {
     if (!prefillStay) return;
@@ -1230,55 +1259,57 @@ export function Map() {
         <form
           onSubmit={handleSearchSubmit}
           ref={searchRef}
-          className="pointer-events-auto absolute left-4 top-4 z-30 w-[min(420px,calc(100vw-2rem))]"
+          className="pointer-events-auto absolute left-0 top-0 z-30 w-[380px] max-w-[92vw] px-4 pt-4"
         >
-          <div className="flex items-center gap-4">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSearchQuery(value);
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchQuery(value);
+                setActiveSuggestionIndex(-1);
+                setSearchSuggestionsOpen(hasActiveHashtagToken(value));
+                if (value.trim()) setIsSearchPanelExpanded(true);
+              }}
+              onFocus={() => {
+                setSearchSuggestionsOpen(hasActiveHashtagToken(searchQuery));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSearchSuggestionsOpen(false);
                   setActiveSuggestionIndex(-1);
-                  setSearchSuggestionsOpen(hasActiveHashtagToken(value));
-                  if (value.trim()) setIsSearchPanelExpanded(true);
+                  return;
+                }
+                if (!searchSuggestionsOpen || searchSuggestions.length === 0) return;
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) => (prev + 1) % searchSuggestions.length);
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((prev) =>
+                    prev <= 0 ? searchSuggestions.length - 1 : prev - 1,
+                  );
+                }
+              }}
+              placeholder="搜尋展覽名稱或地點（#標籤）"
+              className="h-12 w-full rounded-full border border-white/10 bg-[#1f1f26]/95 pl-11 pr-12 text-base text-white shadow-xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                aria-label="清除搜尋"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchSuggestionsOpen(false);
+                  setActiveSuggestionIndex(-1);
                 }}
-                onFocus={() => {
-                  setSearchSuggestionsOpen(hasActiveHashtagToken(searchQuery));
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setSearchSuggestionsOpen(false);
-                    setActiveSuggestionIndex(-1);
-                    return;
-                  }
-                  if (!searchSuggestionsOpen || searchSuggestions.length === 0) return;
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setActiveSuggestionIndex((prev) => (prev + 1) % searchSuggestions.length);
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setActiveSuggestionIndex((prev) =>
-                      prev <= 0 ? searchSuggestions.length - 1 : prev - 1,
-                    );
-                  }
-                }}
-                placeholder="搜尋展覽名稱或地點（#標籤）"
-                className="h-12 w-full rounded-full border border-white/10 bg-[#1f1f26]/95 pl-11 pr-12 text-base text-white shadow-xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="flex items-center gap-2 rounded-full bg-[#1f1f26]/95 px-2 py-1 shadow-xl">
-              <input
-                id={stayToggleId}
-                type="checkbox"
-                className="stay-toggle-input"
-                checked={showHotels}
-                onChange={(event) => setShowHotels(event.target.checked)}
-              />
-              <label htmlFor={stayToggleId} className="stay-toggleSwitch" title={showHotels ? "隱藏住宿" : "顯示住宿"} />
-            </div>
+                className="absolute right-3 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[#60a5fa] transition hover:bg-white/10 hover:text-[#93c5fd]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
           {searchSuggestionsOpen && (
             <div className="absolute left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1625] shadow-xl">
@@ -1305,6 +1336,38 @@ export function Map() {
             </div>
           )}
         </form>
+        <div ref={settingsMenuRef} className="pointer-events-auto absolute right-4 top-4 z-30">
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen((prev) => !prev)}
+            aria-label="Map settings"
+            aria-expanded={isSettingsOpen}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white text-slate-800 shadow-xl transition hover:bg-white/95"
+          >
+            <Settings2 className="h-5 w-5" />
+          </button>
+          {isSettingsOpen ? (
+            <div className="absolute right-0 mt-2 w-60 rounded-xl border border-white/10 bg-[#1a1625] p-3 shadow-2xl">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-white/90">隱藏/顯示住宿</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={stayToggleId}
+                    type="checkbox"
+                    className="stay-toggle-input"
+                    checked={showHotels}
+                    onChange={(event) => setShowHotels(event.target.checked)}
+                  />
+                  <label
+                    htmlFor={stayToggleId}
+                    className="stay-toggleSwitch"
+                    title={showHotels ? "隱藏住宿" : "顯示住宿"}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {showExpandedPanel ? (
         <aside

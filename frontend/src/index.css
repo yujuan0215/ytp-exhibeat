@@ -123,6 +123,10 @@
   * {
     @apply border-border;
   }
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
