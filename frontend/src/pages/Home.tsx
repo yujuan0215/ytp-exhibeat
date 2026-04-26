@@ -4,16 +4,34 @@ import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
 import { useLanguage } from "@/lib/language";
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
 type PageToken = number | "...";
-const ENABLE_IG_WIDGET = import.meta.env.VITE_ENABLE_IG_WIDGET === "true";
-const IG_WIDGET_SCRIPT_SRC = "https://cdn.commoninja.com/sdk/latest/commonninja.js";
-const IG_WIDGET_PID = "76c8d05c-85f6-4953-bb5b-f7e5cfd50c99";
 const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
+const ACCOUNT_PHOTO_PLACEHOLDER = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="20" x2="232" y2="236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.45" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#F472B6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(188 62) rotate(132.5) scale(150)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="128" fill="#090B17"/>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="120" fill="url(#glow)"/>
+  <circle cx="128" cy="102" r="44" fill="#FFFFFF" fill-opacity="0.9"/>
+  <path d="M52 212C63 168 92 146 128 146C164 146 193 168 204 212" fill="#FFFFFF" fill-opacity="0.9"/>
+</svg>
+`)}`;
 
 function normalizeHashtag(value: string): string {
   const stripped = String(value ?? "").trim().replace(/^#+/, "").replace(/\s+/g, "");
@@ -45,60 +63,53 @@ function loadCustomTagCounts(): Record<string, number> {
   }
 }
 
-type InstagramAccount = {
+type InstaPickAccount = {
   handle: string;
-  label: string;
-  url: string;
-  avatarLabel: string;
-  description: string;
-  widgetPid?: string;
+  accountName: string;
+  accountPhoto: string;
+  accountLink: string;
+  embedPostUrls: string[];
 };
 
-function getInstagramAvatarUrl(handle: string) {
-  // Unavatar aggregates public profile images and works for many social providers.
-  return `https://unavatar.io/instagram/${encodeURIComponent(handle)}`;
-}
-
-const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
+const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
+  {
+    handle: "room_exhibition",
+    accountName: "room_exhibition",
+    accountPhoto:
+      "https://scontent-tpe1-1.cdninstagram.com/v/t51.2885-19/412757992_1042052320398635_7916946111700928068_n.jpg?stp=cp0_dst-jpg_s110x80_tt6&_nc_cat=111&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy42MDkuQzMifQ%3D%3D&_nc_ohc=yp4Yih_P_WIQ7kNvwH62Pj2&_nc_oc=AdpZJaKOqVSpEOkXOd0x9EGzkIbk-jEwU9K4yW_kFGgeP1eXCHKcAqR32lXuzb1clKSNYfPpe4hUqB2T6obBL2sd&_nc_zt=24&_nc_ht=scontent-tpe1-1.cdninstagram.com&_nc_ss=7b6a8&oh=00_Af3EJdPibqx2ZHtIg77vDa6YCV22wbJkp6KNjUSo-eEZFw&oe=69F29D74",
+    accountLink: "https://www.instagram.com/room_exhibition/",
+    embedPostUrls: [
+      "https://www.instagram.com/p/DXZQcowFF8d/",
+      "https://www.instagram.com/p/DW30CX5FDNA/",
+    ],
+  },
   {
     handle: "taipeitravel",
-    label: "台北旅遊網",
-    url: "https://www.instagram.com/taipeitravel/?hl=zh-tw",
-    avatarLabel: "旅",
-    description: "官方旅遊靈感，適合補足城市活動、景點與路線內容。",
-    widgetPid: IG_WIDGET_PID,
+    accountName: "taipeitravel",
+    accountPhoto: "https://unavatar.io/instagram/taipeitravel",
+    accountLink: "https://www.instagram.com/taipeitravel/?hl=zh-tw",
+    embedPostUrls: [
+      "https://www.instagram.com/p/DXf0pHfCaD6/",
+      "https://www.instagram.com/p/DXYSnadEh0m/",
+      "https://www.instagram.com/p/DW8O7NqlTno/",
+    ],
   },
   {
     handle: "ryan_tobehonest",
-    label: "Ryan To Be Honest",
-    url: "https://www.instagram.com/ryan_tobehonest/",
-    avatarLabel: "R",
-    description: "個人視角的展覽、生活與城市觀察，可作為風格化內容來源。",
-    widgetPid: IG_WIDGET_PID,
-  },
-  {
-    handle: "tfam_museum",
-    label: "台北市立美術館",
-    url: "https://www.instagram.com/tfam_museum/",
-    avatarLabel: "北",
-    description: "美術館官方內容，適合呈現展覽更新與館方活動資訊。",
-    widgetPid: IG_WIDGET_PID,
-  },
-  {
-    handle: "wenwenmommy",
-    label: "親子旅遊帳號",
-    url: "https://www.instagram.com/wenwenmommy/",
-    avatarLabel: "親",
-    description: "親子友善活動與出遊視角，可補足家庭客群推薦。",
-    widgetPid: IG_WIDGET_PID,
+    accountName: "ryan_tobehonest",
+    accountPhoto: "https://unavatar.io/instagram/ryan_tobehonest",
+    accountLink: "https://www.instagram.com/ryan_tobehonest/",
+    embedPostUrls: [
+      "https://www.instagram.com/reel/DS_vRQ_gV78/",
+      "https://www.instagram.com/reel/DQBvTNtAZcp/",
+    ],
   },
   {
     handle: "duringmyjourney",
-    label: "During My Journey",
-    url: "https://www.instagram.com/duringmyjourney/",
-    avatarLabel: "旅",
-    description: "旅遊與城市探索內容，適合延伸展覽前後的行程靈感。",
-    widgetPid: IG_WIDGET_PID,
+    accountName: "duringmyjourney",
+    accountPhoto: "https://unavatar.io/instagram/duringmyjourney",
+    accountLink: "https://www.instagram.com/duringmyjourney/",
+    embedPostUrls: ["https://www.instagram.com/p/DXg2jp9CRN0/"],
   },
 ];
 
@@ -240,6 +251,10 @@ function parseInitialPageSize(searchParams: URLSearchParams): number {
   return PAGE_SIZE_OPTIONS.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE;
 }
 
+function parseInitialHomeTab(searchParams: URLSearchParams): "discover" | "insta-picks" {
+  return searchParams.get("tab") === "insta-picks" ? "insta-picks" : "discover";
+}
+
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -257,7 +272,10 @@ export function Home() {
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [availableTagStats, setAvailableTagStats] = useState<TagStat[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [activeInstagramHandle, setActiveInstagramHandle] = useState(INSTAGRAM_ACCOUNTS[0].handle);
+  const [activeInstagramHandle, setActiveInstagramHandle] = useState<string | null>(null);
+  const [activeHomeTab, setActiveHomeTab] = useState<"discover" | "insta-picks">(() =>
+    parseInitialHomeTab(searchParams),
+  );
   const searchRef = useRef<HTMLFormElement | null>(null);
   const rawQuery = useMemo(() => new URLSearchParams(location.search).get("q") ?? "", [location.search]);
   const effectiveSearch = rawQuery.trim();
@@ -280,6 +298,10 @@ export function Home() {
     setSearchQuery(rawQuery);
     setActiveSuggestionIndex(-1);
   }, [rawQuery]);
+
+  useEffect(() => {
+    setActiveHomeTab(parseInitialHomeTab(new URLSearchParams(location.search)));
+  }, [location.search]);
 
   useEffect(() => {
     listTagStats()
@@ -317,8 +339,8 @@ export function Home() {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const grid = filtered.slice(startIndex, startIndex + pageSize);
   const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
-  const activeInstagramAccount =
-    INSTAGRAM_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? INSTAGRAM_ACCOUNTS[0];
+  const activeInstaPickAccount =
+    INSTA_PICK_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? null;
   const activeTagQuery = useMemo(() => getActiveHashtagFragment(searchQuery), [searchQuery]);
   const tagSuggestionActive = useMemo(() => hasActiveHashtagToken(searchQuery), [searchQuery]);
   const mergedTagStats = useMemo(() => {
@@ -350,15 +372,26 @@ export function Home() {
   }, [activeTagQuery, tagSuggestionActive, mergedTagStats]);
 
   useEffect(() => {
-    if (!ENABLE_IG_WIDGET) return;
-    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${IG_WIDGET_SCRIPT_SRC}"]`);
-    if (existingScript) return;
-
-    const script = document.createElement("script");
-    script.src = IG_WIDGET_SCRIPT_SRC;
-    script.defer = true;
-    document.body.appendChild(script);
+    const scriptSrc = "https://www.instagram.com/embed.js";
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${scriptSrc}"]`);
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.src = scriptSrc;
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, []);
+
+  useEffect(() => {
+    if (activeHomeTab !== "insta-picks") return;
+    const processEmbeds = () => {
+      const instgrm = (window as Window & { instgrm?: { Embeds?: { process: () => void } } }).instgrm;
+      instgrm?.Embeds?.process?.();
+    };
+    processEmbeds();
+    const timer = window.setTimeout(processEmbeds, 200);
+    return () => window.clearTimeout(timer);
+  }, [activeHomeTab, activeInstagramHandle]);
 
   useEffect(() => {
     if (heroCandidates.length === 0) {
@@ -419,6 +452,18 @@ export function Home() {
     applySearchQuery(nextQuery);
   };
 
+  const handleHomeTabChange = (value: string) => {
+    const nextTab = value === "insta-picks" ? "insta-picks" : "discover";
+    setActiveHomeTab(nextTab);
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === "insta-picks") {
+      next.set("tab", "insta-picks");
+    } else {
+      next.delete("tab");
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     next.set("page", String(safeCurrentPage));
@@ -440,6 +485,7 @@ export function Home() {
 
   return (
     <div className="w-full pb-20">
+      {activeHomeTab === "discover" && (
       <section className="relative w-full h-[716px] overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
@@ -520,8 +566,10 @@ export function Home() {
           })}
         </div>
       </section>
+      )}
 
       <section className="max-w-7xl mx-auto px-8 py-12">
+        {activeHomeTab === "discover" && (
         <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <form className="relative w-full md:max-w-xl" onSubmit={handleSearchSubmit} ref={searchRef}>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
@@ -591,7 +639,9 @@ export function Home() {
             {sortOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
+        )}
 
+        {activeHomeTab === "discover" && (
         <div className="relative">
           {sortOpen && (
             <div className="absolute right-0 -top-2 w-44 bg-[#1a1625] border border-white/10 rounded-xl shadow-xl z-30 overflow-hidden">
@@ -611,70 +661,14 @@ export function Home() {
             </div>
           )}
         </div>
-        {ENABLE_IG_WIDGET && (
-          <section className="mb-10 rounded-[2rem] border border-white/10 bg-[#1f1f26]/60 p-5 shadow-2xl shadow-black/20 md:p-7">
-            <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">Social Picks</p>
-                <h2 className="text-2xl font-bold text-white">Instagram 靈感帳號</h2>
-              </div>
-              <p className="max-w-xl text-sm text-white/50">
-                先選上方帳號，再看下方完整貼文區；目前三個帳號先共用同一個 widget 測試排版。
-              </p>
-            </div>
-
-            <div className="mb-8 rounded-[1.75rem] border border-white/10 bg-black/20 px-4 py-6">
-              <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12">
-                {INSTAGRAM_ACCOUNTS.slice(0, 3).map((account) => {
-                  const isActive = account.handle === activeInstagramAccount.handle;
-                  return (
-                    <button
-                      key={account.handle}
-                      type="button"
-                      onClick={() => setActiveInstagramHandle(account.handle)}
-                      aria-pressed={isActive}
-                      className="group flex flex-col items-center gap-3"
-                    >
-                      <span
-                        className={`flex h-20 w-20 items-center justify-center rounded-full border text-xl font-black transition-all md:h-24 md:w-24 ${
-                          isActive
-                            ? "border-cyan-300 bg-cyan-300 text-[#04141a] shadow-lg shadow-cyan-400/20"
-                            : "border-white/15 bg-white/8 text-white group-hover:border-white/35 group-hover:bg-white/12"
-                        }`}
-                      >
-                        <img
-                          src={getInstagramAvatarUrl(account.handle)}
-                          alt={`@${account.handle} avatar`}
-                          className="h-full w-full rounded-full object-cover"
-                          loading="lazy"
-                          onError={(event) => {
-                            event.currentTarget.style.display = "none";
-                            const fallback = event.currentTarget.nextElementSibling as HTMLSpanElement | null;
-                            if (fallback) fallback.style.display = "flex";
-                          }}
-                        />
-                        <span className="hidden h-full w-full items-center justify-center rounded-full">
-                          {account.avatarLabel}
-                        </span>
-                      </span>
-                      <span className={isActive ? "text-sm font-semibold text-white" : "text-sm text-white/55"}>
-                        @{account.handle}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-4 md:p-6">
-              <div
-                key={`${activeInstagramAccount.handle}-${activeInstagramAccount.widgetPid ?? IG_WIDGET_PID}`}
-                className={`commonninja_component pid-${activeInstagramAccount.widgetPid ?? IG_WIDGET_PID}`}
-              />
-            </div>
-          </section>
         )}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
+        <Tabs
+          value={activeHomeTab}
+          onValueChange={handleHomeTabChange}
+          className="mb-8 w-full"
+        >
+          <TabsContent value="discover" className="mt-0">
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
         {loading ? (
           <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
             <Loader2 className="w-6 h-6 animate-spin" /> 載入推薦活動中…
@@ -692,9 +686,97 @@ export function Home() {
             <span>此篩選條件暫無符合展演</span>
           </div>
         )}
-        </section>
+            </section>
+          </TabsContent>
 
-        {!loading && filtered.length > 0 && (
+          <TabsContent value="insta-picks" className="mt-0">
+            <section className="py-2">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-white">社群精選</h2>
+              </div>
+              <p className="mb-4 text-sm text-white/70">從熱門社群藝文帳號獲取旅遊靈感</p>
+
+              <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
+                  {INSTA_PICK_ACCOUNTS.map((account) => {
+                    const isActive = account.handle === activeInstagramHandle;
+                    return (
+                      <button
+                        key={account.handle}
+                        type="button"
+                        onClick={() => setActiveInstagramHandle(account.handle)}
+                        aria-pressed={isActive}
+                        className="group flex flex-col items-center gap-3 p-2 transition-colors"
+                      >
+                        <span
+                          className={`flex size-20 aspect-square items-center justify-center overflow-hidden rounded-full [clip-path:circle(50%)] text-xl font-black transition-all md:size-24 ${
+                            isActive
+                              ? "ring-2 ring-cyan-300 text-[#04141a] bg-white/10"
+                              : "text-white bg-white/5 group-hover:opacity-90"
+                          }`}
+                        >
+                          <img
+                            src={account.accountPhoto}
+                            alt={`@${account.handle} avatar`}
+                            className="h-full w-full rounded-full object-cover"
+                            loading="eager"
+                            referrerPolicy="no-referrer"
+                            decoding="async"
+                            onError={(event) => {
+                              if (!event.currentTarget.dataset.placeholderTried) {
+                                event.currentTarget.dataset.placeholderTried = "1";
+                                event.currentTarget.src = ACCOUNT_PHOTO_PLACEHOLDER;
+                                return;
+                              }
+                              event.currentTarget.style.display = "none";
+                              const fallback = event.currentTarget.nextElementSibling as HTMLSpanElement | null;
+                              if (fallback) fallback.style.display = "flex";
+                            }}
+                          />
+                          <span className="hidden h-full w-full items-center justify-center rounded-full">
+                            {account.accountName.slice(0, 1).toUpperCase()}
+                          </span>
+                        </span>
+                        <span className={isActive ? "text-sm font-semibold text-white" : "text-sm text-white/55"}>
+                          @{account.accountName}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+
+              {activeInstaPickAccount ? (
+                <div className="mx-auto max-w-xl space-y-4">
+                  <div className="mb-1 flex items-center justify-between gap-2 px-1">
+                    <p className="text-sm text-white/70">@{activeInstaPickAccount.accountName}</p>
+                    <a
+                      href={activeInstaPickAccount.accountLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold text-cyan-200 transition-colors hover:text-cyan-100"
+                    >
+                      前往 IG
+                    </a>
+                  </div>
+                  {activeInstaPickAccount.embedPostUrls.map((postUrl) => (
+                    <blockquote
+                      key={postUrl}
+                      className="instagram-media mx-auto w-full max-w-[540px]"
+                      data-instgrm-captioned
+                      data-instgrm-permalink={`${postUrl}?utm_source=ig_embed&utm_campaign=loading`}
+                      data-instgrm-version="14"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-sm text-white/60">
+                  點擊上方帳號頭像後，這裡才會顯示該帳號的 Instagram 貼文
+                </div>
+              )}
+            </section>
+          </TabsContent>
+        </Tabs>
+
+        {activeHomeTab === "discover" && !loading && filtered.length > 0 && (
           <div className="mt-12 flex flex-col items-center gap-3">
             <p className="text-center text-white/45 text-sm">
               共 {filtered.length} 筆
