@@ -5,12 +5,12 @@ import {
   MapPin,
   Phone,
   Search,
-  Heart,
   ChevronDown,
   ChevronUp,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 import { listLegalStays, type LegalStay } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import {
@@ -340,7 +340,7 @@ export function Accommodations() {
             onChange={(e) => handleSearchChange(e.target.value)}
             type="search"
             placeholder="搜尋飯店名稱或地點（例：大安、中山、Hotel）"
-            className={`h-11 w-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-full"}`}
+            className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
 
@@ -460,12 +460,11 @@ export function Accommodations() {
                       className={`absolute right-3 top-3 z-10 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-black/35 backdrop-blur-md hover:bg-black/55`}
                       title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
                     >
-                      <Heart
-                        className={`h-5 w-5 transition-all ${
-                          favoriteStayIds.has(stay.id)
-                            ? "fill-purple-500 text-purple-500"
-                            : "text-white/75 hover:text-white"
-                        }`}
+                      <AnimatedHeart
+                        checked={favoriteStayIds.has(stay.id)}
+                        size={20}
+                        className="text-white"
+                        title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
                       />
                     </button>
                   </div>

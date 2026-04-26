@@ -37,6 +37,10 @@ export function Navbar() {
     `text-sm font-medium transition-colors hover:text-foreground/90 ${
       location.pathname === path ? "text-primary border-b-2 border-primary pb-1" : "text-foreground/60"
     }`;
+  const isInstaPicksActive = location.pathname === "/" && new URLSearchParams(location.search).get("tab") === "insta-picks";
+  const instaPicksLinkClass = `text-sm font-medium transition-colors hover:text-foreground/90 ${
+    isInstaPicksActive ? "text-primary border-b-2 border-primary pb-1" : "text-foreground/60"
+  }`;
 
   const handleLogout = () => {
     logout();
@@ -65,6 +69,7 @@ export function Navbar() {
           <Link to="/accommodations" className={linkClass("/accommodations")}>找住宿</Link>
           <Link to="/map" className={linkClass("/map")}>地圖探索</Link>
           <Link to="/agent" className={linkClass("/agent")}>AI 助手</Link>
+          <Link to="/?tab=insta-picks" className={instaPicksLinkClass}>社群精選</Link>
         </div>
       </div>
 
@@ -183,6 +188,7 @@ export function Navbar() {
                 <Link to="/accommodations" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">找住宿</Link>
                 <Link to="/map" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">地圖探索</Link>
                 <Link to="/agent" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">AI 助手</Link>
+                <Link to="/?tab=insta-picks" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">社群精選</Link>
                 <div className="my-2 border-t border-white/10" />
                 {!user ? (
                   <>

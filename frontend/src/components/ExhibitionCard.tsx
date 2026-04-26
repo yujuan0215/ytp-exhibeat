@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
-import { Heart, Calendar, MapPin, ArrowRight, Lock } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Lock } from "lucide-react";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
 import { Card, CardContent } from "./ui/card";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
+import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 
 const CARD_SUMMARY_LIMIT = 30;
 
@@ -102,7 +103,12 @@ export function ExhibitionCard({
             className={`absolute top-4 right-4 z-20 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors`}
           >
             {user ? (
-              <Heart className={`w-5 h-5 transition-all ${favorited ? 'fill-purple-500 text-purple-500 scale-110' : 'text-white hover:scale-110'}`} />
+              <AnimatedHeart
+                checked={favorited}
+                size={20}
+                className="text-white"
+                title={user ? (favorited ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+              />
             ) : (
               <Lock className="w-5 h-5 text-white/70 hover:text-white" />
             )}

@@ -39,15 +39,12 @@ export function ItineraryCards({ title, introText, date, stops }: ItineraryCards
                     (e.target as HTMLImageElement).src = FALLBACK_STOP_IMAGE;
                   }}
                 />
-                <p className="mt-3 text-xs font-medium text-cyan-200/90">
-                  {idx + 1}. {stopTypeLabel(stop.kind)}
-                </p>
-                <h4 className="mt-1 text-lg font-bold text-white">{stop.title}</h4>
               </div>
 
               <div>
+                <h4 className="text-lg font-bold text-white">{idx + 1}. {stop.title}</h4>
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-white/85">行程資訊</p>
+                  <p className="mt-1 text-sm font-semibold text-white/85">行程資訊</p>
                   {stop.timeRange ? <p className="shrink-0 text-sm font-semibold text-white/85">{stop.timeRange}</p> : null}
                 </div>
                 <div className="mt-3 space-y-2 text-sm text-white/75">

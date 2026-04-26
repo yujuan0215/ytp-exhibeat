@@ -77,6 +77,8 @@ def discover_exhibitions_path() -> Path:
 EXHIBITIONS_PATH = discover_exhibitions_path()
 LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
 AI_SUMMARY_DB_PATH = PROJECT_ROOT / "data" / "ai_summaries.sqlite3"
+EXHIBITION_TRANSLATIONS_PATH = PROJECT_ROOT / "data" / "exhibition_translations.json"
+EXHIBITION_TRANSLATIONS_DIR = PROJECT_ROOT / "data" / "exhibition_translations"
 logger.info(f"Project Root: {PROJECT_ROOT}")
 logger.info(f"Exhibitions Path: {EXHIBITIONS_PATH}")
 
@@ -90,6 +92,8 @@ ensure_database_ready()
 _legal_stays_cache: dict | None = None
 _exhibitions_cache: list[dict] | None = None
 _exhibitions_cache_mtime: float | None = None
+_exhibition_translation_cache: dict[str, dict[tuple[str, str], str]] = {}
+_exhibition_translation_cache_stamp: tuple[tuple[str, float], ...] | None = None
 
 
 def load_legal_stays_dataset() -> dict:
@@ -124,6 +128,104 @@ def load_exhibitions_dataset() -> list[dict]:
     _exhibitions_cache = [item for item in payload if isinstance(item, dict)]
     _exhibitions_cache_mtime = current_mtime
     return _exhibitions_cache
+
+
+def _normalize_locale(locale: str) -> str:
+    raw = str(locale or "").strip()
+    if not raw:
+        return "zh-TW"
+    lowered = raw.lower()
+    if lowered in {"zh", "zh-tw", "zh-hant", "zh_hant", "zh_tw"}:
+        return "zh-TW"
+    if lowered in {"zh-cn", "zh-hans", "zh_hans", "zh_cn"}:
+        return "zh-CN"
+    if "-" in raw:
+        head, tail = raw.split("-", 1)
+        return f"{head.lower()}-{tail.upper()}" if head.lower() == "zh" else f"{head.lower()}-{tail.lower()}"
+    return lowered
+
+
+def _translation_files_with_stamp() -> tuple[list[Path], tuple[tuple[str, float], ...]]:
+    files: list[Path] = []
+    if EXHIBITION_TRANSLATIONS_DIR.exists():
+        files.extend(sorted(EXHIBITION_TRANSLATIONS_DIR.glob("exhibition_translations.*.json")))
+    if EXHIBITION_TRANSLATIONS_PATH.exists():
+        files.append(EXHIBITION_TRANSLATIONS_PATH)
+    stamp = tuple((str(path), path.stat().st_mtime) for path in files)
+    return files, stamp
+
+
+def _load_split_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    result: dict[str, dict[tuple[str, str], str]] = {}
+    if not EXHIBITION_TRANSLATIONS_DIR.exists():
+        return result
+    for path in sorted(EXHIBITION_TRANSLATIONS_DIR.glob("exhibition_translations.*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        locale = _normalize_locale(str(payload.get("locale", "")))
+        if not locale:
+            continue
+        bucket = result.setdefault(locale, {})
+        entries = payload.get("entries", [])
+        if not isinstance(entries, list):
+            continue
+        for row in entries:
+            if not isinstance(row, dict):
+                continue
+            event_id = str(row.get("event_id", "")).strip()
+            field = str(row.get("field", "")).strip()
+            text = str(row.get("text", "")).strip()
+            if event_id and field and text:
+                bucket[(event_id, field)] = text
+    return result
+
+
+def _load_legacy_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    if not EXHIBITION_TRANSLATIONS_PATH.exists():
+        return {}
+    payload = json.loads(EXHIBITION_TRANSLATIONS_PATH.read_text(encoding="utf-8"))
+    locales = payload.get("locales", [])
+    entries = payload.get("entries", [])
+    if not isinstance(locales, list) or not isinstance(entries, list):
+        return {}
+    result: dict[str, dict[tuple[str, str], str]] = {
+        _normalize_locale(str(locale)): {} for locale in locales
+    }
+    for row in entries:
+        if not isinstance(row, dict):
+            continue
+        event_id = str(row.get("event_id", "")).strip()
+        field = str(row.get("field", "")).strip()
+        translations = row.get("translations", {})
+        if not event_id or not field or not isinstance(translations, dict):
+            continue
+        for raw_locale, data in translations.items():
+            locale = _normalize_locale(str(raw_locale))
+            text = str((data or {}).get("text", "")).strip() if isinstance(data, dict) else ""
+            status = str((data or {}).get("status", "")).strip() if isinstance(data, dict) else ""
+            if text and status == "translated":
+                result.setdefault(locale, {})[(event_id, field)] = text
+    return result
+
+
+def load_exhibition_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    global _exhibition_translation_cache, _exhibition_translation_cache_stamp
+    files, stamp = _translation_files_with_stamp()
+    if _exhibition_translation_cache_stamp == stamp:
+        return _exhibition_translation_cache
+    if files and EXHIBITION_TRANSLATIONS_DIR.exists():
+        _exhibition_translation_cache = _load_split_translation_index()
+    else:
+        _exhibition_translation_cache = _load_legacy_translation_index()
+    _exhibition_translation_cache_stamp = stamp
+    return _exhibition_translation_cache
+
+
+def _translate_event_field(event_id: str, field: str, locale: str, fallback_text: str) -> str:
+    normalized_locale = _normalize_locale(locale)
+    if normalized_locale == "zh-TW":
+        return fallback_text
+    table = load_exhibition_translation_index().get(normalized_locale, {})
+    return table.get((event_id, field), fallback_text)
 
 
 def list_available_tags() -> list[str]:
@@ -179,6 +281,51 @@ def get_optional_current_user(
     if not user or not user.is_active:
         return None
     return user
+
+
+def _user_preference_tags(user: User | None) -> list[str]:
+    if not user:
+        return []
+    raw = getattr(user, "preference_tags", None)
+    if not isinstance(raw, list):
+        return []
+    tags = [str(tag).strip() for tag in raw if str(tag).strip()]
+    # Deduplicate while preserving order.
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        if tag in seen:
+            continue
+        seen.add(tag)
+        deduped.append(tag)
+    return deduped
+
+
+def _recommendation_args_for_preferences(
+    *,
+    tags: list[str],
+    top_k: int,
+    cities: str = "",
+    persona_name: str = "你的偏好",
+) -> argparse.Namespace:
+    return argparse.Namespace(
+        exhibitions=str(EXHIBITIONS_PATH),
+        top_k=top_k,
+        date="",
+        backend="fallback",
+        blend_alpha=0.65,
+        persona="",
+        cities=cities,
+        tags=",".join(tags),
+        venue_focus="",
+        free_only=False,
+        popular=False,
+        persona_name=persona_name,
+        seed=42,
+        components=16,
+        epochs=30,
+        threads=2,
+    )
 
 
 def filter_legal_stays(
@@ -594,7 +741,7 @@ def _format_price(price_text: str, is_free: bool) -> str:
 
     return clean[:30] + ("…" if len(clean) > 30 else "")
 
-def map_event_to_frontend_exhibition(rec: dict) -> dict:
+def map_event_to_frontend_exhibition(rec: dict, locale: str = "zh-TW") -> dict:
     uid   = rec["uid"]
     title = rec["title"]
     image_url  = _pick_image(uid, rec.get("image_url", ""))
@@ -624,6 +771,9 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         normalized_location_name = "國家戲劇院"
         normalized_city = "台北市"
 
+    translated_title = _translate_event_field(uid, "title", locale, title)
+    translated_location_name = _translate_event_field(uid, "locationName", locale, normalized_location_name)
+
     date_range    = rec.get("date_range", "")
     end_date_str  = date_range.split(" -> ")[-1] if " -> " in date_range else ""
     edit_date_str = rec.get("edit_modify_date", "")  # "YYYY/MM/DD HH:MM:SS"
@@ -644,10 +794,10 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
 
     return {
         "id":         uid,
-        "title":      title,
+        "title":      translated_title,
         "price":      _format_price(rec.get("price_text", ""), rec.get("is_free", False)),
         "dateStr":    date_range,
-        "location":   f"{normalized_location_name} • {normalized_city}",
+        "location":   f"{translated_location_name} • {normalized_city}",
         "aiSummary":  ai_summary,
         "fullDescription": full_description,
         "tags":       display_tags,
@@ -701,7 +851,7 @@ def _extract_event_tags(event: dict) -> list[str]:
     return list(dict.fromkeys(fallback))
 
 
-def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
+def map_raw_event_to_frontend_exhibition(event: dict, locale: str = "zh-TW") -> dict:
     uid = str(event.get("UID", "")).strip()
     title = str(event.get("title", "")).strip() or "未命名展演"
     show = _extract_show_info(event)
@@ -734,12 +884,16 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     )
     end_date = str(event.get("endDate", "")).strip()
 
+    event_id = uid or hashlib.md5(title.encode("utf-8")).hexdigest()
+    translated_title = _translate_event_field(event_id, "title", locale, title)
+    translated_location = _translate_event_field(event_id, "locationName", locale, location)
+
     return {
-        "id": summary_uid,
-        "title": title,
+        "id": event_id,
+        "title": translated_title,
         "price": _format_price(price_raw, is_free),
         "dateStr": date_range,
-        "location": location,
+        "location": translated_location,
         "aiSummary": ai_summary,
         "fullDescription": full_description,
         "tags": normalized_tags,
@@ -755,7 +909,7 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     }
 
 # ─── Recommender ─────────────────────────────────────────────────────────────
-def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dict]:
+def get_recommendations_for_persona(persona_id: str, top_k: int = 6, locale: str = "zh-TW") -> list[dict]:
     persona_map = {
         "taipei_after_work":  {"cities": "台北市,新北市",         "tags": "art,photogenic,culture"},
         "history_nerd":        {"cities": "台中市,台南市,高雄市,基隆市",  "tags": "history,culture,indigenous"},
@@ -786,17 +940,56 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
     if not results:
         return []
     recs = results[0].get("recommendations", [])
-    return [map_event_to_frontend_exhibition(r) for r in recs]
+    return [map_event_to_frontend_exhibition(r, locale=locale) for r in recs]
 
 
+def get_recommendations_for_user(
+    user: User | None, top_k: int = 6, cities: str = "", locale: str = "zh-TW"
+) -> list[dict]:
+    tags = _user_preference_tags(user)
+    if not tags:
+        return []
+    payload = run_demo(
+        _recommendation_args_for_preferences(
+            tags=tags,
+            top_k=top_k,
+            cities=cities,
+            persona_name=user.display_name if user else "你的偏好",
+        )
+    )
+    results = payload.get("results", [])
+    if not results:
+        return []
+    recs = results[0].get("recommendations", [])
+    return [map_event_to_frontend_exhibition(r, locale=locale) for r in recs]
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
     limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
+    normalized_locale = _normalize_locale(locale)
+    if _user_preference_tags(current_user):
+        max_items = min(len(load_exhibitions_dataset()), 5000)
+        personalized = get_recommendations_for_user(
+            current_user, top_k=max(offset + limit, max_items), locale=normalized_locale
+        )
+        if not personalized:
+            personalized = get_recommendations_for_persona(
+                "taipei_after_work", top_k=max(offset + limit, max_items), locale=normalized_locale
+            )
+        return {
+            "exhibitions": personalized[offset : offset + limit],
+            "offset": offset,
+            "limit": limit,
+            "total": len(personalized),
+            "hasMore": offset + limit < len(personalized),
+            "personalized": True,
+        }
     all_events = load_exhibitions_dataset()
-    exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
+    exhibitions = [map_raw_event_to_frontend_exhibition(event, locale=normalized_locale) for event in all_events]
     return {
         "exhibitions": exhibitions[offset : offset + limit],
         "offset": offset,
@@ -818,8 +1011,14 @@ async def get_available_tag_stats():
 
 
 @app.get("/api/recommendations/collection/more")
-async def get_more_collection_recommendations():
-    sidebar = get_recommendations_for_persona("free_city_explorer", 9)
+async def get_more_collection_recommendations(
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    normalized_locale = _normalize_locale(locale)
+    sidebar = get_recommendations_for_user(current_user, 9, locale=normalized_locale) or get_recommendations_for_persona(
+        "free_city_explorer", 9, locale=normalized_locale
+    )
     return {"recommendations": [
         {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
          "location": s["location"], "imageUrl": s["imageUrl"]}
@@ -827,9 +1026,17 @@ async def get_more_collection_recommendations():
     ]}
 
 @app.get("/api/recommendations/collection")
-async def get_collection_recommendations():
-    exhibitions = get_recommendations_for_persona("history_nerd", 4)
-    sidebar = get_recommendations_for_persona("free_city_explorer", 3)
+async def get_collection_recommendations(
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    normalized_locale = _normalize_locale(locale)
+    exhibitions = get_recommendations_for_user(current_user, 4, locale=normalized_locale) or get_recommendations_for_persona(
+        "history_nerd", 4, locale=normalized_locale
+    )
+    sidebar = get_recommendations_for_user(current_user, 3, locale=normalized_locale) or get_recommendations_for_persona(
+        "free_city_explorer", 3, locale=normalized_locale
+    )
     return {
         "collectionExhibitions": exhibitions,
         "recommendations": [
@@ -1435,45 +1642,84 @@ def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
 
 def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     collected: list[dict] = []
+    seen_event_ids: set[str] = set()
+
+    def append_event(raw: dict) -> None:
+        event_id = str(raw.get("uid") or raw.get("id") or "").strip()
+        title = str(raw.get("title") or "").strip()
+        if not event_id or not title or event_id in seen_event_ids:
+            return
+        start = str(raw.get("start_date") or "").strip()
+        end = str(raw.get("end_date") or "").strip()
+        date_str = str(raw.get("dateStr") or "").strip() or (
+            f"{start} -> {end}" if start and end else (start or end or "日期待確認")
+        )
+        venue = str(raw.get("venue_name") or "").strip()
+        address = str(raw.get("address") or "").strip()
+        city = str(raw.get("city") or "").strip()
+        location = str(raw.get("location") or "").strip()
+        location_text = (
+            location
+            or " • ".join([part for part in [venue, city] if part])
+            or " • ".join([part for part in [venue, address] if part])
+            or "地點待確認"
+        )
+        image_url = str(raw.get("imageUrl") or raw.get("image_url") or "").strip()
+        reasons = raw.get("recommendation_reasons") or raw.get("reasons") or []
+        reason_text = ""
+        if isinstance(reasons, list):
+            reason_text = "、".join(str(r).strip() for r in reasons if str(r).strip())
+        elif isinstance(reasons, str):
+            reason_text = reasons.strip()
+
+        collected.append(
+            {
+                "id": event_id,
+                "title": title,
+                "dateStr": date_str,
+                "location": location_text,
+                "imageUrl": image_url,
+                "reason": reason_text,
+                "itemType": "event",
+            }
+        )
+        seen_event_ids.add(event_id)
 
     def walk(node: object) -> None:
+        if isinstance(node, str):
+            candidate = node.strip()
+            if candidate.startswith("{") or candidate.startswith("["):
+                try:
+                    walk(json.loads(candidate))
+                except Exception:
+                    pass
+            return
         if isinstance(node, dict):
+            # ADK frequently nests tool outputs under functionResponse.response.
+            if "functionResponse" in node:
+                walk(node.get("functionResponse"))
+            if "response" in node:
+                walk(node.get("response"))
+            if "output" in node:
+                walk(node.get("output"))
+            if "result" in node:
+                walk(node.get("result"))
+
             events = node.get("events")
             if isinstance(events, list):
                 for raw in events:
                     if not isinstance(raw, dict):
                         continue
-                    event_id = str(raw.get("uid") or raw.get("id") or "").strip()
-                    title = str(raw.get("title") or "").strip()
-                    if not event_id or not title:
-                        continue
-                    start = str(raw.get("start_date") or "").strip()
-                    end = str(raw.get("end_date") or "").strip()
-                    date_str = str(raw.get("dateStr") or "").strip() or (
-                        f"{start} -> {end}" if start and end else (start or end or "日期待確認")
-                    )
-                    venue = str(raw.get("venue_name") or "").strip()
-                    address = str(raw.get("address") or "").strip()
-                    location = str(raw.get("location") or "").strip()
-                    location_text = location or " • ".join([part for part in [venue, address] if part]) or "地點待確認"
-                    image_url = str(raw.get("imageUrl") or raw.get("image_url") or "").strip()
-                    reasons = raw.get("recommendation_reasons") or raw.get("reasons") or []
-                    reason_text = ""
-                    if isinstance(reasons, list):
-                        reason_text = "、".join(str(r).strip() for r in reasons if str(r).strip())
-                    elif isinstance(reasons, str):
-                        reason_text = reasons.strip()
-                    collected.append(
-                        {
-                            "id": event_id,
-                            "title": title,
-                            "dateStr": date_str,
-                            "location": location_text,
-                            "imageUrl": image_url,
-                            "reason": reason_text,
-                            "itemType": "event",
-                        }
-                    )
+                    append_event(raw)
+
+            # Some responses return one event-like object at a time.
+            if (
+                ("uid" in node or "id" in node)
+                and "title" in node
+                and ("start_date" in node or "end_date" in node or "venue_name" in node or "address" in node)
+            ):
+                append_event(node)
+
             hotels = node.get("hotels")
             if isinstance(hotels, list):
                 for raw in hotels:
@@ -1520,6 +1766,91 @@ def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     return collected
 
 
+def _extract_latest_assistant_text_from_payload(payload: object) -> str:
+    latest_text = ""
+
+    def walk(node: object) -> None:
+        nonlocal latest_text
+        if isinstance(node, dict):
+            maybe_text = node.get("text")
+            if isinstance(maybe_text, str) and maybe_text.strip():
+                latest_text = maybe_text.strip()
+            parts = node.get("parts")
+            if isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, dict):
+                        text = part.get("text")
+                        if isinstance(text, str) and text.strip():
+                            latest_text = text.strip()
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(payload)
+    return latest_text
+
+
+def _extract_recommendation_events_from_text(text: str) -> list[dict]:
+    raw = str(text or "").strip()
+    if not raw:
+        return []
+
+    blocks = [block.strip() for block in _re.split(r"\n\s*\n", raw) if block.strip()]
+    results: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for block in blocks:
+        if not any(token in block for token in ("時間", "地點", "票價", "購票", "日期")):
+            continue
+
+        title_match = _re.search(r"\*\*(.+?)\*\*", block)
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            first_line = block.splitlines()[0].strip(" -*•\t")
+            title = _re.sub(r"^[0-9]+[.)]\s*", "", first_line).strip()
+
+        if not title or len(title) < 2:
+            continue
+
+        time_match = _re.search(r"(?:時間|日期|檔期)[：:]\s*([^\n]+)", block)
+        location_match = _re.search(r"(?:地點|場館|地點資訊)[：:]\s*([^\n]+)", block)
+        price_match = _re.search(r"(?:票價|價格|費用)[：:]\s*([^\n]+)", block)
+        ticket_match = _re.search(r"\((https?://[^\s)]+)\)", block)
+        if not ticket_match:
+            ticket_match = _re.search(r"(https?://[^\s)]+)", block)
+
+        date_str = time_match.group(1).strip() if time_match else "日期待確認"
+        location_text = location_match.group(1).strip() if location_match else "地點待確認"
+
+        reason_parts: list[str] = []
+        if price_match:
+            reason_parts.append(f"票價：{price_match.group(1).strip()}")
+        if ticket_match:
+            reason_parts.append("含購票連結")
+        reason_text = "、".join(reason_parts)
+
+        event_id = hashlib.md5(f"{title}|{date_str}|{location_text}".encode("utf-8")).hexdigest()[:16]
+        if event_id in seen_ids:
+            continue
+        seen_ids.add(event_id)
+        results.append(
+            {
+                "id": f"text_{event_id}",
+                "title": title,
+                "dateStr": date_str,
+                "location": location_text,
+                "imageUrl": "",
+                "reason": reason_text,
+                "itemType": "event",
+            }
+        )
+
+    return results
+
+
 def _inject_recommendation_carousel_payload(
     run_response_bytes: bytes,
     latest_user_text: str = "",
@@ -1554,6 +1885,11 @@ def _inject_recommendation_carousel_payload(
         merged.append(event)
         if len(merged) >= 12:
             break
+
+    if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
+        assistant_text = _extract_latest_assistant_text_from_payload(payload)
+        if assistant_text:
+            merged = _extract_recommendation_events_from_text(assistant_text)[:6]
 
     if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
         merged = (
