@@ -22,6 +22,7 @@ import { TripListRail } from "@/components/collection/TripListRail";
 import { TripListActionsMenu } from "@/components/collection/TripListActionsMenu";
 import { StayListCard } from "@/components/collection/StayListCard";
 import { ActionToast } from "@/components/ActionToast";
+import { useLanguage } from "@/lib/language";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
@@ -30,6 +31,7 @@ export function Collection() {
   const isV1 = theme === "v1";
   const navigate = useNavigate();
   const { user, status } = useAuth();
+  const { locale } = useLanguage();
   const [tripLists, setTripLists] = useState<TripList[]>(() => getTripLists());
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
@@ -56,7 +58,7 @@ export function Collection() {
   }, [tripLists, selectedListId]);
 
   useEffect(() => {
-    getCollectionRecommendations()
+    getCollectionRecommendations({ locale })
       .then((data) => {
         setAllRecs(data.recommendations);
         setLoading(false);
@@ -65,7 +67,7 @@ export function Collection() {
         console.error("Failed to fetch collection recommendations", err);
         setLoading(false);
       });
-  }, []);
+  }, [locale]);
 
   const handleLoadMoreRecs = async () => {
     if (recsVisible < allRecs.length) {
@@ -74,7 +76,7 @@ export function Collection() {
     }
     setLoadingMore(true);
     try {
-      const newRecs = await getMoreCollectionRecommendations();
+      const newRecs = await getMoreCollectionRecommendations({ locale });
       const combined = [...allRecs, ...newRecs.filter((r) => !allRecs.find((e) => e.id === r.id))];
       setAllRecs(combined);
       setRecsVisible((v) => v + 3);
