@@ -874,6 +874,17 @@ def _normalize_existing_summary(summary: str) -> str:
     return clean if _is_meaningful_description(clean) else ""
 
 
+_SUMMARY_DISPLAY_LIMIT = 120  # max chars returned to the frontend for list/hero views
+
+
+def _trim_summary(text: str, limit: int = _SUMMARY_DISPLAY_LIMIT) -> str:
+    """Trim a potentially long LLM-generated summary to a display-safe length."""
+    clean = text.strip()
+    if not clean:
+        return ""
+    return clean if len(clean) <= limit else clean[:limit].rstrip() + "…"
+
+
 def _resolve_summary_for_response(
     *,
     uid: str,
@@ -885,19 +896,21 @@ def _resolve_summary_for_response(
     """
     Online path: only read precomputed summaries from DB cache.
     Never call Gemini in request flow to avoid long latency.
+    Empty-string entries in the DB are treated as "not found" so we can
+    fall back to naive truncation rather than returning a blank summary.
     """
     normalized_locale = _normalize_locale(locale)
     source_hash = _summary_source_hash(title, description)
     cached = _load_summary_from_db(uid, normalized_locale, source_hash)
     normalized_existing = _normalize_existing_summary(existing_summary)
-    if cached is not None:
-        return cached
+    if cached:  # treat "" as not-found
+        return _trim_summary(cached)
     latest = _load_latest_summary(uid, normalized_locale)
-    if latest is not None:
-        return latest
+    if latest:  # treat "" as not-found
+        return _trim_summary(latest)
     localized_existing = _localized_event_field(uid, "aiSummary", normalized_locale)
-    if localized_existing is not None:
-        return localized_existing
+    if localized_existing:
+        return _trim_summary(localized_existing)
     if normalized_existing:
         if normalized_locale == "zh-TW":
             return normalized_existing
