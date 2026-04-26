@@ -25,30 +25,70 @@ def _event_uid_and_content(event: dict) -> tuple[str, str, str]:
     return uid, title, description
 
 
-def run(limit: int | None) -> None:
+def _force_regenerate(uid: str, title: str, description: str) -> str:
+    source_hash = proxy._summary_source_hash(title, description)  # noqa: SLF001
+    summary, model_name = proxy._generate_gemini_summary(title, description)  # noqa: SLF001
+    proxy._save_summary_to_db(uid, source_hash, summary, model_name)  # noqa: SLF001
+    return summary
+
+
+def _looks_truncated(summary: str) -> bool:
+    text = (summary or "").strip()
+    return text.endswith("…") or text.endswith("...")
+
+
+def run(limit: int | None, force: bool, only_truncated: bool) -> None:
     events = proxy.load_exhibitions_dataset()
     total = len(events) if limit is None else min(limit, len(events))
     print(f"Loaded {len(events)} events, processing {total} summaries...")
 
     processed = 0
+    regenerated = 0
+    failed = 0
     for index, event in enumerate(events):
         if limit is not None and index >= limit:
             break
         uid, title, description = _event_uid_and_content(event)
-        proxy._gemini_summarize(uid, title, description)
+        try:
+            if force:
+                _force_regenerate(uid, title, description)
+                regenerated += 1
+            elif only_truncated:
+                existing = proxy._load_latest_summary(uid) or ""  # noqa: SLF001
+                if _looks_truncated(existing):
+                    _force_regenerate(uid, title, description)
+                    regenerated += 1
+                else:
+                    proxy._gemini_summarize(uid, title, description)  # noqa: SLF001
+            else:
+                proxy._gemini_summarize(uid, title, description)  # noqa: SLF001
+        except Exception:
+            failed += 1
         processed += 1
         if processed % 50 == 0:
             print(f"Processed {processed}/{total}")
 
     print(f"Done. Processed {processed} summaries.")
+    print(f"Regenerated: {regenerated}")
+    print(f"Failed: {failed}")
     print(f"Summary DB: {proxy.AI_SUMMARY_DB_PATH}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Pre-generate Gemini AI summaries")
     parser.add_argument("--limit", type=int, default=None, help="Only process first N events")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force regenerate and overwrite summaries instead of reusing cache.",
+    )
+    parser.add_argument(
+        "--only-truncated",
+        action="store_true",
+        help="Only force-regenerate rows whose current summary ends with ellipsis.",
+    )
     args = parser.parse_args()
-    run(args.limit)
+    run(args.limit, force=args.force, only_truncated=args.only_truncated)
 
 
 if __name__ == "__main__":

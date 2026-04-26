@@ -408,10 +408,12 @@ def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
     model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001")
     use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0") == "1"
     prompt = (
-        "請根據以下展覽資訊，用繁體中文寫一句不超過50個字的摘要，"
-        "需具體描述內容重點，避免空泛形容。\n"
+        "你是一位展演內容編輯。請根據 description 內容，"
+        "以繁體中文撰寫約 200 字的摘要，要求清晰、具體、吸引人，"
+        "可讀性高，避免空泛與重複。"
+        "只輸出摘要內容本身，不要加標題、條列或多餘說明。\n"
         f"展覽名稱：{title}\n"
-        f"展覽說明：{clean_description[:500]}"
+        f"description：{clean_description[:4000]}"
     )
 
     if use_vertex:
@@ -441,8 +443,6 @@ def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
             summary = (getattr(response, "text", "") or "").strip()
 
     summary = " ".join(summary.split())
-    if len(summary) > 50:
-        summary = summary[:50].rstrip() + "…"
     return summary, model_name
 
 
@@ -608,7 +608,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         or rec.get("summary")
         or ""
     )
-    ai_summary = full_description or _resolve_summary_for_response(
+    ai_summary = _resolve_summary_for_response(
         uid=uid,
         title=title,
         description=description,
@@ -726,7 +726,7 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
         or event.get("description")
         or ""
     )
-    ai_summary = full_description or _resolve_summary_for_response(
+    ai_summary = _resolve_summary_for_response(
         uid=summary_uid,
         title=title,
         description=description,

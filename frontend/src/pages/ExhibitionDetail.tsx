@@ -181,31 +181,33 @@ export function ExhibitionDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (exhibition || !id) return;
+    if (!id) return;
     const decoded = decodeURIComponent(id);
 
     const fromFavorites = getFavorites().find((e) => e.id === decoded);
-    if (fromFavorites) {
+    if (fromFavorites && !exhibition) {
       setExhibition(fromFavorites);
-      setLoading(false);
-      return;
     }
+    if (!exhibition && !fromFavorites) setLoading(true);
 
-    getHomeRecommendations()
+    getHomeRecommendations({ limit: 5000, offset: 0 })
       .then((list) => {
         const match = list.find((e) => e.id === decoded);
         if (match) {
           setExhibition(match);
+          setError(null);
         } else {
-          setError("找不到這筆展覽，可能已下架或連結失效。");
+          setError((prev) => prev ?? "找不到這筆展覽，可能已下架或連結失效。");
         }
       })
       .catch((err) => {
         console.error(err);
-        setError("載入展覽資料失敗，請稍後再試。");
+        setError((prev) => prev ?? "載入展覽資料失敗，請稍後再試。");
       })
-      .finally(() => setLoading(false));
-  }, [id, exhibition]);
+      .finally(() => {
+        if (!exhibition && !fromFavorites) setLoading(false);
+      });
+  }, [id]);
 
   useEffect(() => {
     getHomeRecommendations()
@@ -396,8 +398,7 @@ export function ExhibitionDetail() {
   const aiSummaryText =
     exhibition.aiSummary ||
     "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。";
-  const fullDescriptionText = (exhibition.fullDescription ?? "").trim();
-  const aiDisplayText = fullDescriptionText || aiSummaryText;
+  const aiDisplayText = aiSummaryText;
   const AI_SUMMARY_LIMIT = 100;
   const aiSummaryTooLong = aiDisplayText.length > AI_SUMMARY_LIMIT;
   const aiSummaryPreview = aiSummaryTooLong
