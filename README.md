@@ -1,5 +1,8 @@
 # ExhiBeat | 台北展演整合平台
 
+<img width="960" height="436" alt="screenshotA" src="https://github.com/user-attachments/assets/261aa60a-f9ef-4c85-b49c-52cba216dc2a" />
+
+
 把「分散在不同網站、社群、票務頁面」的展演資訊，整合成一個可搜尋、可比較、可推薦、可規劃的體驗。
 
 ---
@@ -20,6 +23,8 @@
 ---
 
 ## 為什麼需要 ExhiBeat
+
+<img width="960" height="401" alt="screenshotB" src="https://github.com/user-attachments/assets/877b2be2-cc8d-431c-8416-01074039dbfe" />
 
 在台北，展演資訊充足，但缺乏整合品質一致且可快速決策的平台。
 
