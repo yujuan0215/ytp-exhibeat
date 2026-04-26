@@ -6,7 +6,7 @@ import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
-import { useLanguage } from "@/lib/language";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
@@ -115,11 +115,11 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
 
 // Sort definitions — operate on filtered array
 type SortKey = "relevancy" | "newest" | "oldest" | "ending_soon";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "relevancy", label: "相關度優先" },
-  { key: "newest", label: "最新發布" },
-  { key: "oldest", label: "最舊發布" },
-  { key: "ending_soon", label: "即將結束" },
+const SORT_OPTIONS: Array<{ key: SortKey }> = [
+  { key: "relevancy" },
+  { key: "newest" },
+  { key: "oldest" },
+  { key: "ending_soon" },
 ];
 
 function parseBackendDate(str: string): number {
@@ -259,6 +259,89 @@ export function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      sortLabels: { relevancy: "相關度優先", newest: "最新發布", oldest: "最舊發布", endingSoon: "即將結束" },
+      pageInputRequired: "請輸入頁碼。",
+      pageInputInteger: "頁碼必須是整數。",
+      pageInputRange: (total: number) => `頁碼需介於 1 到 ${total}。`,
+      aiSoulPick: "AI 靈魂推薦",
+      todayHot: "台北・今日熱門",
+      loadingAi: "載入 AI 推薦中…",
+      fallbackSummary: "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。",
+      viewDetail: "查看詳情",
+      noRecommendation: "無推薦資料",
+      switchHero: "切換到推薦展演",
+      searchPlaceholder: "搜尋展覽、藝術家...（#標籤）",
+      noTagMatch: "無符合標籤",
+      sort: "排序",
+      instagramTitle: "Instagram 靈感帳號",
+      instagramTips: "先選上方帳號，再看下方完整貼文區；目前三個帳號先共用同一個 widget 測試排版。",
+      loadingRecommendations: "載入推薦活動中…",
+      noMatchedResult: "此篩選條件暫無符合展演",
+      pageSize: "每頁顯示",
+      previousPage: "上一頁",
+      nextPage: "下一頁",
+      jumpTo: "跳到第",
+      pageUnit: "頁",
+      go: "前往",
+      lastPage: "最後一頁",
+    },
+    en: {
+      sortLabels: { relevancy: "Most Relevant", newest: "Newest", oldest: "Oldest", endingSoon: "Ending Soon" },
+      pageInputRequired: "Please enter a page number.",
+      pageInputInteger: "Page number must be an integer.",
+      pageInputRange: (total: number) => `Page number must be between 1 and ${total}.`,
+      aiSoulPick: "AI Soul Pick",
+      todayHot: "Taipei - Trending Today",
+      loadingAi: "Loading AI recommendation…",
+      fallbackSummary: "Blending AI insights with immersive visuals, this exhibition may redefine how you see the city. Based on your preferences, the system predicts a very high chance you'll love it.",
+      viewDetail: "View Details",
+      noRecommendation: "No recommendation data",
+      switchHero: "Switch to recommended event",
+      searchPlaceholder: "Search exhibitions, artists... (#tag)",
+      noTagMatch: "No matching tags",
+      sort: "Sort",
+      instagramTitle: "Instagram Picks",
+      instagramTips: "Select an account above, then view the full post widget below. The first three currently share one widget for layout testing.",
+      loadingRecommendations: "Loading recommended activities…",
+      noMatchedResult: "No exhibitions match these filters",
+      pageSize: "Per page",
+      previousPage: "Previous",
+      nextPage: "Next",
+      jumpTo: "Go to page",
+      pageUnit: "page",
+      go: "Go",
+      lastPage: "Last page",
+    },
+    fr: {
+      sortLabels: { relevancy: "Pertinence", newest: "Plus récent", oldest: "Plus ancien", endingSoon: "Se termine bientôt" },
+      pageInputRequired: "Veuillez saisir un numéro de page",
+      pageInputInteger: "Le numéro de page doit être un entier",
+      pageInputRange: (total: number) => `Le numéro de page doit être compris entre 1 et ${total}.`,
+      aiSoulPick: "Sélection IA",
+      todayHot: "Tendances du jour",
+      loadingAi: "Chargement des recommandations IA…",
+      fallbackSummary: "Cette exposition combine technologie, art et expérience immersive.",
+      viewDetail: "Voir les détails",
+      noRecommendation: "Aucune recommandation",
+      switchHero: "Changer de recommandation",
+      searchPlaceholder: "Rechercher des expositions, artistes… (#tag)",
+      noTagMatch: "Aucun tag correspondant",
+      sort: "Trier",
+      instagramTitle: "Comptes Instagram",
+      instagramTips: "Choisissez un compte puis consultez le flux ci-dessous.",
+      loadingRecommendations: "Chargement des recommandations…",
+      noMatchedResult: "Aucun résultat correspondant",
+      pageSize: "Éléments par page",
+      previousPage: "Page précédente",
+      nextPage: "Page suivante",
+      jumpTo: "Aller à",
+      pageUnit: "page",
+      go: "Aller",
+      lastPage: "Dernière page",
+    },
+  });
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
@@ -408,16 +491,16 @@ export function Home() {
 
   const jumpToPage = () => {
     if (!pageInput.trim()) {
-      setPageInputError("請輸入頁碼。");
+      setPageInputError(copy.pageInputRequired);
       return;
     }
     const parsed = Number(pageInput);
     if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
-      setPageInputError("頁碼必須是整數。");
+      setPageInputError(copy.pageInputInteger);
       return;
     }
     if (parsed < 1 || parsed > totalPages) {
-      setPageInputError(`頁碼需介於 1 到 ${totalPages}。`);
+      setPageInputError(copy.pageInputRange(totalPages));
       return;
     }
     const nextPage = parsed;
@@ -503,14 +586,14 @@ export function Home() {
         <div className="relative z-10 h-full max-w-7xl mx-auto px-8 flex flex-col justify-end pb-16">
           <div className="flex items-center gap-3 mb-4">
             <span className="px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider">
-              AI 靈魂推薦
+              {copy.aiSoulPick}
             </span>
-            <span className="text-white/65 text-sm font-medium">台北・今日熱門</span>
+            <span className="text-white/65 text-sm font-medium">{copy.todayHot}</span>
           </div>
 
           {loading ? (
             <div className="flex items-center gap-3 text-white/70 mb-4">
-              <Loader2 className="w-5 h-5 animate-spin" /><span>載入 AI 推薦中…</span>
+              <Loader2 className="w-5 h-5 animate-spin" /><span>{copy.loadingAi}</span>
             </div>
           ) : hero ? (
             <>
@@ -520,7 +603,7 @@ export function Home() {
               <p className="max-w-2xl text-lg text-white/70 mb-8 font-body leading-relaxed">
                 <span>{hero.aiSummary
                   ? hero.aiSummary
-                  : "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。"}</span>
+                  : copy.fallbackSummary}</span>
               </p>
               <div className="flex items-center gap-6 mt-1 mb-8">
                 <span className="flex items-center gap-1.5">
@@ -533,16 +616,16 @@ export function Home() {
               <div className="flex gap-4">
                 <Link to={hero ? `/exhibition/${encodeURIComponent(hero.id)}` : "#"} state={{ exhibition: hero }}>
                   <Button size="lg" variant="outline" className="bg-[#25252c]/70 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-[#2c2b33] transition-all border-white/10">
-                    查看詳情
+                    {copy.viewDetail}
                   </Button>
                 </Link>
               </div>
             </>
           ) : (
             <>
-              <h1 className="text-6xl font-black text-white/40 mb-4">無推薦資料</h1>
+              <h1 className="text-6xl font-black text-white/40 mb-4">{copy.noRecommendation}</h1>
               <Button size="lg" variant="outline" className="bg-[#25252c]/70 text-white px-8 py-4 rounded-full font-bold text-lg border-white/10">
-                查看詳情
+                {copy.viewDetail}
               </Button>
             </>
           )}
@@ -557,7 +640,7 @@ export function Home() {
                 type="button"
                 onClick={() => setHeroIndex(idx)}
                 className="group flex items-center justify-center w-6 h-12 rounded-md"
-                aria-label={`切換到推薦展演 ${idx + 1}`}
+                aria-label={`${copy.switchHero} ${idx + 1}`}
                 title={item.title}
               >
                 <span className={`rounded-full transition-all ${isActive ? "w-1 h-12 bg-primary" : "w-1 h-8 bg-[#25252c] group-hover:bg-white/30"}`} />
@@ -602,7 +685,7 @@ export function Home() {
                   );
                 }
               }}
-              placeholder="搜尋展覽、藝術家...（#標籤）"
+              placeholder={copy.searchPlaceholder}
               className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             {searchSuggestionsOpen && (
@@ -625,7 +708,7 @@ export function Home() {
                     </button>
                   ))
                 ) : (
-                  <div className="px-3 py-2.5 text-sm text-white/45">無符合標籤</div>
+                  <div className="px-3 py-2.5 text-sm text-white/45">{copy.noTagMatch}</div>
                 )}
               </div>
             )}
@@ -635,7 +718,15 @@ export function Home() {
             className="flex items-center gap-2 justify-self-start text-sm text-white/65 hover:text-white transition-colors lg:justify-self-end"
           >
             <span className="opacity-80">≡</span>
-            {SORT_OPTIONS.find(s => s.key === activeSort)?.label ?? "排序"}
+            {(
+              activeSort === "relevancy"
+                ? copy.sortLabels.relevancy
+                : activeSort === "newest"
+                  ? copy.sortLabels.newest
+                  : activeSort === "oldest"
+                    ? copy.sortLabels.oldest
+                    : copy.sortLabels.endingSoon
+            ) ?? copy.sort}
             {sortOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
@@ -655,7 +746,13 @@ export function Home() {
                       : "text-white/70 hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  {opt.label}
+                  {opt.key === "relevancy"
+                    ? copy.sortLabels.relevancy
+                    : opt.key === "newest"
+                      ? copy.sortLabels.newest
+                      : opt.key === "oldest"
+                        ? copy.sortLabels.oldest
+                        : copy.sortLabels.endingSoon}
                 </button>
               ))}
             </div>
@@ -671,7 +768,7 @@ export function Home() {
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
         {loading ? (
           <div className="col-span-full flex justify-center items-center gap-3 h-60 text-white/50">
-            <Loader2 className="w-6 h-6 animate-spin" /> 載入推薦活動中…
+            <Loader2 className="w-6 h-6 animate-spin" /> {copy.loadingRecommendations}
           </div>
         ) : grid.length > 0 ? (
           grid.map(exhibition => (
@@ -683,7 +780,7 @@ export function Home() {
         ) : (
           <div className="col-span-full flex flex-col justify-center items-center h-60 gap-3 text-white/50">
             <span className="text-4xl opacity-30">🔍</span>
-            <span>此篩選條件暫無符合展演</span>
+            <span>{copy.noMatchedResult}</span>
           </div>
         )}
             </section>
@@ -782,7 +879,7 @@ export function Home() {
               共 {filtered.length} 筆
             </p>
             <div className="flex items-center gap-2 text-xs text-white/70">
-              <label htmlFor="home-page-size">每頁顯示</label>
+              <label htmlFor="home-page-size">{copy.pageSize}</label>
               <select
                 id="home-page-size"
                 value={pageSize}
@@ -807,7 +904,7 @@ export function Home() {
                 disabled={safeCurrentPage === 1}
                 className="rounded-full bg-white/8 px-4 text-white hover:bg-white/15 disabled:opacity-40"
               >
-                上一頁
+                {copy.previousPage}
               </Button>
               {pageTokens.map((token, index) => {
                 if (token === "...") {
@@ -842,11 +939,11 @@ export function Home() {
                 disabled={safeCurrentPage === totalPages}
                 className="rounded-full bg-white/8 px-4 text-white hover:bg-white/15 disabled:opacity-40"
               >
-                下一頁
+                {copy.nextPage}
               </Button>
             </div>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-xs text-white/70">
-              <span>跳到第</span>
+              <span>{copy.jumpTo}</span>
               <input
                 value={pageInput}
                 onChange={(event) => {
@@ -859,20 +956,20 @@ export function Home() {
                 inputMode="numeric"
                 className="w-16 rounded-lg border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-center text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
-              <span>頁</span>
+              <span>{copy.pageUnit}</span>
               <Button
                 type="button"
                 onClick={jumpToPage}
                 className="rounded-full bg-white/10 px-4 text-white hover:bg-white/15"
               >
-                前往
+                {copy.go}
               </Button>
               <Button
                 type="button"
                 onClick={() => setCurrentPage(totalPages)}
                 className="rounded-full bg-white/10 px-4 text-white hover:bg-white/15"
               >
-                最後一頁
+                {copy.lastPage}
               </Button>
             </div>
             {pageInputError ? (

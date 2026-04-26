@@ -1,5 +1,6 @@
 import { CalendarDays, Clock3, MapPin, Navigation, ExternalLink } from "lucide-react";
 import type { AgentItineraryStop } from "@/lib/api";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 type ItineraryCardsProps = {
   title?: string;
@@ -18,11 +19,53 @@ const FALLBACK_STOP_IMAGE =
   "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 
 export function ItineraryCards({ title, introText, date, stops }: ItineraryCardsProps) {
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      defaultTitle: "AI 行程規劃",
+      date: "日期：",
+      info: "行程資訊",
+      stayMinutes: "預計停留：",
+      minutes: "分鐘",
+      location: "地點：",
+      dateLabel: "日期：",
+      price: "價格：",
+      transport: "交通：",
+      map: "地圖",
+      directions: "導航路線",
+    },
+    en: {
+      defaultTitle: "AI Itinerary",
+      date: "Date:",
+      info: "Itinerary info",
+      stayMinutes: "Estimated stay:",
+      minutes: "min",
+      location: "Location:",
+      dateLabel: "Date:",
+      price: "Price:",
+      transport: "Transport:",
+      map: "Map",
+      directions: "Directions",
+    },
+    fr: {
+      defaultTitle: "Recommandations d'itinéraire",
+      date: "Date",
+      info: "Info",
+      stayMinutes: "Durée du séjour",
+      minutes: "min.",
+      location: "Lieu",
+      dateLabel: "Date",
+      price: "Prix",
+      transport: "Transport",
+      map: "Carte",
+      directions: "Itinéraire",
+    },
+  });
   return (
     <div className="w-full max-w-full rounded-2xl border border-white/10 bg-[#171728] p-4">
       <div className="mb-4">
-        <p className="text-base font-semibold text-white">{title || "AI 行程規劃"}</p>
-        {date ? <p className="mt-1 text-sm text-white/70">日期：{date}</p> : null}
+        <p className="text-base font-semibold text-white">{title || copy.defaultTitle}</p>
+        {date ? <p className="mt-1 text-sm text-white/70">{copy.date}{date}</p> : null}
         {introText ? <p className="mt-1 text-sm text-white/70">{introText}</p> : null}
       </div>
 
@@ -44,33 +87,33 @@ export function ItineraryCards({ title, introText, date, stops }: ItineraryCards
               <div>
                 <h4 className="text-lg font-bold text-white">{idx + 1}. {stop.title}</h4>
                 <div className="flex items-start justify-between gap-3">
-                  <p className="mt-1 text-sm font-semibold text-white/85">行程資訊</p>
+                  <p className="mt-1 text-sm font-semibold text-white/85">{copy.info}</p>
                   {stop.timeRange ? <p className="shrink-0 text-sm font-semibold text-white/85">{stop.timeRange}</p> : null}
                 </div>
                 <div className="mt-3 space-y-2 text-sm text-white/75">
                   {stop.estimatedStayMinutes ? (
                     <p className="flex items-center gap-1.5">
-                      <Clock3 className="h-3.5 w-3.5" /> 預計停留：{stop.estimatedStayMinutes} 分鐘
+                      <Clock3 className="h-3.5 w-3.5" /> {copy.stayMinutes}{stop.estimatedStayMinutes} {copy.minutes}
                     </p>
                   ) : null}
                   {stop.location ? (
                     <p className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" /> 地點：{stop.location}
+                      <MapPin className="h-3.5 w-3.5" /> {copy.location}{stop.location}
                     </p>
                   ) : null}
                   {stop.date ? (
                     <p className="flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5" /> 日期：{stop.date}
+                      <CalendarDays className="h-3.5 w-3.5" /> {copy.dateLabel}{stop.date}
                     </p>
                   ) : null}
-                  {stop.price ? <p>價格：{stop.price}</p> : null}
+                  {stop.price ? <p>{copy.price}{stop.price}</p> : null}
                   {stop.transportMode || stop.estimatedTravelMinutes || stop.travelSummary ? (
                     <p className="flex items-center gap-1.5">
                       <Navigation className="h-3.5 w-3.5" />
-                      交通：
+                      {copy.transport}
                       {[
                         stop.transportMode ? `${stop.transportMode}` : "",
-                        stop.estimatedTravelMinutes ? `${stop.estimatedTravelMinutes} 分鐘` : "",
+                        stop.estimatedTravelMinutes ? `${stop.estimatedTravelMinutes} ${copy.minutes}` : "",
                         stop.travelSummary ? stop.travelSummary : "",
                       ]
                         .filter(Boolean)
@@ -88,7 +131,7 @@ export function ItineraryCards({ title, introText, date, stops }: ItineraryCards
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-cyan-400/15 px-3.5 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/20"
                       >
-                        <MapPin className="h-3.5 w-3.5" /> 地圖
+                        <MapPin className="h-3.5 w-3.5" /> {copy.map}
                       </a>
                     ) : null}
                     {stop.directionsUrl ? (
@@ -98,7 +141,7 @@ export function ItineraryCards({ title, introText, date, stops }: ItineraryCards
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-full border border-purple-300/30 bg-purple-400/15 px-3.5 py-2 text-xs font-semibold text-purple-100 hover:bg-purple-400/20"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" /> 導航路線
+                        <ExternalLink className="h-3.5 w-3.5" /> {copy.directions}
                       </a>
                     ) : null}
                   </div>

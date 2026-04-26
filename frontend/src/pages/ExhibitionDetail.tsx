@@ -18,6 +18,7 @@ import type { Exhibition } from "@/data/mock";
 import { getCollectionRecommendations, getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { getFavorites, isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 import { useTheme } from "@/lib/theme";
 import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
@@ -36,6 +37,15 @@ const MOCK_COMMENTS = [
   { name: "老張", time: "3 天前", text: "周邊餐飲選擇多，看完展還能散步到河堤，整體行程很舒服。" },
   { name: "Sora", time: "4 天前", text: "語音導覽很加分，若英文版再完整一點會更適合帶外國朋友來。" },
   { name: "小K", time: "5 天前", text: "紀念品店選品有誠意，不是只有印 logo 的 T 恤，值得逛一下。" },
+];
+const MOCK_COMMENTS_EN = [
+  { name: "Lydia Wang", time: "3h ago", text: "The interactive zones were excellent, especially the light-and-sound area. Weekday evenings are less crowded." },
+  { name: "Chen Kei", time: "5h ago", text: "The visitor flow is clear and there are lots of photo spots. Download the guide map first to cover all sections." },
+  { name: "Alex", time: "1 day ago", text: "The curatorial narrative is easy to follow. Watch the intro video near the entrance before you start." },
+  { name: "Mina", time: "2 days ago", text: "Family-friendly and stroller-friendly. Sunday afternoons are busier, but queues are still manageable." },
+  { name: "Zhang", time: "3 days ago", text: "Plenty of nearby food options, and a nice riverside walk after the exhibition." },
+  { name: "Sora", time: "4 days ago", text: "Audio guide quality is great. A fuller English version would be even better for international friends." },
+  { name: "K", time: "5 days ago", text: "The gift shop curation is thoughtful and not just logo merchandise. Worth a look." },
 ];
 const SHOT_IMAGES = [
   "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?w=420&auto=format&fit=crop&q=80",
@@ -144,8 +154,220 @@ export function ExhibitionDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { locale } = useLanguage();
   const { theme } = useTheme();
   const isV1 = theme === "v1";
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      notFoundMessage: "找不到這筆展覽，可能已下架或連結失效。",
+      loadFailedMessage: "載入展覽資料失敗，請稍後再試。",
+      loadingDetail: "載入展覽詳情中…",
+      exhibitionNotFound: "找不到這筆展覽",
+      backHome: "回首頁",
+      freePriceLabel: "FREE",
+      defaultPaidPrice: "NT$450",
+      externalInfoAction: "前往展演資訊（外部）",
+      externalTicketAction: "前往購票連結（外部）",
+      externalInfoHint: "免費展演通常可直接入場，請以主辦單位公告為準。",
+      externalTicketHint: "購票前將導向外部票務平台。",
+      aiSummaryFallback:
+        "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。",
+      previousImage: "上一張圖片",
+      nextImage: "下一張圖片",
+      back: "返回",
+      ratingSr: "評分",
+      starsOutOf5: "星，滿分 5 星",
+      priceSr: "價錢",
+      freeExhibitionAria: "免費展演（已劃叉的金錢符號表示不需付費）",
+      priceTierAriaPrefix: "價位：",
+      viewMap: "查看地圖",
+      favorited: "已收藏",
+      addFavorite: "加入收藏",
+      signInToFavorite: "登入後即可收藏",
+      tags: "標籤",
+      noTags: "尚未設定標籤",
+      addHashtag: "新增 hashtag",
+      tagManagement: "標籤管理",
+      currentTagsRemovable: "目前標籤（可刪除）",
+      deleteTag: "刪除此標籤",
+      noCurrentTags: "目前沒有標籤",
+      tagInputPlaceholder: "#輸入標籤前幾個字",
+      add: "新增",
+      allTags: "所有標籤",
+      exhibitionCount: "展演數量",
+      noMatchingTags: "無符合標籤",
+      visitDuration: "參觀時間",
+      approxDuration: "約 90 – 120 分鐘",
+      ticketPrice: "票價",
+      tripList: "行程清單",
+      aiExhibitionBrief: "AI 展覽簡介",
+      collapseContent: "收合內容",
+      moreContent: "更多內容",
+      venueAndGoogleMaps: "地點與 Google Maps",
+      venueExterior: "場館外觀",
+      defaultCity: "台北市",
+      walkFromMrt: "捷運站步行 10 分鐘",
+      openInGoogleMaps: "在 Google Maps 中開啟",
+      discussionTitle: "藝術愛好者討論區",
+      allCommentsShownPrefix: "已顯示全部",
+      currentlyShowingTop5Prefix: "目前顯示前 5 則，共",
+      commentsSuffix: "則留言",
+      collapseComments: "收合留言",
+      moreComments: "更多留言",
+      recommendedEvents: "推薦展演活動",
+      removeFavorite: "取消收藏",
+      signInToUseFavorite: "請先登入以使用收藏",
+      externalModalTitle: "即將前往外部平台",
+      externalModalDesc: "此外部展演/購票連結功能仍在建置中。未來將導向主辦或票務平台，敬請期待。",
+      iUnderstand: "我知道了",
+      close: "關閉",
+      ratingTrendTitle: "社群評分趨勢",
+      recent7DaysHint: "最近 7 天：依討論量、收藏與頁面停留換算之熱度指標（示意）",
+      currentCompositeRatingPrefix: "目前綜合評分",
+      favoriteNeedSignInTitle: "收藏活動需要先登入",
+      favoriteNeedSignInDesc: "登入或註冊後即可使用收藏功能，並同步你的收藏清單。",
+      weekdays: ["週一", "週二", "週三", "週四", "週五", "週六", "週日"],
+    },
+    en: {
+      notFoundMessage: "This exhibition cannot be found. It may have been removed or the link is invalid.",
+      loadFailedMessage: "Failed to load exhibition details. Please try again later.",
+      loadingDetail: "Loading exhibition details…",
+      exhibitionNotFound: "Exhibition not found",
+      backHome: "Back to home",
+      freePriceLabel: "FREE",
+      defaultPaidPrice: "NT$450",
+      externalInfoAction: "View exhibition info (external)",
+      externalTicketAction: "Go to ticket link (external)",
+      externalInfoHint: "Free exhibitions are usually open entry. Please follow the organizer's announcement.",
+      externalTicketHint: "You will be redirected to an external ticketing platform before purchase.",
+      aiSummaryFallback:
+        "This exhibition centers on urban nightscapes and rhythmic light design, blending spatial storytelling with immersive interaction for visitors who enjoy bold visual impact and new media art.",
+      previousImage: "Previous image",
+      nextImage: "Next image",
+      back: "Back",
+      ratingSr: "Rating",
+      starsOutOf5: "stars out of 5",
+      priceSr: "Price",
+      freeExhibitionAria: "Free exhibition (crossed-out currency symbol indicates no payment required)",
+      priceTierAriaPrefix: "Price tier:",
+      viewMap: "View map",
+      favorited: "Favorited",
+      addFavorite: "Add to favorites",
+      signInToFavorite: "Sign in to favorite",
+      tags: "Tags",
+      noTags: "No tags yet",
+      addHashtag: "Add hashtag",
+      tagManagement: "Tag management",
+      currentTagsRemovable: "Current tags (click to remove)",
+      deleteTag: "Remove this tag",
+      noCurrentTags: "No tags currently",
+      tagInputPlaceholder: "#Type the first few characters",
+      add: "Add",
+      allTags: "All tags",
+      exhibitionCount: "Exhibitions",
+      noMatchingTags: "No matching tags",
+      visitDuration: "Visit time",
+      approxDuration: "About 90-120 minutes",
+      ticketPrice: "Ticket price",
+      tripList: "Trip list",
+      aiExhibitionBrief: "AI Exhibition Summary",
+      collapseContent: "Show less",
+      moreContent: "Read more",
+      venueAndGoogleMaps: "Venue and Google Maps",
+      venueExterior: "Venue exterior",
+      defaultCity: "Taipei City",
+      walkFromMrt: "10-minute walk from MRT station",
+      openInGoogleMaps: "Open in Google Maps",
+      discussionTitle: "Art Enthusiast Discussion",
+      allCommentsShownPrefix: "Showing all",
+      currentlyShowingTop5Prefix: "Showing first 5 of",
+      commentsSuffix: "comments",
+      collapseComments: "Show fewer comments",
+      moreComments: "Show more comments",
+      recommendedEvents: "Recommended exhibitions",
+      removeFavorite: "Remove from favorites",
+      signInToUseFavorite: "Please sign in to use favorites",
+      externalModalTitle: "You are leaving to an external platform",
+      externalModalDesc: "This external exhibition/ticket link is still under construction. It will redirect to organizer or ticket platforms in a future update.",
+      iUnderstand: "Got it",
+      close: "Close",
+      ratingTrendTitle: "Community Rating Trend",
+      recent7DaysHint: "Last 7 days: indicative popularity score based on discussion volume, favorites, and dwell time.",
+      currentCompositeRatingPrefix: "Current composite rating",
+      favoriteNeedSignInTitle: "Sign in to save favorites",
+      favoriteNeedSignInDesc: "Sign in or register to use favorites and sync your saved list.",
+      weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    },
+    fr: {
+      notFoundMessage: "Aucune donnée trouvée",
+      loadFailedMessage: "Échec du chargement",
+      loadingDetail: "Chargement des détails…",
+      exhibitionNotFound: "Exposition introuvable",
+      backHome: "Retour à l'accueil",
+      freePriceLabel: "Gratuit",
+      defaultPaidPrice: "Payant",
+      externalInfoAction: "Voir les informations externes",
+      externalTicketAction: "Billets externes",
+      externalInfoHint: "Ouvrir la page d'information officielle",
+      externalTicketHint: "Ouvrir la page de billetterie officielle",
+      aiSummaryFallback: "Résumé IA indisponible pour le moment",
+      previousImage: "Image précédente",
+      nextImage: "Image suivante",
+      back: "Retour",
+      ratingSr: "Note",
+      starsOutOf5: "étoiles sur 5",
+      priceSr: "Prix",
+      freeExhibitionAria: "Exposition gratuite",
+      priceTierAriaPrefix: "Niveau de prix",
+      viewMap: "Voir la carte",
+      favorited: "Ajouté aux favoris",
+      addFavorite: "Ajouter aux favoris",
+      signInToFavorite: "Connectez-vous pour ajouter aux favoris",
+      tags: "Tags",
+      noTags: "Aucun tag",
+      addHashtag: "Ajouter un hashtag",
+      tagManagement: "Gestion des tags",
+      currentTagsRemovable: "Tags actuels (supprimables)",
+      deleteTag: "Supprimer le tag",
+      noCurrentTags: "Aucun tag actuel",
+      tagInputPlaceholder: "Ajouter un tag…",
+      add: "Ajouter",
+      allTags: "Tous les tags",
+      exhibitionCount: "Nombre d'expositions",
+      noMatchingTags: "Aucun tag correspondant",
+      visitDuration: "Durée de visite",
+      approxDuration: "Durée approximative",
+      ticketPrice: "Prix du billet",
+      tripList: "Liste de voyage",
+      aiExhibitionBrief: "Résumé IA de l'exposition",
+      collapseContent: "Réduire le contenu",
+      moreContent: "Voir plus",
+      venueAndGoogleMaps: "Lieu & Google Maps",
+      venueExterior: "Extérieur du lieu",
+      defaultCity: "Ville non spécifiée",
+      walkFromMrt: "À pied depuis le MRT",
+      openInGoogleMaps: "Ouvrir dans Google Maps",
+      discussionTitle: "Discussion",
+      allCommentsShownPrefix: "Tous les",
+      currentlyShowingTop5Prefix: "Affichage des 5 premiers sur",
+      commentsSuffix: "commentaires",
+      collapseComments: "Réduire les commentaires",
+      moreComments: "Voir plus de commentaires",
+      recommendedEvents: "Événements recommandés",
+      removeFavorite: "Retirer des favoris",
+      signInToUseFavorite: "Connectez-vous pour utiliser les favoris",
+      externalModalTitle: "Ouvrir un lien externe",
+      externalModalDesc: "Vous allez quitter ExhiBeat et ouvrir un site externe.",
+      iUnderstand: "J'ai compris",
+      close: "Fermer",
+      ratingTrendTitle: "Tendance des notes",
+      recent7DaysHint: "7 derniers jours",
+      currentCompositeRatingPrefix: "Note composite actuelle",
+      favoriteNeedSignInTitle: "Connexion requise",
+      favoriteNeedSignInDesc: "Connectez-vous pour utiliser les favoris.",
+      weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    },
+  });
 
   const stateExhibition = (location.state as { exhibition?: Exhibition } | null)?.exhibition;
 
@@ -197,17 +419,17 @@ export function ExhibitionDetail() {
           setExhibition(match);
           setError(null);
         } else {
-          setError((prev) => prev ?? "找不到這筆展覽，可能已下架或連結失效。");
+          setError((prev) => prev ?? copy.notFoundMessage);
         }
       })
       .catch((err) => {
         console.error(err);
-        setError((prev) => prev ?? "載入展覽資料失敗，請稍後再試。");
+        setError(copy.loadFailedMessage);
       })
       .finally(() => {
         if (!exhibition && !fromFavorites) setLoading(false);
       });
-  }, [id]);
+  }, [copy.loadFailedMessage, copy.notFoundMessage, id, exhibition]);
 
   useEffect(() => {
     getHomeRecommendations()
@@ -287,13 +509,13 @@ export function ExhibitionDetail() {
   const trendWeek = useMemo(() => {
     if (!exhibition) return [] as { label: string; barH: number; score: number }[];
     const seed = exhibition.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-    const labels = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
+    const labels = copy.weekdays;
     return labels.map((label, i) => {
       const barH = 28 + ((seed + likes + i * 23) % 48);
       const score = Math.min(5, Math.max(3.4, 3.8 + (((seed >> (i % 4)) ^ (likes + i)) % 120) / 200));
       return { label, barH, score };
     });
-  }, [exhibition, likes]);
+  }, [copy.weekdays, exhibition, likes]);
 
   const baseTags = useMemo(() => {
     if (!exhibition) return [];
@@ -368,7 +590,7 @@ export function ExhibitionDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh] text-white/60 gap-3">
-        <Loader2 className="w-5 h-5 animate-spin" /> 載入展覽詳情中…
+        <Loader2 className="w-5 h-5 animate-spin" /> {copy.loadingDetail}
       </div>
     );
   }
@@ -376,9 +598,9 @@ export function ExhibitionDetail() {
   if (error || !exhibition) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <p className="text-white/60">{error ?? "找不到這筆展覽"}</p>
+        <p className="text-white/60">{error ?? copy.exhibitionNotFound}</p>
         <Link to="/" className="px-5 py-2 rounded-full bg-purple-500/80 hover:bg-purple-500 text-white text-sm font-semibold transition-colors">
-          回首頁
+          {copy.backHome}
         </Link>
       </div>
     );
@@ -386,19 +608,21 @@ export function ExhibitionDetail() {
 
   const isFree = exhibition.price === "FREE" || Boolean(exhibition._meta?.isFree);
   const numericPrice = isFree
-    ? "FREE"
+    ? copy.freePriceLabel
     : typeof exhibition.price === "string" && exhibition.price
       ? exhibition.price
-      : "NT$450";
+      : copy.defaultPaidPrice;
   const venue = locationParts.venue || exhibition.location;
-  const actionLabel = isFree ? "前往展演資訊（外部）" : "前往購票連結（外部）";
-  const actionHint = isFree ? "免費展演通常可直接入場，請以主辦單位公告為準。" : "購票前將導向外部票務平台。";
+  const actionLabel = isFree ? copy.externalInfoAction : copy.externalTicketAction;
+  const actionHint = isFree ? copy.externalInfoHint : copy.externalTicketHint;
 
   const priceTierMeta = getPriceTierMeta(isFree, typeof numericPrice === "string" ? numericPrice : String(numericPrice));
   const aiSummaryText =
     exhibition.aiSummary ||
-    "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。";
-  const aiDisplayText = aiSummaryText;
+    copy.aiSummaryFallback;
+  const comments = locale === "en" ? MOCK_COMMENTS_EN : MOCK_COMMENTS;
+  const fullDescriptionText = (exhibition.fullDescription ?? "").trim();
+  const aiDisplayText = fullDescriptionText || aiSummaryText;
   const AI_SUMMARY_LIMIT = 100;
   const aiSummaryTooLong = aiDisplayText.length > AI_SUMMARY_LIMIT;
   const aiSummaryPreview = aiSummaryTooLong
@@ -497,7 +721,7 @@ export function ExhibitionDetail() {
               type="button"
               onClick={handlePrevImage}
               className="absolute left-5 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm transition-colors flex items-center justify-center"
-              aria-label="上一張圖片"
+              aria-label={copy.previousImage}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -505,7 +729,7 @@ export function ExhibitionDetail() {
               type="button"
               onClick={handleNextImage}
               className="absolute right-5 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm transition-colors flex items-center justify-center"
-              aria-label="下一張圖片"
+              aria-label={copy.nextImage}
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -516,7 +740,7 @@ export function ExhibitionDetail() {
           onClick={() => navigate(-1)}
           className="absolute top-5 left-6 flex items-center gap-1.5 text-sm text-white/85 hover:text-white px-3 py-1.5 rounded-md bg-black/40 border border-white/15"
         >
-          <ArrowLeft className="w-4 h-4" /> 返回
+          <ArrowLeft className="w-4 h-4" /> {copy.back}
         </button>
 
         <div className="absolute bottom-0 left-0 w-full px-8 pb-10">
@@ -551,7 +775,7 @@ export function ExhibitionDetail() {
                 aria-haspopup="dialog"
                 aria-expanded={ratingTrendOpen}
               >
-                <span className="sr-only">評分</span>
+                <span className="sr-only">{copy.ratingSr}</span>
                 <div className="flex h-full items-center gap-0.5" aria-hidden="true">
                   {[0, 1, 2, 3, 4].map((i) => {
                     const d = communityRating - i;
@@ -565,15 +789,15 @@ export function ExhibitionDetail() {
                   })}
                 </div>
                 <span className="sr-only">
-                  {communityRating.toFixed(1)} 星，滿分 5 星
+                  {communityRating.toFixed(1)} {copy.starsOutOf5}
                 </span>
               </button>
               <div className="h-11 min-w-[148px] rounded-lg border border-white/10 bg-[#1f1f26] px-3">
-                <span className="sr-only">價錢</span>
+                <span className="sr-only">{copy.priceSr}</span>
                 {priceTierMeta.kind === "free" ? (
                   <div
                     className="relative flex h-full w-full items-center justify-center"
-                    aria-label="免費展演（已劃叉的金錢符號表示不需付費）"
+                    aria-label={copy.freeExhibitionAria}
                   >
                     <span className="text-2xl font-bold leading-none tracking-tight text-secondary/95" aria-hidden="true">
                       ＄
@@ -588,7 +812,7 @@ export function ExhibitionDetail() {
                   <div className="flex h-full w-full items-center justify-center">
                     <p
                       className="text-2xl font-bold leading-none tracking-tight text-secondary/95"
-                      aria-label={`價位：${"＄".repeat(priceTierMeta.count)}`}
+                      aria-label={`${copy.priceTierAriaPrefix} ${"＄".repeat(priceTierMeta.count)}`}
                     >
                       {"＄".repeat(priceTierMeta.count)}
                     </p>
@@ -603,12 +827,12 @@ export function ExhibitionDetail() {
                   })
                 }
                 className="h-11 min-w-[148px] rounded-lg border border-white/10 bg-[#1f1f26] px-3 text-left transition-colors hover:border-secondary/40 hover:bg-[#252532] focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
-                title="查看地圖"
-                aria-label="查看地圖"
+                title={copy.viewMap}
+                aria-label={copy.viewMap}
               >
                 <div className="flex h-full items-center justify-center gap-2 text-white/90">
                 
-                  <span className="text-sm font-semibold">查看地圖</span>  
+                  <span className="text-sm font-semibold">{copy.viewMap}</span>  
                   <MapPin className="h-4 w-4 text-secondary" />
                 </div>
               </button>
@@ -619,15 +843,15 @@ export function ExhibitionDetail() {
                 className={`h-11 w-11 rounded-full bg-[#25252c] text-primary flex items-center justify-center transition-colors ${
                   favorited ? "ring-1 ring-primary/40" : "hover:bg-[#2c2b33]"
                 }`}
-                title={user ? (favorited ? "已收藏" : "加入收藏") : "登入後即可收藏"}
-                aria-label={user ? (favorited ? "已收藏" : "加入收藏") : "登入後即可收藏"}
+                title={user ? (favorited ? copy.favorited : copy.addFavorite) : copy.signInToFavorite}
+                aria-label={user ? (favorited ? copy.favorited : copy.addFavorite) : copy.signInToFavorite}
               >
                 {user ? (
                   <AnimatedHeart
                     checked={favorited}
                     size={20}
                     className="text-white"
-                    title={user ? (favorited ? "已收藏" : "加入收藏") : "登入後即可收藏"}
+                    title={user ? (favorited ? copy.favorited : copy.addFavorite) : copy.signInToFavorite}
                   />
                 ) : (
                   <Lock className="w-5 h-5" />
@@ -642,7 +866,7 @@ export function ExhibitionDetail() {
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-12">
           <section className="rounded-xl border border-[#48474d]/20 bg-[#1f1f26] p-5">
             <div ref={tagPickerRef} className="relative border-b border-white/10 pb-9">
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-white/40">標籤</p>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-white/40">{copy.tags}</p>
               <div className="-mx-1 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
                 <div className="flex min-h-[1.75rem] flex-nowrap items-center gap-x-3 px-1 py-0.5">
                   {pixivStyleTags.length > 0 ? (
@@ -656,7 +880,7 @@ export function ExhibitionDetail() {
                       </button>
                     ))
                   ) : (
-                    <span className="text-[12px] text-white/40">尚未設定標籤</span>
+                    <span className="text-[12px] text-white/40">{copy.noTags}</span>
                   )}
                 </div>
               </div>
@@ -664,17 +888,17 @@ export function ExhibitionDetail() {
                 type="button"
                 onClick={() => setTagPickerOpen((open) => !open)}
                 className="absolute bottom-1 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#8eb4d4]/45 bg-[#2a3244] text-[#a8d4f0] transition-colors hover:bg-[#33415a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb4d4]/70"
-                aria-label="新增 hashtag"
-                title="新增 hashtag"
+                aria-label={copy.addHashtag}
+                title={copy.addHashtag}
               >
                 <Plus className="h-4 w-4" />
               </button>
 
               {tagPickerOpen && (
                 <div className="absolute right-0 top-full z-30 mt-3 w-full max-w-md rounded-xl border border-white/10 bg-[#141a28] p-3 shadow-xl">
-                  <p className="mb-2 text-xs font-semibold text-white/70">標籤管理</p>
+                  <p className="mb-2 text-xs font-semibold text-white/70">{copy.tagManagement}</p>
                   <div className="mb-3 rounded-md border border-white/10 bg-[#101726] p-2">
-                    <p className="mb-2 text-[11px] text-white/45">目前標籤（可刪除）</p>
+                    <p className="mb-2 text-[11px] text-white/45">{copy.currentTagsRemovable}</p>
                     <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">
                       {pixivStyleTags.length > 0 ? (
                         pixivStyleTags.map((tag) => (
@@ -683,14 +907,14 @@ export function ExhibitionDetail() {
                             type="button"
                             onClick={() => handleRemoveCurrentTag(tag)}
                             className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#1f1f26] px-2 py-1 text-xs text-white/80 hover:bg-[#2b3345]"
-                            title="刪除此標籤"
+                            title={copy.deleteTag}
                           >
                             <span>{tag}</span>
                             <X className="h-3 w-3 text-white/60" />
                           </button>
                         ))
                       ) : (
-                        <p className="text-xs text-white/45">目前沒有標籤</p>
+                        <p className="text-xs text-white/45">{copy.noCurrentTags}</p>
                       )}
                     </div>
                   </div>
@@ -727,7 +951,7 @@ export function ExhibitionDetail() {
                           setTagPickerOpen(false);
                         }
                       }}
-                      placeholder="#輸入標籤前幾個字"
+                      placeholder={copy.tagInputPlaceholder}
                       className="h-9 flex-1 rounded-md border border-white/10 bg-[#1f1f26] px-3 text-sm text-white outline-none focus:border-[#8eb4d4]/70"
                     />
                     <button
@@ -735,14 +959,14 @@ export function ExhibitionDetail() {
                       onClick={handleCreateCustomTag}
                       className="h-9 rounded-md border border-[#8eb4d4]/45 px-3 text-xs font-semibold text-[#a8d4f0] hover:bg-[#2a3244]"
                     >
-                      新增
+                      {copy.add}
                     </button>
                   </div>
 
                   <div className="mt-2 rounded-md border border-white/10 bg-[#101726]">
                     <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[11px] text-white/45">
-                      <span>所有標籤</span>
-                      <span>展演數量</span>
+                      <span>{copy.allTags}</span>
+                      <span>{copy.exhibitionCount}</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {tagAutocompleteOptions.length > 0 ? (
@@ -770,7 +994,7 @@ export function ExhibitionDetail() {
                           );
                         })
                       ) : (
-                        <p className="px-3 py-2 text-xs text-white/45">無符合標籤</p>
+                        <p className="px-3 py-2 text-xs text-white/45">{copy.noMatchingTags}</p>
                       )}
                     </div>
                   </div>
@@ -795,15 +1019,15 @@ export function ExhibitionDetail() {
                 <p className="flex min-w-0 items-center gap-2 text-white/90 lg:shrink-0">
                   <Clock3 className="h-4 w-4 shrink-0 text-[#8eb4d4]" />
                   <span>
-                    <span className="text-white/55">參觀時間</span>{" "}
-                    <span className="text-white/90">約 90 – 120 分鐘</span>
+                    <span className="text-white/55">{copy.visitDuration}</span>{" "}
+                    <span className="text-white/90">{copy.approxDuration}</span>
                   </span>
                 </p>
               </div>
 
               <div className="border-t border-white/10 pt-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/45">票價</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/45">{copy.ticketPrice}</span>
                   <span className={`text-2xl font-extrabold font-headline ${isFree ? "text-secondary" : "text-white"}`}>
                     {numericPrice}
                   </span>
@@ -819,7 +1043,7 @@ export function ExhibitionDetail() {
                 </button>
               </div>
               <div className="flex items-center justify-center gap-2 border-t border-[#48474d]/20 pt-4">
-                <span className="text-xs text-on-surface-variant">行程清單</span>
+                <span className="text-xs text-on-surface-variant">{copy.tripList}</span>
                 <AddToTripListMenu kind="event" exhibition={exhibition} align="end" />
               </div>
             </div>
@@ -828,7 +1052,7 @@ export function ExhibitionDetail() {
           <section className="rounded-xl border border-white/10 bg-[#0f1727]/88 p-6">
             <div className="mb-3 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[#774AD9]" />
-              <h3 className="text-base font-bold text-white">AI 展覽簡介</h3>
+              <h3 className="text-base font-bold text-white">{copy.aiExhibitionBrief}</h3>
             </div>
             <p className="text-sm leading-relaxed text-white/80">
               {aiExpanded ? aiDisplayText : aiSummaryPreview}
@@ -839,7 +1063,7 @@ export function ExhibitionDetail() {
                 onClick={() => setAiExpanded((v) => !v)}
                 className="mt-3 text-xs font-bold text-secondary hover:underline"
               >
-                {aiExpanded ? "收合內容" : "更多內容"}
+                {aiExpanded ? copy.collapseContent : copy.moreContent}
               </button>
             )}
           </section>
@@ -849,45 +1073,47 @@ export function ExhibitionDetail() {
             id="exhibition-venue-map"
             className="scroll-mt-24 rounded-xl overflow-hidden bg-[#131318] border border-white/10 flex flex-col gap-4 p-4"
           >
-            <h3 className="text-sm font-bold text-white px-1">地點與 Google Maps</h3>
+            <h3 className="text-sm font-bold text-white px-1">{copy.venueAndGoogleMaps}</h3>
             <img
               src="https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=900&auto=format&fit=crop&q=80"
-              alt="場館外觀"
+              alt={copy.venueExterior}
               className="w-full h-64 object-cover rounded-lg"
             />
             <div className="px-1 pb-1 flex flex-col gap-2">
               <h4 className="font-bold text-on-surface font-headline">{venue}</h4>
-              <p className="text-xs text-on-surface-variant leading-relaxed">{locationParts.city || "台北市"} ・捷運站步行 10 分鐘</p>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                {locationParts.city || copy.defaultCity} ・{copy.walkFromMrt}
+              </p>
               <Link
                 to="/map"
                 className="mt-2 text-xs font-bold text-secondary flex items-center gap-1 group"
               >
-                在 Google Maps 中開啟 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                {copy.openInGoogleMaps} <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
           </section>
 
           <section className="rounded-xl bg-[#131318] p-8">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-white">藝術愛好者討論區</h3>
+              <h3 className="text-lg font-bold text-white">{copy.discussionTitle}</h3>
               <p className="mt-1 text-xs text-white/50">
                 {commentsExpanded
-                  ? `已顯示全部 ${MOCK_COMMENTS.length} 則留言`
-                  : `目前顯示前 5 則，共 ${MOCK_COMMENTS.length} 則留言`}
+                  ? `${copy.allCommentsShownPrefix} ${comments.length} ${copy.commentsSuffix}`
+                  : `${copy.currentlyShowingTop5Prefix} ${comments.length} ${copy.commentsSuffix}`}
               </p>
             </div>
             <div className="space-y-0">
-              {(commentsExpanded ? MOCK_COMMENTS : MOCK_COMMENTS.slice(0, 5)).map((c, i) => (
+              {(commentsExpanded ? comments : comments.slice(0, 5)).map((c, i) => (
                 <CommentRow key={`comment-${i}`} name={c.name} time={c.time} text={c.text} />
               ))}
             </div>
-            {MOCK_COMMENTS.length > 5 && (
+            {comments.length > 5 && (
               <button
                 type="button"
                 onClick={() => setCommentsExpanded((v) => !v)}
                 className="mt-4 text-sm font-bold text-secondary hover:underline"
               >
-                {commentsExpanded ? "收合留言" : "更多留言"}
+                {commentsExpanded ? copy.collapseComments : copy.moreComments}
               </button>
             )}
           </section>
@@ -896,7 +1122,7 @@ export function ExhibitionDetail() {
         <aside className="col-span-12 lg:col-span-4">
           <div className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#0f0f1a] p-5">
             <header className="mb-4">
-              <h3 className="text-lg font-bold text-white">推薦展演活動</h3>
+              <h3 className="text-lg font-bold text-white">{copy.recommendedEvents}</h3>
             </header>
             <div className="space-y-3">
               {suggestions.map((item) => (
@@ -918,7 +1144,7 @@ export function ExhibitionDetail() {
                         <button
                           type="button"
                           onClick={(e) => void handleSuggestionFavoriteClick(e, item)}
-                          title={user ? (isFavorited(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                          title={user ? (isFavorited(item.id) ? copy.removeFavorite : copy.addFavorite) : copy.signInToUseFavorite}
                           className="shrink-0 p-1"
                         >
                           {user ? (
@@ -926,7 +1152,7 @@ export function ExhibitionDetail() {
                               checked={isFavorited(item.id)}
                               size={16}
                               className="text-white"
-                              title={user ? (isFavorited(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                              title={user ? (isFavorited(item.id) ? copy.removeFavorite : copy.addFavorite) : copy.signInToUseFavorite}
                             />
                           ) : (
                             <Lock className="h-4 w-4 text-white/60 hover:text-white/85" />
@@ -950,10 +1176,10 @@ export function ExhibitionDetail() {
       </div>
       <ExternalNavigationModal
         open={externalModalOpen}
-        title="即將前往外部平台"
-        description="此外部展演/購票連結功能仍在建置中。未來將導向主辦或票務平台，敬請期待。"
-        confirmLabel="我知道了"
-        cancelLabel="關閉"
+        title={copy.externalModalTitle}
+        description={copy.externalModalDesc}
+        confirmLabel={copy.iUnderstand}
+        cancelLabel={copy.close}
         onConfirm={() => setExternalModalOpen(false)}
         onCancel={() => setExternalModalOpen(false)}
       />
@@ -976,13 +1202,13 @@ export function ExhibitionDetail() {
                 <TrendingUp className="h-6 w-6 shrink-0 text-secondary mt-0.5" />
                 <div className="min-w-0">
                   <h3 id="rating-trend-title" className="text-lg font-bold text-white">
-                    社群評分趨勢
+                    {copy.ratingTrendTitle}
                   </h3>
                   <p className="mt-1 text-xs text-white/55 leading-relaxed">
-                    最近 7 天：依討論量、收藏與頁面停留換算之熱度指標（示意）
+                    {copy.recent7DaysHint}
                   </p>
                   <p className="mt-2 text-sm text-white/80">
-                    目前綜合評分 <span className="font-bold text-secondary">{communityRating.toFixed(1)}</span> / 5.0
+                    {copy.currentCompositeRatingPrefix} <span className="font-bold text-secondary">{communityRating.toFixed(1)}</span> / 5.0
                   </p>
                 </div>
               </div>
@@ -990,7 +1216,7 @@ export function ExhibitionDetail() {
                 type="button"
                 onClick={() => setRatingTrendOpen(false)}
                 className="shrink-0 rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                aria-label="關閉"
+                aria-label={copy.close}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1015,7 +1241,7 @@ export function ExhibitionDetail() {
                 onClick={() => setRatingTrendOpen(false)}
                 className="rounded-full bg-[#774AD9] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6a41c0] transition-colors"
               >
-                關閉
+                {copy.close}
               </button>
             </div>
           </div>
@@ -1024,8 +1250,8 @@ export function ExhibitionDetail() {
       <SignInPrompt
         open={showSignInPrompt}
         from={location.pathname + location.search}
-        title="收藏活動需要先登入"
-        description="登入或註冊後即可使用收藏功能，並同步你的收藏清單。"
+        title={copy.favoriteNeedSignInTitle}
+        description={copy.favoriteNeedSignInDesc}
         onClose={() => setShowSignInPrompt(false)}
       />
     </div>

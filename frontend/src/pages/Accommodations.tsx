@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 import { listLegalStays, type LegalStay } from "@/lib/api";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 import { useTheme } from "@/lib/theme";
 import {
   getStayFavoriteIds,
@@ -32,20 +33,149 @@ type StayClassFilter = "all" | "hotel" | "bnb" | "tourist" | "international";
 type StayFeatureFilter = "all" | "image" | "website" | "budget";
 type PageToken = number | "...";
 
-const STAY_CLASS_FILTERS: Array<{ id: StayClassFilter; label: string; codes?: number[] }> = [
-  { id: "all", label: "全部類型" },
-  { id: "hotel", label: "旅館", codes: [3] },
-  { id: "bnb", label: "民宿", codes: [4] },
-  { id: "tourist", label: "觀光旅館", codes: [2] },
-  { id: "international", label: "國際觀光旅館", codes: [1] },
+const STAY_CLASS_FILTERS: Array<{ id: StayClassFilter; codes?: number[] }> = [
+  { id: "all" },
+  { id: "hotel", codes: [3] },
+  { id: "bnb", codes: [4] },
+  { id: "tourist", codes: [2] },
+  { id: "international", codes: [1] },
 ];
 
-const STAY_FEATURE_FILTERS: Array<{ id: StayFeatureFilter; label: string }> = [
-  { id: "all", label: "全部條件" },
-  { id: "image", label: "有圖片" },
-  { id: "website", label: "有官網/連結" },
-  { id: "budget", label: "平價參考" },
+const STAY_FEATURE_FILTERS: Array<{ id: StayFeatureFilter }> = [
+  { id: "all" },
+  { id: "image" },
+  { id: "website" },
+  { id: "budget" },
 ];
+
+const copyByLocale = {
+  "zh-TW": {
+    searchKeyword: "官網",
+    uncategorizedTown: "未分類",
+    classFilterLabels: {
+      all: "全部類型",
+      hotel: "旅館",
+      bnb: "民宿",
+      tourist: "觀光旅館",
+      international: "國際觀光旅館",
+    } as Record<StayClassFilter, string>,
+    featureFilterLabels: {
+      all: "全部條件",
+      image: "有圖片",
+      website: "有官網/連結",
+      budget: "平價參考",
+    } as Record<StayFeatureFilter, string>,
+    externalLabels: {
+      website: "官方網站",
+      reservation: "訂房連結",
+      reservationSecondary: "訂房連結 2",
+      related: "相關連結",
+      relatedSecondary: "相關連結 2",
+      social: "社群頁面",
+      socialSecondary: "社群頁面 2",
+      tourismData: "觀光署資料頁",
+      searchWebsite: "搜尋官網",
+    },
+    pageTitle: "找住宿",
+    searchPlaceholder: "搜尋飯店名稱或地點（例：大安、中山、Hotel）",
+    classFilterTitle: "旅宿類型",
+    featureFilterTitle: "需求條件",
+    townFilterTitle: "熱門行政區",
+    allTowns: "全部區域",
+    statsLine: (params: { page: number; totalPages: number; pageSize: number; pageCount: number; total: number; loaded: number }) =>
+      `第 ${params.page} / ${params.totalPages} 頁，每頁 ${params.pageSize} 筆，本頁 ${params.pageCount} 筆，共 ${params.total} 筆符合條件住宿${
+        params.loaded ? `（已載入資料庫 ${params.loaded} 筆台北旅宿）` : ""
+      }`,
+    loadingStays: "載入住宿資料中…",
+    emptyState: "找不到符合關鍵字的住宿，請改用其他名稱或地點。",
+    removeFavorite: "取消收藏",
+    addFavorite: "加入收藏",
+    cardDescriptionFallback: "展開可查看地址、電話與更多資訊。",
+    legalStay: "合法旅宿",
+    mapExplore: "地圖探索",
+    collapseDetails: "收合詳細資訊",
+    details: "詳細資訊",
+    phonePending: "電話待補",
+    starRatingLabel: "星級評等：",
+    starUnit: "星",
+    notProvided: "未提供",
+    pageSizeLabel: "每頁顯示",
+    recordsUnit: "筆",
+    prevPage: "上一頁",
+    nextPage: "下一頁",
+    pageTitleWithRange: (params: { page: number; start: number; end: number }) => `第 ${params.page} 頁（${params.start}-${params.end} 筆）`,
+    jumpToPagePrefix: "跳到第",
+    pageUnit: "頁",
+    go: "前往",
+    lastPage: "最後一頁",
+    pageInputRequired: "請輸入頁碼。",
+    pageInputIntegerOnly: "頁碼必須是整數。",
+    pageInputOutOfRange: (totalPages: number) => `頁碼需介於 1 到 ${totalPages}。`,
+  },
+  en: {
+    searchKeyword: "official website",
+    uncategorizedTown: "Uncategorized",
+    classFilterLabels: {
+      all: "All types",
+      hotel: "Hotel",
+      bnb: "B&B",
+      tourist: "Tourist hotel",
+      international: "International tourist hotel",
+    } as Record<StayClassFilter, string>,
+    featureFilterLabels: {
+      all: "All features",
+      image: "Has image",
+      website: "Has official site/link",
+      budget: "Budget-friendly",
+    } as Record<StayFeatureFilter, string>,
+    externalLabels: {
+      website: "Official website",
+      reservation: "Booking link",
+      reservationSecondary: "Booking link 2",
+      related: "Related link",
+      relatedSecondary: "Related link 2",
+      social: "Social page",
+      socialSecondary: "Social page 2",
+      tourismData: "Tourism data page",
+      searchWebsite: "Search official site",
+    },
+    pageTitle: "Find Stays",
+    searchPlaceholder: "Search hotel names or areas (e.g., Daan, Zhongshan, Hotel)",
+    classFilterTitle: "Stay type",
+    featureFilterTitle: "Filter conditions",
+    townFilterTitle: "Popular districts",
+    allTowns: "All districts",
+    statsLine: (params: { page: number; totalPages: number; pageSize: number; pageCount: number; total: number; loaded: number }) =>
+      `Page ${params.page} / ${params.totalPages}, ${params.pageSize} per page, ${params.pageCount} on this page, ${params.total} matching stays${
+        params.loaded ? ` (${params.loaded} Taipei stays loaded)` : ""
+      }`,
+    loadingStays: "Loading stays...",
+    emptyState: "No stays match your keywords. Try a different name or area.",
+    removeFavorite: "Remove favorite",
+    addFavorite: "Add favorite",
+    cardDescriptionFallback: "Expand to see address, phone, and more details.",
+    legalStay: "Legal stay",
+    mapExplore: "Explore on map",
+    collapseDetails: "Collapse details",
+    details: "Details",
+    phonePending: "Phone unavailable",
+    starRatingLabel: "Star rating: ",
+    starUnit: "star",
+    notProvided: "Not provided",
+    pageSizeLabel: "Per page",
+    recordsUnit: "items",
+    prevPage: "Previous",
+    nextPage: "Next",
+    pageTitleWithRange: (params: { page: number; start: number; end: number }) => `Page ${params.page} (${params.start}-${params.end})`,
+    jumpToPagePrefix: "Go to page",
+    pageUnit: "",
+    go: "Go",
+    lastPage: "Last",
+    pageInputRequired: "Please enter a page number.",
+    pageInputIntegerOnly: "Page number must be an integer.",
+    pageInputOutOfRange: (totalPages: number) => `Page number must be between 1 and ${totalPages}.`,
+  },
+} as const;
 
 function getStayPlaceholderImage(stay: LegalStay): string {
   const seed = Array.from(stay.id || stay.name).reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -64,12 +194,26 @@ function normalizeExternalUrl(url: string): string {
   return `https://${value}`;
 }
 
-function buildStaySearchUrl(stay: LegalStay): string {
-  const query = [stay.name, stay.address.full, "官網"].filter(Boolean).join(" ");
+function buildStaySearchUrl(stay: LegalStay, searchKeyword: string): string {
+  const query = [stay.name, stay.address.full, searchKeyword].filter(Boolean).join(" ");
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 
-function getStayExternalLinks(stay: LegalStay): Array<{ label: string; url: string; tone?: "primary" | "muted" }> {
+function getStayExternalLinks(
+  stay: LegalStay,
+  labels: {
+    website: string;
+    reservation: string;
+    reservationSecondary: string;
+    related: string;
+    relatedSecondary: string;
+    social: string;
+    socialSecondary: string;
+    tourismData: string;
+    searchWebsite: string;
+  },
+  searchKeyword: string,
+): Array<{ label: string; url: string; tone?: "primary" | "muted" }> {
   const links: Array<{ label: string; url: string; tone?: "primary" | "muted" }> = [];
   const seen = new Set<string>();
   const addLink = (label: string, rawUrl: string, tone: "primary" | "muted" = "muted") => {
@@ -79,12 +223,12 @@ function getStayExternalLinks(stay: LegalStay): Array<{ label: string; url: stri
     links.push({ label, url, tone });
   };
 
-  addLink("官方網站", stay.urls.website, "primary");
-  stay.urls.reservation.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "訂房連結" : "訂房連結 2", url));
-  stay.urls.sameAs.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "相關連結" : "相關連結 2", url));
-  stay.urls.socialMedia.slice(0, 2).forEach((url, index) => addLink(index === 0 ? "社群頁面" : "社群頁面 2", url));
-  addLink("觀光署資料頁", stay.mediaDetailUrl);
-  addLink("搜尋官網", buildStaySearchUrl(stay), "primary");
+  addLink(labels.website, stay.urls.website, "primary");
+  stay.urls.reservation.slice(0, 2).forEach((url, index) => addLink(index === 0 ? labels.reservation : labels.reservationSecondary, url));
+  stay.urls.sameAs.slice(0, 2).forEach((url, index) => addLink(index === 0 ? labels.related : labels.relatedSecondary, url));
+  stay.urls.socialMedia.slice(0, 2).forEach((url, index) => addLink(index === 0 ? labels.social : labels.socialSecondary, url));
+  addLink(labels.tourismData, stay.mediaDetailUrl);
+  addLink(labels.searchWebsite, buildStaySearchUrl(stay, searchKeyword), "primary");
 
   return links;
 }
@@ -165,7 +309,9 @@ function matchesSearch(stay: LegalStay, term: string): boolean {
 export function Accommodations() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { locale } = useLanguage();
   const { theme } = useTheme();
+  const copy = useMemo(() => getLocaleCopy(locale, copyByLocale), [locale]);
   const isV1 = theme === "v1";
   const [stays, setStays] = useState<LegalStay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,12 +329,25 @@ export function Accommodations() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    const stayLocale = locale === "zh-TW" ? "zh-TW" : "en";
     async function loadTaipeiStays() {
-      const first = await listLegalStays({ city: "Taipei City", locale: "zh-TW", lang: "zh-TW", limit: API_PAGE_SIZE, offset: 0 });
+      const first = await listLegalStays({
+        city: "Taipei City",
+        locale: stayLocale,
+        lang: stayLocale,
+        limit: API_PAGE_SIZE,
+        offset: 0,
+      });
       let combined = first.stays;
       let offset = first.stays.length;
       while (offset < first.total && offset < 3000) {
-        const next = await listLegalStays({ city: "Taipei City", locale: "zh-TW", lang: "zh-TW", limit: API_PAGE_SIZE, offset });
+        const next = await listLegalStays({
+          city: "Taipei City",
+          locale: stayLocale,
+          lang: stayLocale,
+          limit: API_PAGE_SIZE,
+          offset,
+        });
         combined = [...combined, ...next.stays];
         offset += next.stays.length;
         if (next.stays.length === 0) break;
@@ -211,7 +370,7 @@ export function Accommodations() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const sync = () => setFavoriteStayIds(new Set(getStayFavoriteIds()));
@@ -223,14 +382,14 @@ export function Accommodations() {
   const townOptions = useMemo(() => {
     const counts = new Map<string, number>();
     stays.forEach((stay) => {
-      const town = stay.address.town || "未分類";
+      const town = stay.address.town || copy.uncategorizedTown;
       counts.set(town, (counts.get(town) ?? 0) + 1);
     });
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "zh-Hant"))
       .slice(0, 12)
       .map(([town, count]) => ({ town, count }));
-  }, [stays]);
+  }, [copy.uncategorizedTown, stays]);
 
   const visibleStays = useMemo(() => {
     return stays.filter((stay) => {
@@ -266,16 +425,16 @@ export function Accommodations() {
 
   const jumpToPage = () => {
     if (!pageInput.trim()) {
-      setPageInputError("請輸入頁碼。");
+      setPageInputError(copy.pageInputRequired);
       return;
     }
     const parsed = Number(pageInput);
     if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
-      setPageInputError("頁碼必須是整數。");
+      setPageInputError(copy.pageInputIntegerOnly);
       return;
     }
     if (parsed < 1 || parsed > totalPages) {
-      setPageInputError(`頁碼需介於 1 到 ${totalPages}。`);
+      setPageInputError(copy.pageInputOutOfRange(totalPages));
       return;
     }
     const nextPage = parsed;
@@ -330,7 +489,7 @@ export function Accommodations() {
     <section className="px-8 py-6">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <header>
-          <h1 className="text-4xl font-bold text-white">找住宿</h1>
+          <h1 className="text-4xl font-bold text-white">{copy.pageTitle}</h1>
         </header>
 
         <div className="relative w-full md:max-w-lg">
@@ -339,14 +498,14 @@ export function Accommodations() {
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             type="search"
-            placeholder="搜尋飯店名稱或地點（例：大安、中山、Hotel）"
-            className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder={copy.searchPlaceholder}
+            className={`h-11 w-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-full"}`}
           />
         </div>
 
         <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold text-white/50">旅宿類型</span>
+            <span className="mr-1 text-xs font-semibold text-white/50">{copy.classFilterTitle}</span>
             {STAY_CLASS_FILTERS.map((option) => (
               <button
                 key={option.id}
@@ -358,13 +517,13 @@ export function Accommodations() {
                     : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
                 }`}
               >
-                {option.label}
+                {copy.classFilterLabels[option.id]}
               </button>
             ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold text-white/50">需求條件</span>
+            <span className="mr-1 text-xs font-semibold text-white/50">{copy.featureFilterTitle}</span>
             {STAY_FEATURE_FILTERS.map((option) => (
               <button
                 key={option.id}
@@ -376,14 +535,14 @@ export function Accommodations() {
                     : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
                 }`}
               >
-                {option.label}
+                {copy.featureFilterLabels[option.id]}
               </button>
             ))}
           </div>
 
           {townOptions.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-1 text-xs font-semibold text-white/50">熱門行政區</span>
+              <span className="mr-1 text-xs font-semibold text-white/50">{copy.townFilterTitle}</span>
               <button
                 type="button"
                 onClick={() => setSelectedTown("all")}
@@ -393,7 +552,7 @@ export function Accommodations() {
                     : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
                 }`}
               >
-                全部區域
+                {copy.allTowns}
               </button>
               {townOptions.map(({ town, count }) => (
                 <button
@@ -413,21 +572,24 @@ export function Accommodations() {
           ) : null}
 
           <p className="text-xs text-white/45">
-            第 {safeCurrentPage} / {totalPages} 頁，
-            每頁 {pageSize} 筆，
-            本頁 {pagedStays.length} 筆，
-            共 {visibleStays.length} 筆符合條件住宿
-            {stays.length ? `（已載入資料庫 ${stays.length} 筆台北旅宿）` : ""}
+            {copy.statsLine({
+              page: safeCurrentPage,
+              totalPages,
+              pageSize,
+              pageCount: pagedStays.length,
+              total: visibleStays.length,
+              loaded: stays.length,
+            })}
           </p>
         </div>
 
         {loading ? (
           <div className="flex min-h-[260px] items-center justify-center gap-3 text-white/50">
-            <Loader2 className="h-5 w-5 animate-spin" /> 載入住宿資料中…
+            <Loader2 className="h-5 w-5 animate-spin" /> {copy.loadingStays}
           </div>
         ) : visibleStays.length === 0 ? (
           <div className={`border border-white/10 py-16 text-center text-white/55 ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
-            找不到符合關鍵字的住宿，請改用其他名稱或地點。
+            {copy.emptyState}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -435,7 +597,7 @@ export function Accommodations() {
               const expanded = expandedCardId === stay.id;
               const stayImageUrl = getStayImageUrl(stay);
               const placeholderImageUrl = getStayPlaceholderImage(stay);
-              const externalLinks = getStayExternalLinks(stay);
+              const externalLinks = getStayExternalLinks(stay, copy.externalLabels, copy.searchKeyword);
               return (
                 <div
                   key={stay.id}
@@ -458,33 +620,33 @@ export function Accommodations() {
                       type="button"
                       onClick={() => handleToggleFavorite(stay.id)}
                       className={`absolute right-3 top-3 z-10 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-black/35 backdrop-blur-md hover:bg-black/55`}
-                      title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
+                      title={favoriteStayIds.has(stay.id) ? copy.removeFavorite : copy.addFavorite}
                     >
                       <AnimatedHeart
                         checked={favoriteStayIds.has(stay.id)}
                         size={20}
                         className="text-white"
-                        title={favoriteStayIds.has(stay.id) ? "取消收藏" : "加入收藏"}
+                        title={favoriteStayIds.has(stay.id) ? copy.removeFavorite : copy.addFavorite}
                       />
                     </button>
                   </div>
                   <div className="p-4">
                     <h2 className="line-clamp-2 min-h-[2.5rem] text-base font-bold text-white">{stay.name}</h2>
                     <p className="mt-2 line-clamp-2 text-xs text-white/65">
-                      {stay.description || "展開可查看地址、電話與更多資訊。"}
+                      {stay.description || copy.cardDescriptionFallback}
                     </p>
                     <p className="mt-3 flex items-start gap-1.5 text-xs text-white/60">
                       <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <span className="line-clamp-2">{stay.address.full}</span>
                     </p>
-                    <p className="mt-2 text-xs text-cyan-200">{stay.classLabels.join(" / ") || "合法旅宿"}</p>
+                    <p className="mt-2 text-xs text-cyan-200">{stay.classLabels.join(" / ") || copy.legalStay}</p>
 
                     <Button
                       type="button"
                       onClick={() => handleOpenMapExplore(stay)}
                       className={`mt-3 w-full ${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] font-semibold text-[#042028] hover:bg-[#20deff]`}
                     >
-                      地圖探索
+                      {copy.mapExplore}
                     </Button>
 
                     <button
@@ -493,7 +655,7 @@ export function Accommodations() {
                       className={`mt-2 flex w-full items-center justify-between gap-2 border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/85 hover:bg-black/35 ${isV1 ? "rounded-md" : "rounded-xl"}`}
                       aria-expanded={expanded}
                     >
-                      <span>{expanded ? "收合詳細資訊" : "詳細資訊"}</span>
+                      <span>{expanded ? copy.collapseDetails : copy.details}</span>
                       {expanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
                     </button>
 
@@ -505,11 +667,11 @@ export function Accommodations() {
                         </p>
                         <p className="flex items-center gap-2">
                           <Phone className="h-3.5 w-3.5 shrink-0 text-cyan-200" />
-                          <span>{stay.phones.join("、") || "電話待補"}</span>
+                          <span>{stay.phones.join("、") || copy.phonePending}</span>
                         </p>
                         <p>
-                          <span className="text-white/50">星級評等：</span>
-                          {stay.starRating ? `${stay.starRating} 星` : "未提供"}
+                          <span className="text-white/50">{copy.starRatingLabel}</span>
+                          {stay.starRating ? `${stay.starRating} ${copy.starUnit}` : copy.notProvided}
                         </p>
                         {stay.description ? (
                           <p className="leading-relaxed text-white/70">{stay.description}</p>
@@ -545,7 +707,7 @@ export function Accommodations() {
         {!loading && visibleStays.length > 0 ? (
           <div className="flex flex-col items-center gap-3">
             <div className="flex items-center gap-2 text-xs text-white/70">
-              <label htmlFor="stay-page-size">每頁顯示</label>
+              <label htmlFor="stay-page-size">{copy.pageSizeLabel}</label>
               <select
                 id="stay-page-size"
                 value={pageSize}
@@ -558,7 +720,7 @@ export function Accommodations() {
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
-                    {size} 筆
+                    {size} {copy.recordsUnit}
                   </option>
                 ))}
               </select>
@@ -571,7 +733,7 @@ export function Accommodations() {
                 disabled={safeCurrentPage === 1}
                 className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/8 text-white hover:bg-white/15 disabled:opacity-40`}
               >
-                上一頁
+                {copy.prevPage}
               </Button>
               {pageTokens.map((token, index) => {
                 if (token === "...") {
@@ -594,7 +756,7 @@ export function Accommodations() {
                         ? "bg-[#00d6ff] text-[#042028]"
                         : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
                     }`}
-                    title={`第 ${token} 頁（${pageStart}-${pageEnd} 筆）`}
+                    title={copy.pageTitleWithRange({ page: token, start: pageStart, end: pageEnd })}
                   >
                     {token}
                   </button>
@@ -606,12 +768,12 @@ export function Accommodations() {
                 disabled={safeCurrentPage === totalPages}
                 className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/8 text-white hover:bg-white/15 disabled:opacity-40`}
               >
-                下一頁
+                {copy.nextPage}
               </Button>
             </div>
 
             <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-xs text-white/70">
-              <span>跳到第</span>
+              <span>{copy.jumpToPagePrefix}</span>
               <input
                 value={pageInput}
                 onChange={(event) => {
@@ -624,20 +786,20 @@ export function Accommodations() {
                 inputMode="numeric"
                 className={`w-16 border border-white/15 bg-[#1f1f26]/90 px-2 py-1 text-center text-xs text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-lg"}`}
               />
-              <span>頁</span>
+              <span>{copy.pageUnit}</span>
               <Button
                 type="button"
                 onClick={jumpToPage}
                 className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/10 text-white hover:bg-white/15`}
               >
-                前往
+                {copy.go}
               </Button>
               <Button
                 type="button"
                 onClick={() => setCurrentPage(totalPages)}
                 className={`px-4 ${isV1 ? "rounded-md" : "rounded-full"} bg-white/10 text-white hover:bg-white/15`}
               >
-                最後一頁
+                {copy.lastPage}
               </Button>
             </div>
             {pageInputError ? (

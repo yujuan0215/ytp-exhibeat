@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-type SupportedLocale = "zh-TW" | "en" | "ja" | "zh-CN" | "fr" | "es" | "pt" | "ar" | "hi";
+export type SupportedLocale = "zh-TW" | "en" | "ja" | "zh-CN" | "fr" | "es" | "pt" | "ar" | "hi";
 
 type LanguageContextValue = {
   locale: SupportedLocale;
@@ -64,4 +64,11 @@ export const LOCALE_OPTIONS: Array<{ value: SupportedLocale; label: string }> = 
   { value: "ar", label: "العربية" },
   { value: "hi", label: "हिन्दी" },
 ];
+
+export function getLocaleCopy<T>(
+  locale: SupportedLocale,
+  copyByLocale: { "zh-TW": T } & Partial<Record<SupportedLocale, T>>,
+): T {
+  return copyByLocale[locale] ?? copyByLocale.en ?? copyByLocale["zh-TW"];
+}
 

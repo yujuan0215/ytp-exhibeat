@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 type RecommendationCarouselProps = {
   title?: string;
@@ -35,6 +36,48 @@ const FALLBACK_IMAGE =
 
 export function RecommendationCarousel({ title, introText, events }: RecommendationCarouselProps) {
   const { user } = useAuth();
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      addToTripList: "加入行程清單",
+      addBatch: "整批加入",
+      createAndAddAll: "建立新清單並加入全部…",
+      createAndAddAllAlt: "新增清單並加入全部…",
+      addedToList: (count: number, name: string) => `已將 ${count} 筆加入「${name}」`,
+      createdAndAdded: (name: string) => `已建立並加入「${name}」`,
+      newListPrompt: "新行程清單名稱",
+      aiList: "AI 推薦清單",
+      reason: "推薦原因：",
+      viewStayOnMap: "在地圖中查看住宿",
+      viewOnMap: "在地圖中查看",
+    },
+    en: {
+      addToTripList: "Add to trip list",
+      addBatch: "Batch add",
+      createAndAddAll: "Create new list and add all…",
+      createAndAddAllAlt: "Create list and add all…",
+      addedToList: (count: number, name: string) => `Added ${count} items to "${name}"`,
+      createdAndAdded: (name: string) => `Created and added to "${name}"`,
+      newListPrompt: "New trip list name",
+      aiList: "AI Recommendations",
+      reason: "Why recommended:",
+      viewStayOnMap: "View stay on map",
+      viewOnMap: "View on map",
+    },
+    fr: {
+      addToTripList: "Ajouter à la liste de voyage",
+      addBatch: "Ajouter en lot",
+      createAndAddAll: "Créer et tout ajouter",
+      createAndAddAllAlt: "Créer une nouvelle liste et tout ajouter",
+      addedToList: (count: number, name: string) => `${count} éléments ajoutés à « ${name} »`,
+      createdAndAdded: (name: string) => `Créé et ajouté à « ${name} »`,
+      newListPrompt: "Nom de la nouvelle liste",
+      aiList: "Liste IA",
+      reason: "Raison de recommandation",
+      viewStayOnMap: "Voir l'hébergement sur la carte",
+      viewOnMap: "Voir sur la carte",
+    },
+  });
   const location = useLocation();
   const [lists, setLists] = useState<TripList[]>(() => getTripLists());
   const [batchHint, setBatchHint] = useState("");
@@ -53,16 +96,16 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
     }
     setLists(getTripLists());
     const name = lists.find((l) => l.id === listId)?.name ?? "";
-    setBatchHint(`已將 ${events.length} 筆加入「${name}」`);
+    setBatchHint(copy.addedToList(events.length, name));
     window.setTimeout(() => setBatchHint(""), 4000);
   };
 
   const createNewListWithAll = () => {
     if (!user) return;
-    const suggested = `${title || "AI 推薦清單"} ${new Date().toLocaleDateString("zh-TW")}`;
+    const suggested = `${title || copy.aiList} ${new Date().toLocaleDateString("zh-TW")}`;
     let input: string | null = null;
     try {
-      input = window.prompt("新行程清單名稱", suggested);
+      input = window.prompt(copy.newListPrompt, suggested);
     } catch {
       input = suggested;
     }
@@ -73,7 +116,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
       else addEventToTripList(list.id, agentRecommendationToExhibition(ev));
     }
     setLists(getTripLists());
-    setBatchHint(`已建立並加入「${list.name}」`);
+    setBatchHint(copy.createdAndAdded(list.name));
     window.setTimeout(() => setBatchHint(""), 4000);
   };
 
@@ -90,14 +133,14 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
               type="button"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs text-white/85 hover:bg-white/10"
             >
-              <ListPlus className="h-3.5 w-3.5" /> 加入行程清單
+              <ListPlus className="h-3.5 w-3.5" /> {copy.addToTripList}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[200px] border border-white/10 bg-[#1a1625] text-white">
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-white/80">整批加入</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-white/80">{copy.addBatch}</DropdownMenuLabel>
                 {lists.length === 0 ? (
                   <DropdownMenuItem onClick={createNewListWithAll} className="text-white focus:bg-white/10">
-                    建立新清單並加入全部…
+                    {copy.createAndAddAll}
                   </DropdownMenuItem>
                 ) : (
                   <>
@@ -112,7 +155,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
                     ))}
                     <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem onClick={createNewListWithAll} className="text-white focus:bg-white/10">
-                      新增清單並加入全部…
+                      {copy.createAndAddAllAlt}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -165,7 +208,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
               </p>
               {event.reason && (
                 <p className="line-clamp-2 text-[11px] leading-relaxed text-white/65">
-                  推薦原因：{event.reason}
+                  {copy.reason}{event.reason}
                 </p>
               )}
               <Link
@@ -181,7 +224,7 @@ export function RecommendationCarousel({ title, introText, events }: Recommendat
                 }
                 className="mt-1 block border-t border-white/10 pt-2 text-center text-xs font-semibold text-cyan-200 hover:text-cyan-100"
               >
-                {event.itemType === "stay" ? "在地圖中查看住宿" : "在地圖中查看"}
+                {event.itemType === "stay" ? copy.viewStayOnMap : copy.viewOnMap}
               </Link>
             </div>
           </article>

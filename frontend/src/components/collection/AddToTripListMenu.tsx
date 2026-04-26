@@ -17,6 +17,7 @@ import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { ActionToast } from "@/components/ActionToast";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 type Props =
   | { kind: "event"; exhibition: Exhibition; currentListId?: string | null; align?: "start" | "end"; requireAuth?: boolean }
@@ -24,6 +25,48 @@ type Props =
 
 export function AddToTripListMenu(props: Props) {
   const { user } = useAuth();
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      addedTo: (name: string) => `已加入「${name}」`,
+      removedFrom: (name: string) => `已從「${name}」移除`,
+      listSuggestedPrefix: "清單：",
+      newListPrompt: "新行程清單名稱",
+      createdAndAdded: (name: string) => `已建立並加入「${name}」`,
+      currentList: "目前清單",
+      ariaAddTripList: "加入行程清單",
+      menuTitle: "加入行程清單",
+      createAndAdd: "建立新清單並加入…",
+      createAndAddAlt: "新增清單並加入…",
+      removeFromCurrent: "從此清單移除",
+    },
+    en: {
+      addedTo: (name: string) => `Added to "${name}"`,
+      removedFrom: (name: string) => `Removed from "${name}"`,
+      listSuggestedPrefix: "List: ",
+      newListPrompt: "New trip list name",
+      createdAndAdded: (name: string) => `Created and added to "${name}"`,
+      currentList: "Current list",
+      ariaAddTripList: "Add to trip list",
+      menuTitle: "Add to trip list",
+      createAndAdd: "Create new list and add…",
+      createAndAddAlt: "Create list and add…",
+      removeFromCurrent: "Remove from this list",
+    },
+    fr: {
+      addedTo: (name: string) => `Ajouté à « ${name} »`,
+      removedFrom: (name: string) => `Retiré de « ${name} »`,
+      listSuggestedPrefix: "Liste suggérée",
+      newListPrompt: "Nom de la nouvelle liste",
+      createdAndAdded: (name: string) => `Créé et ajouté à « ${name} »`,
+      currentList: "Liste actuelle",
+      ariaAddTripList: "Ajouter à la liste de voyage",
+      menuTitle: "Menu",
+      createAndAdd: "Créer et ajouter",
+      createAndAddAlt: "Créer une nouvelle liste et ajouter",
+      removeFromCurrent: "Retirer de la liste actuelle",
+    },
+  });
   const { theme } = useTheme();
   const isV1 = theme === "v1";
   const align = props.align ?? "end";
@@ -82,7 +125,7 @@ export function AddToTripListMenu(props: Props) {
       const currentlyFavorited = isFavorited(props.exhibition.id);
       await toggleFavorite(props.exhibition);
       const nextFavorited = !currentlyFavorited;
-      setToastMessage(nextFavorited ? `已加入「${targetList.name}」` : `已從「${targetList.name}」移除`);
+      setToastMessage(nextFavorited ? copy.addedTo(targetList.name) : copy.removedFrom(targetList.name));
       setLists(getTripLists());
       setShowToast(true);
       return;
@@ -90,13 +133,13 @@ export function AddToTripListMenu(props: Props) {
     const currentlyInList = isInList(listId);
     if (currentlyInList) {
       removeItemKeyFromTripList(listId, key);
-      setToastMessage(`已從「${targetList.name}」移除`);
+      setToastMessage(copy.removedFrom(targetList.name));
     } else if (props.kind === "event") {
       addEventToTripList(listId, props.exhibition);
-      setToastMessage(`已加入「${targetList.name}」`);
+      setToastMessage(copy.addedTo(targetList.name));
     } else {
       addStayToTripList(listId, props.stay);
-      setToastMessage(`已加入「${targetList.name}」`);
+      setToastMessage(copy.addedTo(targetList.name));
     }
     setLists(getTripLists());
     setShowToast(true);
@@ -104,10 +147,10 @@ export function AddToTripListMenu(props: Props) {
 
   const handleCreateNew = () => {
     const suggested =
-      props.kind === "event" ? `清單：${props.exhibition.title.slice(0, 12)}…` : `清單：${props.stay.name.slice(0, 12)}…`;
+      props.kind === "event" ? `${copy.listSuggestedPrefix}${props.exhibition.title.slice(0, 12)}…` : `${copy.listSuggestedPrefix}${props.stay.name.slice(0, 12)}…`;
     let input: string | null = null;
     try {
-      input = window.prompt("新行程清單名稱", suggested);
+      input = window.prompt(copy.newListPrompt, suggested);
     } catch {
       input = suggested;
     }
@@ -115,7 +158,7 @@ export function AddToTripListMenu(props: Props) {
     const name = (input ?? suggested).trim() || suggested;
     const list = createTripListWithFirstItem(name, item);
     setLists(getTripLists());
-    setToastMessage(`已建立並加入「${list.name}」`);
+    setToastMessage(copy.createdAndAdded(list.name));
     setShowToast(true);
     setOpen(false);
   };
@@ -126,8 +169,8 @@ export function AddToTripListMenu(props: Props) {
     if (!currentListId) return;
     removeItemKeyFromTripList(currentListId, key);
     setLists(getTripLists());
-    const currentListName = lists.find((l) => l.id === currentListId)?.name ?? "目前清單";
-    setToastMessage(`已從「${currentListName}」移除`);
+    const currentListName = lists.find((l) => l.id === currentListId)?.name ?? copy.currentList;
+    setToastMessage(copy.removedFrom(currentListName));
     setShowToast(true);
     setOpen(false);
   };
@@ -145,7 +188,7 @@ export function AddToTripListMenu(props: Props) {
           setOpen((v) => !v);
         }}
         className={`z-20 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-background/30 text-white backdrop-blur-md hover:bg-background/50`}
-        aria-label="加入行程清單"
+        aria-label={copy.ariaAddTripList}
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -160,10 +203,10 @@ export function AddToTripListMenu(props: Props) {
             e.stopPropagation();
           }}
         >
-          <div className="px-1.5 py-1 text-xs font-medium text-white/80">加入行程清單</div>
+          <div className="px-1.5 py-1 text-xs font-medium text-white/80">{copy.menuTitle}</div>
           {lists.length === 0 ? (
             <button type="button" onClick={handleCreateNew} className="flex w-full items-center rounded-md px-1.5 py-1 text-left text-sm text-white hover:bg-white/10">
-              建立新清單並加入…
+              {copy.createAndAdd}
             </button>
           ) : (
             <>
@@ -185,7 +228,7 @@ export function AddToTripListMenu(props: Props) {
               ))}
               <div className="-mx-1 my-1 h-px bg-white/10" />
               <button type="button" onClick={handleCreateNew} className="flex w-full items-center rounded-md px-1.5 py-1 text-left text-sm text-white hover:bg-white/10">
-                新增清單並加入…
+                {copy.createAndAddAlt}
               </button>
             </>
           )}
@@ -197,7 +240,7 @@ export function AddToTripListMenu(props: Props) {
                 onClick={handleRemoveFromCurrent}
                 className="flex w-full items-center rounded-md px-1.5 py-1 text-left text-sm text-red-300 hover:bg-red-500/15"
               >
-                從此清單移除
+                {copy.removeFromCurrent}
               </button>
             </>
           )}

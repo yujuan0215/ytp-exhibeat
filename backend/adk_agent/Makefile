@@ -1,7 +1,7 @@
-.PHONY: venv install setup init-env auth enable-apis run clean docker-build docker-run deploy destroy
+.PHONY: venv install setup init-env auth enable-apis run clean deploy destroy
 
 # 專案設定
-IMAGE_NAME = ytp-exhibeat-adk-agent
+SERVICE_NAME = ytp-exhibeat-adk-agent
 PORT = 8000
 REGION = us-central1
 GCLOUD ?= /opt/homebrew/bin/gcloud
@@ -43,13 +43,6 @@ enable-apis:
 		artifactregistry.googleapis.com \
 		aiplatform.googleapis.com
 
-# Docker 相關指令
-docker-build: init-env
-	docker build -t $(IMAGE_NAME) .
-
-docker-run:
-	docker run -p $(PORT):$(PORT) --env-file gemini_agent/.env $(IMAGE_NAME)
-
 # 部署 Gemini Agent 至 Google Cloud Run
 deploy:
 	@if [ -z "$(PROJECT)" ]; then \
@@ -59,7 +52,7 @@ deploy:
 	adk deploy cloud_run \
 		--project=$(PROJECT) \
 		--region=$(REGION) \
-		--service_name=$(IMAGE_NAME) \
+		--service_name=$(SERVICE_NAME) \
 		--port=$(PORT) \
 		--with_ui \
 		gemini_agent
@@ -70,7 +63,7 @@ destroy:
 		echo "請指定 GCP 專案 ID，例如：make destroy PROJECT=your-project-id"; \
 		exit 1; \
 	fi
-	$(GCLOUD) run services delete $(IMAGE_NAME) \
+	$(GCLOUD) run services delete $(SERVICE_NAME) \
 		--project=$(PROJECT) \
 		--region=$(REGION) \
 		--quiet
