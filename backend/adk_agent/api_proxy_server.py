@@ -90,8 +90,7 @@ app = FastAPI(title="ExhiBeat Recommender & Proxy API")
 ensure_database_ready()
 
 _legal_stays_cache: dict | None = None
-_exhibitions_cache: list[dict] | None = None
-_exhibitions_cache_mtime: float | None = None
+_exhibitions_cache_by_path: dict[str, tuple[float, list[dict]]] = {}
 _exhibition_translation_cache: dict[str, dict[tuple[str, str], str]] = {}
 _exhibition_translation_cache_stamp: tuple[tuple[str, float], ...] | None = None
 
@@ -109,25 +108,39 @@ def load_legal_stays_dataset() -> dict:
     return _legal_stays_cache
 
 
-def load_exhibitions_dataset() -> list[dict]:
-    global _exhibitions_cache, _exhibitions_cache_mtime
-    if not EXHIBITIONS_PATH.exists():
+def _resolve_exhibitions_path_for_locale(locale: str | None = None) -> Path:
+    if not locale:
+        return EXHIBITIONS_PATH
+    normalized_locale = _normalize_locale(locale)
+    if normalized_locale == "zh-TW":
+        return EXHIBITIONS_PATH
+    localized_candidate = PROJECT_ROOT / "data" / f"all_exhibitions_{normalized_locale}.json"
+    if localized_candidate.exists():
+        return localized_candidate
+    return EXHIBITIONS_PATH
+
+
+def load_exhibitions_dataset(locale: str | None = None) -> list[dict]:
+    target_path = _resolve_exhibitions_path_for_locale(locale)
+    if not target_path.exists():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Exhibitions dataset missing: {EXHIBITIONS_PATH}",
+            detail=f"Exhibitions dataset missing: {target_path}",
         )
-    current_mtime = EXHIBITIONS_PATH.stat().st_mtime
-    if _exhibitions_cache is not None and _exhibitions_cache_mtime == current_mtime:
-        return _exhibitions_cache
-    payload = json.loads(EXHIBITIONS_PATH.read_text(encoding="utf-8"))
+    current_mtime = target_path.stat().st_mtime
+    cache_key = str(target_path)
+    cached = _exhibitions_cache_by_path.get(cache_key)
+    if cached and cached[0] == current_mtime:
+        return cached[1]
+    payload = json.loads(target_path.read_text(encoding="utf-8"))
     if not isinstance(payload, list):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Exhibitions dataset format is invalid.",
         )
-    _exhibitions_cache = [item for item in payload if isinstance(item, dict)]
-    _exhibitions_cache_mtime = current_mtime
-    return _exhibitions_cache
+    normalized_payload = [item for item in payload if isinstance(item, dict)]
+    _exhibitions_cache_by_path[cache_key] = (current_mtime, normalized_payload)
+    return normalized_payload
 
 
 def _normalize_locale(locale: str) -> str:
@@ -225,7 +238,12 @@ def _translate_event_field(event_id: str, field: str, locale: str, fallback_text
     if normalized_locale == "zh-TW":
         return fallback_text
     table = load_exhibition_translation_index().get(normalized_locale, {})
-    return table.get((event_id, field), fallback_text)
+    translated = table.get((event_id, field))
+    # Some translation files are seeded with empty placeholders.
+    # Treat empty/whitespace text as missing and fallback to source text.
+    if isinstance(translated, str) and translated.strip():
+        return translated
+    return fallback_text
 
 
 def list_available_tags() -> list[str]:
@@ -625,22 +643,36 @@ def _resolve_summary_for_response(
     title: str,
     description: str,
     existing_summary: str = "",
+    locale: str = "zh-TW",
 ) -> str:
     """
     Online path: only read precomputed summaries from DB cache.
     Never call Gemini in request flow to avoid long latency.
     """
+    normalized_locale = _normalize_locale(locale)
     source_hash = _summary_source_hash(title, description)
     cached = _load_summary_from_db(uid, source_hash)
+    normalized_existing = _normalize_existing_summary(existing_summary)
+    if normalized_locale != "zh-TW" and normalized_existing:
+        # Prefer localized dataset/translation summary for non-zh locales.
+        return _translate_event_field(uid, "aiSummary", normalized_locale, normalized_existing)
     if cached is not None:
-        return cached
+        if normalized_locale == "zh-TW":
+            return cached
+        return _translate_event_field(uid, "aiSummary", normalized_locale, cached)
     latest = _load_latest_summary(uid)
     if latest is not None:
-        return latest
-    normalized_existing = _normalize_existing_summary(existing_summary)
+        if normalized_locale == "zh-TW":
+            return latest
+        return _translate_event_field(uid, "aiSummary", normalized_locale, latest)
     if normalized_existing:
-        return normalized_existing
-    return _naive_summary(description)
+        if normalized_locale == "zh-TW":
+            return normalized_existing
+        return _translate_event_field(uid, "aiSummary", normalized_locale, normalized_existing)
+    naive = _naive_summary(description)
+    if normalized_locale == "zh-TW":
+        return naive
+    return _translate_event_field(uid, "aiSummary", normalized_locale, naive)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 def _pick_image(uid: str, raw_url: str) -> str:
@@ -760,6 +792,7 @@ def map_event_to_frontend_exhibition(rec: dict, locale: str = "zh-TW") -> dict:
         title=title,
         description=description,
         existing_summary=existing_summary,
+        locale=locale,
     )
     normalized_location_name = rec.get("location_name", "")
     normalized_city = rec.get("city", "")
@@ -881,6 +914,7 @@ def map_raw_event_to_frontend_exhibition(event: dict, locale: str = "zh-TW") -> 
         title=title,
         description=description,
         existing_summary=existing_summary,
+        locale=locale,
     )
     end_date = str(event.get("endDate", "")).strip()
 
@@ -972,7 +1006,7 @@ async def get_home_recommendations(
 ):
     normalized_locale = _normalize_locale(locale)
     if _user_preference_tags(current_user):
-        max_items = min(len(load_exhibitions_dataset()), 5000)
+        max_items = min(len(load_exhibitions_dataset(normalized_locale)), 5000)
         personalized = get_recommendations_for_user(
             current_user, top_k=max(offset + limit, max_items), locale=normalized_locale
         )
@@ -988,7 +1022,7 @@ async def get_home_recommendations(
             "hasMore": offset + limit < len(personalized),
             "personalized": True,
         }
-    all_events = load_exhibitions_dataset()
+    all_events = load_exhibitions_dataset(normalized_locale)
     exhibitions = [map_raw_event_to_frontend_exhibition(event, locale=normalized_locale) for event in all_events]
     return {
         "exhibitions": exhibitions[offset : offset + limit],
