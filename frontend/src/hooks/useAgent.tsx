@@ -59,8 +59,13 @@ const INITIAL_AGENT_MESSAGE: Message = {
 export function AgentProvider({ children }: { children: ReactNode }) {
   const { locale } = useLanguage();
   const [messages, setMessages] = useState<Message[]>(() => {
-    const cached = readChatHistory();
-    if (cached && cached.length > 0) return cached;
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as Message[];
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+      }
+    } catch { /* ignore */ }
     return [INITIAL_AGENT_MESSAGE];
   });
   const [isLoading, setIsLoading] = useState(false);
