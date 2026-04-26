@@ -61,6 +61,7 @@ export async function refreshFavoritesCache(authenticated: boolean) {
         tags: Array.isArray(payload.tags) ? payload.tags : [],
         imageUrl: payload.imageUrl ?? "",
         aiSummary: payload.aiSummary,
+        fullDescription: payload.fullDescription,
         price: payload.price,
         isFavorite: true,
         _meta: payload._meta,

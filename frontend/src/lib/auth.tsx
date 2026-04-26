@@ -5,7 +5,6 @@ import {
   login as apiLogin,
   register as apiRegister,
   setAuthToken,
-  updatePreferences as apiUpdatePreferences,
   type AuthUser,
 } from "./api";
 import { refreshFavoritesCache } from "./favorites";
@@ -14,9 +13,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   status: "idle" | "loading" | "authenticated" | "unauthenticated";
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (body: { email: string; password: string; display_name: string; preference_tags: string[] }) => Promise<AuthUser>;
+  register: (body: { email: string; password: string; display_name: string }) => Promise<AuthUser>;
   logout: () => void;
-  updatePreferences: (tags: string[]) => Promise<AuthUser>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -56,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.user;
   }, []);
 
-  const register = useCallback(async (body: { email: string; password: string; display_name: string; preference_tags: string[] }) => {
+  const register = useCallback(async (body: { email: string; password: string; display_name: string }) => {
     const res = await apiRegister(body);
     setAuthToken(res.access_token);
     setUser(res.user);
@@ -72,15 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshFavoritesCache(false);
   }, []);
 
-  const updatePreferences = useCallback(async (tags: string[]) => {
-    const updated = await apiUpdatePreferences(tags);
-    setUser(updated);
-    return updated;
-  }, []);
-
   const value = useMemo(
-    () => ({ user, status, login, register, logout, updatePreferences }),
-    [user, status, login, register, logout, updatePreferences],
+    () => ({ user, status, login, register, logout }),
+    [user, status, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

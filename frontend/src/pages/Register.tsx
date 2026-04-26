@@ -1,8 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { listPreferenceOptions, type PreferenceOption } from "@/lib/api";
 
 export function Register() {
   const navigate = useNavigate();
@@ -15,22 +14,8 @@ export function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [preferenceOptions, setPreferenceOptions] = useState<PreferenceOption[]>([]);
-  const [selectedPreferenceTags, setSelectedPreferenceTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    listPreferenceOptions()
-      .then(setPreferenceOptions)
-      .catch((err) => console.warn("Failed to load preference options", err));
-  }, []);
-
-  const togglePreferenceTag = (tag: string) => {
-    setSelectedPreferenceTags((prev) =>
-      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag],
-    );
-  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,7 +35,6 @@ export function Register() {
         email: email.trim(),
         password,
         display_name: trimmedDisplayName,
-        preference_tags: selectedPreferenceTags,
       });
       navigate(redirectTo, { replace: true });
     } catch (err) {
@@ -77,7 +61,6 @@ export function Register() {
       <div className="w-full max-w-2xl">
         <div className="text-center mb-10">
           <h1 className="text-5xl font-extrabold text-white tracking-wide">建立你的帳號</h1>
-          <p className="text-sm text-white/50 mt-2">選擇你感興趣的主題，我們會優先推薦更貼近你的展覽</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
@@ -121,33 +104,6 @@ export function Register() {
               placeholder="至少 8 個字元"
             />
           </div>
-
-          {preferenceOptions.length > 0 && (
-            <div>
-              <label className="text-sm font-semibold text-white/90 mb-3 block">偏好主題</label>
-              <div className="flex flex-wrap gap-2">
-                {preferenceOptions.map((option) => {
-                  const selected = selectedPreferenceTags.includes(option.id);
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => togglePreferenceTag(option.id)}
-                      className={`h-10 rounded-md border px-3 text-sm font-semibold transition-colors ${
-                        selected
-                          ? "border-primary bg-primary/20 text-white"
-                          : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
-                      }`}
-                      aria-pressed={selected}
-                    >
-                      <span className="mr-1.5">{option.emoji}</span>
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-200">

@@ -587,7 +587,6 @@ export interface AuthUser {
   email: string;
   display_name: string;
   is_active: boolean;
-  preference_tags: string[];
   google_sub: string | null;
   google_email: string | null;
   created_at: string;
@@ -600,22 +599,10 @@ export interface AuthTokenPayload {
   user: AuthUser;
 }
 
-export interface PreferenceOption {
-  id: string;
-  label: string;
-  emoji: string;
-}
-
-export const listPreferenceOptions = async (): Promise<PreferenceOption[]> => {
-  const response = await fetch('/api/auth/preference-options');
-  return handleJson<PreferenceOption[]>(response, "Failed to load preference options");
-};
-
 export const register = async (body: {
   email: string;
   password: string;
   display_name: string;
-  preference_tags: string[];
 }): Promise<AuthTokenPayload> => {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
@@ -637,15 +624,6 @@ export const login = async (body: { email: string; password: string }): Promise<
 export const fetchMe = async (): Promise<AuthUser> => {
   const response = await fetch('/api/auth/me', { headers: authHeaders() });
   return handleJson<AuthUser>(response, "Failed to load user");
-};
-
-export const updatePreferences = async (preference_tags: string[]): Promise<AuthUser> => {
-  const response = await fetch('/api/auth/me/preferences', {
-    method: 'PATCH',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ preference_tags }),
-  });
-  return handleJson<AuthUser>(response, "更新偏好標籤失敗");
 };
 
 // ─── Favorites (auth required) ───────────────────────────────────────────────

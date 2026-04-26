@@ -396,9 +396,13 @@ export function ExhibitionDetail() {
   const aiSummaryText =
     exhibition.aiSummary ||
     "本次展覽以城市夜色與聲光節奏為核心，結合場域敘事與沉浸式互動，適合喜歡視覺衝擊與新媒體藝術的觀眾。";
-  const AI_SUMMARY_LIMIT = 120;
-  const aiSummaryTooLong = aiSummaryText.length > AI_SUMMARY_LIMIT;
-  const aiSummaryPreview = aiSummaryTooLong ? `${aiSummaryText.slice(0, AI_SUMMARY_LIMIT).trimEnd()}...` : aiSummaryText;
+  const fullDescriptionText = (exhibition.fullDescription ?? "").trim();
+  const aiDisplayText = fullDescriptionText || aiSummaryText;
+  const AI_SUMMARY_LIMIT = 100;
+  const aiSummaryTooLong = aiDisplayText.length > AI_SUMMARY_LIMIT;
+  const aiSummaryPreview = aiSummaryTooLong
+    ? `${aiDisplayText.slice(0, AI_SUMMARY_LIMIT).trimEnd()}...`
+    : aiDisplayText;
 
   const handleExternalAction = () => setExternalModalOpen(true);
   const handlePrevImage = () => {
@@ -821,7 +825,7 @@ export function ExhibitionDetail() {
               <h3 className="text-base font-bold text-white">AI 展覽簡介</h3>
             </div>
             <p className="text-sm leading-relaxed text-white/80">
-              {aiExpanded ? aiSummaryText : aiSummaryPreview}
+              {aiExpanded ? aiDisplayText : aiSummaryPreview}
             </p>
             {aiSummaryTooLong && (
               <button

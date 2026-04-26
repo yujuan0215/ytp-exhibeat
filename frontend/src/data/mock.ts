@@ -5,6 +5,7 @@ export interface Exhibition {
   dateStr: string;
   location: string;
   aiSummary?: string;
+  fullDescription?: string;
   tags: string[];
   imageUrl: string;
   isFavorite: boolean;
