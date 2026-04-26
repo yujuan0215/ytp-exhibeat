@@ -2,7 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { sendMessageToAgent } from "../lib/api";
 import type { AgentRecommendationItem } from "../lib/api";
 import type { AgentItineraryStop } from "../lib/api";
-import { AGENT_PREFILL_STORAGE_KEY, type AgentPrefillEnvelope } from "../lib/tripLists";
+import {
+  AGENT_PREFILL_STORAGE_KEY,
+  AGENT_PREFILL_QUEUED_EVENT,
+  type AgentPrefillEnvelope,
+} from "../lib/tripLists";
 
 export type AgentUserMessage = {
   role: 'user';
@@ -169,7 +173,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     return { text, nonce, label };
   };
 
-  useEffect(() => {
+  const consumeQueuedPrefill = useCallback(() => {
     try {
       const raw = sessionStorage.getItem(AGENT_PREFILL_STORAGE_KEY);
       if (!raw) return;
@@ -183,6 +187,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, [sendPrefillMessage]);
+
+  useEffect(() => {
+    consumeQueuedPrefill();
+    window.addEventListener(AGENT_PREFILL_QUEUED_EVENT, consumeQueuedPrefill);
+    return () => window.removeEventListener(AGENT_PREFILL_QUEUED_EVENT, consumeQueuedPrefill);
+  }, [consumeQueuedPrefill]);
 
   const retryFailedPrefill = useCallback(async () => {
     if (!failedPrefill) return;
