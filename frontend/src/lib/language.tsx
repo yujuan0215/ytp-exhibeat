@@ -65,10 +65,12 @@ export const LOCALE_OPTIONS: Array<{ value: SupportedLocale; label: string }> = 
   { value: "hi", label: "हिन्दी" },
 ];
 
-export function getLocaleCopy<T>(
+type LocaleCopyShape = Record<string, unknown>;
+
+export function getLocaleCopy<T extends LocaleCopyShape>(
   locale: SupportedLocale,
-  copyByLocale: { "zh-TW": T } & Partial<Record<SupportedLocale, T>>,
+  copyByLocale: { "zh-TW": T } & Partial<Record<SupportedLocale, LocaleCopyShape>>,
 ): T {
-  return copyByLocale[locale] ?? copyByLocale.en ?? copyByLocale["zh-TW"];
+  return (copyByLocale[locale] ?? copyByLocale.en ?? copyByLocale["zh-TW"]) as T;
 }
 

@@ -233,15 +233,22 @@ def load_exhibition_translation_index() -> dict[str, dict[tuple[str, str], str]]
     return _exhibition_translation_cache
 
 
-def _translate_event_field(event_id: str, field: str, locale: str, fallback_text: str) -> str:
+def _localized_event_field(event_id: str, field: str, locale: str) -> str | None:
     normalized_locale = _normalize_locale(locale)
     if normalized_locale == "zh-TW":
-        return fallback_text
+        return None
     table = load_exhibition_translation_index().get(normalized_locale, {})
     translated = table.get((event_id, field))
     # Some translation files are seeded with empty placeholders.
     # Treat empty/whitespace text as missing and fallback to source text.
     if isinstance(translated, str) and translated.strip():
+        return translated
+    return None
+
+
+def _translate_event_field(event_id: str, field: str, locale: str, fallback_text: str) -> str:
+    translated = _localized_event_field(event_id, field, locale)
+    if translated is not None:
         return translated
     return fallback_text
 
@@ -588,6 +595,79 @@ def _assert_summary_generation_ready() -> dict[str, object]:
     return env
 
 
+def _summary_prompt_for_locale(locale: str, title: str, clean_description: str) -> str:
+    normalized_locale = _normalize_locale(locale)
+    description = clean_description[:4000]
+    prompts = {
+        "zh-TW": (
+            "你是一位展演內容編輯。請根據 description 內容，"
+            "以繁體中文撰寫約 200 字的摘要，要求清晰、具體、吸引人，"
+            "可讀性高，避免空泛與重複。"
+            "只輸出摘要內容本身，不要加標題、條列或多餘說明。\n"
+            f"展覽名稱：{title}\n"
+            f"description：{description}"
+        ),
+        "zh-CN": (
+            "你是一位展演内容编辑。请根据 description 内容，"
+            "以简体中文撰写约 200 字的摘要，要求清晰、具体、吸引人，"
+            "可读性高，避免空泛与重复。"
+            "只输出摘要内容本身，不要加标题、列表或多余说明。\n"
+            f"展览名称：{title}\n"
+            f"description：{description}"
+        ),
+        "en": (
+            "You are an exhibition content editor. Based on the description, "
+            "write a concise and engaging English summary in about 80-140 words. "
+            "Be clear and specific, avoid generic filler, and output only the summary text.\n"
+            f"Title: {title}\n"
+            f"Description: {description}"
+        ),
+        "fr": (
+            "Vous êtes rédacteur culturel spécialisé dans les expositions. À partir de la description, "
+            "rédigez un résumé en français clair, précis et engageant d'environ 80 à 140 mots. "
+            "Évitez les formules vagues et ne produisez que le résumé, sans titre ni liste.\n"
+            f"Titre : {title}\n"
+            f"Description : {description}"
+        ),
+        "ja": (
+            "あなたは展覧会・舞台芸術の編集者です。description の内容をもとに、"
+            "日本語で80〜140語程度の明確で具体的、魅力的な紹介文を書いてください。"
+            "抽象的な表現や重複を避け、タイトルや箇条書きは付けず、本文だけを出力してください。\n"
+            f"タイトル：{title}\n"
+            f"description：{description}"
+        ),
+        "es": (
+            "Eres redactor cultural especializado en exposiciones. A partir de la descripción, "
+            "escribe un resumen en español claro, específico y atractivo de unas 80 a 140 palabras. "
+            "Evita frases genéricas y entrega solo el resumen, sin título ni viñetas.\n"
+            f"Título: {title}\n"
+            f"Descripción: {description}"
+        ),
+        "pt": (
+            "Você é um editor cultural especializado em exposições. Com base na descrição, "
+            "escreva um resumo em português claro, específico e envolvente com cerca de 80 a 140 palavras. "
+            "Evite generalidades e entregue apenas o texto do resumo, sem título nem listas.\n"
+            f"Título: {title}\n"
+            f"Descrição: {description}"
+        ),
+        "ar": (
+            "أنت محرر ثقافي متخصص في المعارض والفعاليات. اعتمادا على الوصف، "
+            "اكتب ملخصا عربيا واضحا ومحددا وجذابا من نحو 80 إلى 140 كلمة. "
+            "تجنب العبارات العامة، وأخرج نص الملخص فقط دون عنوان أو نقاط.\n"
+            f"العنوان: {title}\n"
+            f"الوصف: {description}"
+        ),
+        "hi": (
+            "आप प्रदर्शनियों और सांस्कृतिक कार्यक्रमों के संपादक हैं। description के आधार पर "
+            "लगभग 80-140 शब्दों में स्पष्ट, विशिष्ट और आकर्षक हिंदी सारांश लिखें। "
+            "सामान्य वाक्यों से बचें और केवल सारांश पाठ दें, कोई शीर्षक या सूची नहीं।\n"
+            f"शीर्षक: {title}\n"
+            f"description: {description}"
+        ),
+    }
+    return prompts.get(normalized_locale, prompts["zh-TW"])
+
+
 def _save_summary_to_db(uid: str, locale: str, source_hash: str, summary: str, model_name: str) -> None:
     _ensure_summary_table()
     normalized_locale = _normalize_locale(locale)
@@ -626,23 +706,7 @@ def _generate_gemini_summary(title: str, description: str, locale: str = "zh-TW"
     model_name = str(env["gemini_model"])
     use_vertex = bool(env["use_vertex"])
     normalized_locale = _normalize_locale(locale)
-    if normalized_locale == "en":
-        prompt = (
-            "You are an exhibition content editor. Based on the description, "
-            "write a concise and engaging English summary in about 80-140 words. "
-            "Be clear and specific, avoid generic filler, and output only the summary text.\n"
-            f"Title: {title}\n"
-            f"Description: {clean_description[:4000]}"
-        )
-    else:
-        prompt = (
-            "你是一位展演內容編輯。請根據 description 內容，"
-            "以繁體中文撰寫約 200 字的摘要，要求清晰、具體、吸引人，"
-            "可讀性高，避免空泛與重複。"
-            "只輸出摘要內容本身，不要加標題、條列或多餘說明。\n"
-            f"展覽名稱：{title}\n"
-            f"description：{clean_description[:4000]}"
-        )
+    prompt = _summary_prompt_for_locale(normalized_locale, title, clean_description)
 
     if use_vertex:
         import vertexai
@@ -715,26 +779,22 @@ def _resolve_summary_for_response(
     source_hash = _summary_source_hash(title, description)
     cached = _load_summary_from_db(uid, normalized_locale, source_hash)
     normalized_existing = _normalize_existing_summary(existing_summary)
-    if normalized_locale != "zh-TW" and normalized_existing:
-        # Prefer localized dataset/translation summary for non-zh locales.
-        return _translate_event_field(uid, "aiSummary", normalized_locale, normalized_existing)
     if cached is not None:
-        if normalized_locale == "zh-TW":
-            return cached
-        return _translate_event_field(uid, "aiSummary", normalized_locale, cached)
+        return cached
     latest = _load_latest_summary(uid, normalized_locale)
     if latest is not None:
-        if normalized_locale == "zh-TW":
-            return latest
-        return _translate_event_field(uid, "aiSummary", normalized_locale, latest)
+        return latest
+    localized_existing = _localized_event_field(uid, "aiSummary", normalized_locale)
+    if localized_existing is not None:
+        return localized_existing
     if normalized_existing:
         if normalized_locale == "zh-TW":
             return normalized_existing
-        return _translate_event_field(uid, "aiSummary", normalized_locale, normalized_existing)
+        return ""
     naive = _naive_summary(description)
     if normalized_locale == "zh-TW":
         return naive
-    return _translate_event_field(uid, "aiSummary", normalized_locale, naive)
+    return ""
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 def _pick_image(uid: str, raw_url: str) -> str:
@@ -1068,13 +1128,12 @@ async def get_home_recommendations(
 ):
     normalized_locale = _normalize_locale(locale)
     if _user_preference_tags(current_user):
-        max_items = min(len(load_exhibitions_dataset(normalized_locale)), 5000)
         personalized = get_recommendations_for_user(
-            current_user, top_k=max(offset + limit, max_items), locale=normalized_locale
+            current_user, top_k=offset + limit, locale=normalized_locale
         )
         if not personalized:
             personalized = get_recommendations_for_persona(
-                "taipei_after_work", top_k=max(offset + limit, max_items), locale=normalized_locale
+                "taipei_after_work", top_k=offset + limit, locale=normalized_locale
             )
         return {
             "exhibitions": personalized[offset : offset + limit],
@@ -1085,13 +1144,15 @@ async def get_home_recommendations(
             "personalized": True,
         }
     all_events = load_exhibitions_dataset(normalized_locale)
-    exhibitions = [map_raw_event_to_frontend_exhibition(event, locale=normalized_locale) for event in all_events]
+    total = len(all_events)
+    page_events = all_events[offset : offset + limit]
+    exhibitions = [map_raw_event_to_frontend_exhibition(event, locale=normalized_locale) for event in page_events]
     return {
-        "exhibitions": exhibitions[offset : offset + limit],
+        "exhibitions": exhibitions,
         "offset": offset,
         "limit": limit,
-        "total": len(exhibitions),
-        "hasMore": offset + limit < len(exhibitions),
+        "total": total,
+        "hasMore": offset + limit < total,
         "personalized": False,
     }
 
@@ -1361,7 +1422,28 @@ ADK_PORT = int(os.environ.get("ADK_PORT", "8001"))
 ADK_HOST = f"http://127.0.0.1:{ADK_PORT}"
 
 
-def _preferred_reply_language(text: str) -> str:
+_REPLY_LANGUAGE_NAMES = {
+    "zh-TW": "Traditional Chinese",
+    "zh-CN": "Simplified Chinese",
+    "en": "English",
+    "fr": "French",
+    "ja": "Japanese",
+    "es": "Spanish",
+    "pt": "Portuguese",
+    "ar": "Arabic",
+    "hi": "Hindi",
+}
+
+
+def _normalize_optional_locale(locale: str) -> str:
+    raw = str(locale or "").strip()
+    return _normalize_locale(raw) if raw else ""
+
+
+def _preferred_reply_language(text: str, locale: str = "") -> str:
+    normalized_locale = _normalize_optional_locale(locale)
+    if normalized_locale in _REPLY_LANGUAGE_NAMES:
+        return normalized_locale
     cjk_count = len(_re.findall(r"[\u4e00-\u9fff]", text))
     latin_count = len(_re.findall(r"[A-Za-z]", text))
     if latin_count >= 3 and cjk_count == 0:
@@ -1371,39 +1453,66 @@ def _preferred_reply_language(text: str) -> str:
     return ""
 
 
+def _reply_language_hint(locale: str) -> str:
+    normalized_locale = _normalize_locale(locale)
+    language_name = _REPLY_LANGUAGE_NAMES.get(normalized_locale)
+    if not language_name:
+        return ""
+    if normalized_locale == "zh-TW":
+        return "\n\n[回覆語言指示：請全程使用繁體中文回覆。]"
+    if normalized_locale == "zh-CN":
+        return "\n\n[回复语言指示：请全程使用简体中文回复。]"
+    return (
+        f"\n\n[Reply language instruction: The current interface language is {language_name}. "
+        f"Reply in {language_name} only. Keep original Chinese exhibition titles, venue names, "
+        "and addresses only when there is no localized data, but all explanations, labels, "
+        "summaries, and follow-up questions must use the interface language.]"
+    )
+
+
+def _extract_run_request_locale(body_bytes: bytes) -> str:
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except Exception:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return _normalize_optional_locale(str(payload.get("locale") or payload.get("lang") or ""))
+
+
 def _inject_reply_language_hint(body_bytes: bytes) -> bytes:
     try:
         payload = json.loads(body_bytes.decode("utf-8"))
     except Exception:
         return body_bytes
+    if not isinstance(payload, dict):
+        return body_bytes
+
+    request_locale = _normalize_optional_locale(str(payload.pop("locale", "") or payload.pop("lang", "")))
 
     message = payload.get("newMessage") or payload.get("new_message") or {}
     parts = message.get("parts") if isinstance(message, dict) else None
     if not isinstance(parts, list):
-        return body_bytes
+        return json.dumps(payload, ensure_ascii=False).encode("utf-8") if request_locale else body_bytes
 
     text_chunks = [part.get("text", "") for part in parts if isinstance(part, dict)]
     latest_text = "\n".join(chunk for chunk in text_chunks if chunk).strip()
-    language = _preferred_reply_language(latest_text)
+    language = _preferred_reply_language(latest_text, request_locale)
     if not language:
-        return body_bytes
+        return json.dumps(payload, ensure_ascii=False).encode("utf-8") if request_locale else body_bytes
 
-    hint = (
-        "\n\n[Reply language instruction: The user's latest message is in English. "
-        "Reply in English only. Keep original Chinese exhibition titles and addresses if needed, "
-        "but all explanations, labels, and follow-up questions must be in English.]"
-        if language == "en"
-        else "\n\n[回覆語言指示：使用者最後一則訊息是中文，請全程使用繁體中文回覆。]"
-    )
+    hint = _reply_language_hint(language)
+    if not hint:
+        return json.dumps(payload, ensure_ascii=False).encode("utf-8") if request_locale else body_bytes
 
     for part in reversed(parts):
         if isinstance(part, dict) and isinstance(part.get("text"), str):
             if "Reply language instruction:" in part["text"] or "回覆語言指示：" in part["text"]:
-                return body_bytes
+                return json.dumps(payload, ensure_ascii=False).encode("utf-8")
             part["text"] += hint
             return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
-    return body_bytes
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
 def _extract_latest_user_text_from_run_request(body_bytes: bytes) -> str:
@@ -1604,9 +1713,10 @@ def _is_taipei_location_text(text: str) -> bool:
     return "台北" in normalized or "taipei" in normalized
 
 
-def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
+def _fallback_recommendation_events(limit: int = 6, locale: str = "zh-TW") -> list[dict]:
+    normalized_locale = _normalize_locale(locale)
     try:
-        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
+        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit, locale=normalized_locale)
     except Exception:
         return []
     events: list[dict] = []
@@ -1632,17 +1742,23 @@ def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
     return events
 
 
-def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User | None = None) -> list[dict]:
+def _fallback_event_cards_for_text(
+    text: str,
+    limit: int = 6,
+    current_user: User | None = None,
+    locale: str = "zh-TW",
+) -> list[dict]:
+    normalized_locale = _normalize_locale(locale)
     target_town = _extract_taipei_town_from_text(text)
     cards: list[dict] = []
     seen_ids: set[str] = set()
 
     if target_town:
         town_matches: list[dict] = []
-        for event in load_exhibitions_dataset():
+        for event in load_exhibitions_dataset(normalized_locale):
             if not isinstance(event, dict):
                 continue
-            mapped = map_raw_event_to_frontend_exhibition(event)
+            mapped = map_raw_event_to_frontend_exhibition(event, locale=normalized_locale)
             search_text = " ".join(
                 [
                     str(mapped.get("title") or ""),
@@ -1674,7 +1790,7 @@ def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User
         cards.extend(town_matches)
 
     if len(cards) < limit:
-        for event in _fallback_recommendation_events(limit=limit * 2):
+        for event in _fallback_recommendation_events(limit=limit * 2, locale=normalized_locale):
             event_id = str(event.get("id") or "").strip()
             if not event_id or event_id in seen_ids:
                 continue
@@ -1686,7 +1802,8 @@ def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User
     return cards[:limit]
 
 
-def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
+def _fallback_accommodation_cards(text: str, limit: int = 6, locale: str = "zh-TW") -> list[dict]:
+    normalized_locale = _normalize_locale(locale)
     target_town = _extract_taipei_town_from_text(text)
     try:
         stays = filter_legal_stays(city="台北市", town=target_town, service_status=1)
@@ -1695,7 +1812,9 @@ def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
     except Exception:
         return []
     cards: list[dict] = []
-    for stay in stays[: max(limit, 1)]:
+    stay_locale = "zh-TW" if normalized_locale == "zh-TW" else "en"
+    for raw_stay in stays[: max(limit, 1)]:
+        stay = localize_legal_stay(raw_stay, stay_locale) if isinstance(raw_stay, dict) else raw_stay
         if not isinstance(stay, dict):
             continue
         stay_id = str(stay.get("id") or "").strip()
@@ -1951,6 +2070,7 @@ def _inject_recommendation_carousel_payload(
     run_response_bytes: bytes,
     latest_user_text: str = "",
     current_user: User | None = None,
+    locale: str = "zh-TW",
 ) -> bytes:
     try:
         payload = json.loads(run_response_bytes.decode("utf-8"))
@@ -1989,20 +2109,79 @@ def _inject_recommendation_carousel_payload(
 
     if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
         merged = (
-            _fallback_accommodation_cards(text=latest_user_text, limit=6)
+            _fallback_accommodation_cards(text=latest_user_text, limit=6, locale=locale)
             if wants_accommodation
-            else _fallback_recommendation_events(limit=6)
+            else _fallback_recommendation_events(limit=6, locale=locale)
         )
 
     if not merged:
         return run_response_bytes
 
-    carousel_title = "住宿推薦" if wants_accommodation else "推薦活動"
-    carousel_intro = (
-        "以下是你可以直接查看的住宿選項"
-        if wants_accommodation
-        else "以下是你可以直接瀏覽的推薦展演"
-    )
+    normalized_locale = _normalize_locale(locale)
+    copy = {
+        "zh-TW": {
+            "stayTitle": "住宿推薦",
+            "eventTitle": "推薦活動",
+            "stayIntro": "以下是你可以直接查看的住宿選項",
+            "eventIntro": "以下是你可以直接瀏覽的推薦展演",
+        },
+        "zh-CN": {
+            "stayTitle": "住宿推荐",
+            "eventTitle": "推荐活动",
+            "stayIntro": "以下是你可以直接查看的住宿选项",
+            "eventIntro": "以下是你可以直接浏览的推荐展演",
+        },
+        "en": {
+            "stayTitle": "Stay Recommendations",
+            "eventTitle": "Recommended Events",
+            "stayIntro": "Here are stay options you can review now.",
+            "eventIntro": "Here are recommended exhibitions you can browse now.",
+        },
+        "fr": {
+            "stayTitle": "Hébergements recommandés",
+            "eventTitle": "Événements recommandés",
+            "stayIntro": "Voici des options d'hébergement à consulter.",
+            "eventIntro": "Voici des expositions recommandées à parcourir.",
+        },
+        "ja": {
+            "stayTitle": "宿泊施設のおすすめ",
+            "eventTitle": "おすすめイベント",
+            "stayIntro": "すぐに確認できる宿泊候補です。",
+            "eventIntro": "すぐに閲覧できるおすすめ展演です。",
+        },
+        "es": {
+            "stayTitle": "Alojamientos recomendados",
+            "eventTitle": "Eventos recomendados",
+            "stayIntro": "Aquí tienes opciones de alojamiento para revisar.",
+            "eventIntro": "Aquí tienes exposiciones recomendadas para explorar.",
+        },
+        "pt": {
+            "stayTitle": "Hospedagens recomendadas",
+            "eventTitle": "Eventos recomendados",
+            "stayIntro": "Aqui estão opções de hospedagem para conferir.",
+            "eventIntro": "Aqui estão exposições recomendadas para explorar.",
+        },
+        "ar": {
+            "stayTitle": "أماكن إقامة مقترحة",
+            "eventTitle": "فعاليات مقترحة",
+            "stayIntro": "إليك خيارات إقامة يمكنك مراجعتها الآن.",
+            "eventIntro": "إليك معارض وفعاليات مقترحة يمكنك تصفحها الآن.",
+        },
+        "hi": {
+            "stayTitle": "अनुशंसित ठहरने की जगहें",
+            "eventTitle": "अनुशंसित कार्यक्रम",
+            "stayIntro": "यहां ठहरने के विकल्प हैं जिन्हें आप देख सकते हैं।",
+            "eventIntro": "यहां वे प्रदर्शनियां हैं जिन्हें आप अभी देख सकते हैं।",
+        },
+    }.get(normalized_locale, {})
+    zh_copy = {
+        "stayTitle": "住宿推薦",
+        "eventTitle": "推薦活動",
+        "stayIntro": "以下是你可以直接查看的住宿選項",
+        "eventIntro": "以下是你可以直接瀏覽的推薦展演",
+    }
+    carousel_title = str(copy.get("stayTitle" if wants_accommodation else "eventTitle") or zh_copy["stayTitle" if wants_accommodation else "eventTitle"])
+    carousel_intro = str(copy.get("stayIntro" if wants_accommodation else "eventIntro") or zh_copy["stayIntro" if wants_accommodation else "eventIntro"])
     recommendation_payload = {
         "title": carousel_title,
         "introText": carousel_intro,
@@ -2059,7 +2238,9 @@ async def proxy_adk(
         # ADK /run is occasionally flaky with transient 5xx. Retry once so the
         # chat UI doesn't fail on recoverable backend hiccups.
         if path == "run" and request.method == "POST":
-            body_bytes = _inject_reply_language_hint(await request.body())
+            raw_body_bytes = await request.body()
+            request_locale = _extract_run_request_locale(raw_body_bytes)
+            body_bytes = _inject_reply_language_hint(raw_body_bytes)
             latest_user_text = _extract_latest_user_text_from_run_request(body_bytes)
             attempts = 2
             response = None
@@ -2113,21 +2294,42 @@ async def proxy_adk(
                     latest_user_text,
                     limit=6,
                     current_user=current_user,
+                    locale=request_locale or "zh-TW",
                 )
                 if fallback_events:
+                    fallback_copy = {
+                        "zh-TW": {
+                            "text": "AI 目前無法回應，先用本地展演資料提供推薦。",
+                            "title": "推薦活動",
+                            "intro": "AI 服務暫時不可用，以下是根據你的條件從本地資料篩出的展演",
+                        },
+                        "en": {
+                            "text": "The AI is temporarily unavailable, so I used local exhibition data for recommendations.",
+                            "title": "Recommended Events",
+                            "intro": "The AI service is temporarily unavailable. These events were matched locally from your criteria.",
+                        },
+                        "fr": {
+                            "text": "L'IA est temporairement indisponible ; voici des recommandations issues des données locales.",
+                            "title": "Événements recommandés",
+                            "intro": "Le service IA est temporairement indisponible. Voici des événements filtrés localement selon vos critères.",
+                        },
+                    }.get(_normalize_locale(request_locale or "zh-TW"), {})
                     transformed = json.dumps(
                         [
                             {
                                 "content": {
                                     "parts": [
                                         {
-                                            "text": "AI 目前無法回應，先用本地展演資料提供推薦。"
+                                            "text": fallback_copy.get("text", "AI 目前無法回應，先用本地展演資料提供推薦。")
                                         }
                                     ]
                                 },
                                 "recommendation_carousel": {
-                                    "title": "推薦活動",
-                                    "introText": "AI 服務暫時不可用，以下是根據你的條件從本地資料篩出的展演",
+                                    "title": fallback_copy.get("title", "推薦活動"),
+                                    "introText": fallback_copy.get(
+                                        "intro",
+                                        "AI 服務暫時不可用，以下是根據你的條件從本地資料篩出的展演",
+                                    ),
                                     "events": fallback_events,
                                 },
                             }
@@ -2141,6 +2343,7 @@ async def proxy_adk(
                     transformed,
                     latest_user_text=latest_user_text,
                     current_user=current_user,
+                    locale=request_locale or "zh-TW",
                 )
             return Response(content=transformed, status_code=response.status_code, headers=headers)
 

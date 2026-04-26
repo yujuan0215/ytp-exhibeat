@@ -412,7 +412,7 @@ export function ExhibitionDetail() {
     }
     if (!exhibition && !fromFavorites) setLoading(true);
 
-    getHomeRecommendations({ limit: 5000, offset: 0 })
+    getHomeRecommendations({ limit: 5000, offset: 0, locale })
       .then((list) => {
         const match = list.find((e) => e.id === decoded);
         if (match) {
@@ -429,10 +429,10 @@ export function ExhibitionDetail() {
       .finally(() => {
         if (!exhibition && !fromFavorites) setLoading(false);
       });
-  }, [copy.loadFailedMessage, copy.notFoundMessage, id, exhibition]);
+  }, [copy.loadFailedMessage, copy.notFoundMessage, id, exhibition, locale]);
 
   useEffect(() => {
-    getHomeRecommendations()
+    getHomeRecommendations({ locale })
       .then((list) => {
         if (!id) {
           setSuggestions(list.slice(0, 6));
@@ -442,14 +442,14 @@ export function ExhibitionDetail() {
         setSuggestions(list.filter((e) => e.id !== currentId).slice(0, 6));
       })
       .catch(() => {
-        getCollectionRecommendations()
+        getCollectionRecommendations({ locale })
           .then((data) => {
             const mapped = (data.collectionExhibitions ?? []) as Exhibition[];
             setSuggestions(mapped.slice(0, 6));
           })
           .catch(() => setSuggestions([]));
       });
-  }, [id]);
+  }, [id, locale]);
 
   useEffect(() => {
     listTagStats()

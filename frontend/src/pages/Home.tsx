@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import type { Exhibition } from "@/data/mock";
-import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
+import { getHomeRecommendationsPage, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -364,6 +364,7 @@ export function Home() {
     },
   });
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
+  const [serverTotal, setServerTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
   const [pageSize, setPageSize] = useState(() => parseInitialPageSize(searchParams));
@@ -385,16 +386,32 @@ export function Home() {
   const effectiveSearch = rawQuery.trim();
   const searchTokens = useMemo(() => parseSearchTokens(effectiveSearch), [effectiveSearch]);
 
+  const needsClientDataset = Boolean(effectiveSearch) || activeSort !== "relevancy";
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    getHomeRecommendations({ limit: 5000, offset: 0, locale })
-      .then(data => {
-        setAllExhibitions(data);
-        setLoading(false);
+    const limit = needsClientDataset ? 5000 : pageSize;
+    const offset = needsClientDataset ? 0 : (currentPage - 1) * pageSize;
+    getHomeRecommendationsPage({ limit, offset, locale })
+      .then((data) => {
+        if (cancelled) return;
+        setAllExhibitions(data.exhibitions);
+        setServerTotal(data.total);
       })
-      .catch(err => { console.error(err); setLoading(false); });
-  }, [locale]);
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+        setAllExhibitions([]);
+        setServerTotal(0);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSort, currentPage, effectiveSearch, locale, needsClientDataset, pageSize]);
 
   useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
 
@@ -438,10 +455,11 @@ export function Home() {
 
   const heroCandidates = useMemo(() => allExhibitions.slice(0, 3), [allExhibitions]);
   const hero = heroCandidates[heroIndex] ?? heroCandidates[0];
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalItems = needsClientDataset ? filtered.length : serverTotal;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
-  const grid = filtered.slice(startIndex, startIndex + pageSize);
+  const grid = needsClientDataset ? filtered.slice(startIndex, startIndex + pageSize) : filtered;
   const pageTokens = useMemo(() => buildPageTokens(totalPages, safeCurrentPage), [safeCurrentPage, totalPages]);
   const activeInstaPickAccount =
     INSTA_PICK_ACCOUNTS.find((account) => account.handle === activeInstagramHandle) ?? null;
@@ -618,10 +636,10 @@ export function Home() {
             </div>
           ) : hero ? (
             <>
-              <h1 className="line-clamp-3 text-4xl md:text-7xl font-headline font-extrabold tracking-tighter mb-5 leading-[1.03] text-white max-w-4xl">
+              <h1 className="max-w-4xl overflow-hidden break-words text-4xl font-headline font-extrabold tracking-tighter leading-[1.03] text-white mb-5 md:text-7xl [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
                 <span>{hero.title}</span>
               </h1>
-              <p className="line-clamp-6 max-w-2xl text-base md:text-lg text-white/70 mb-6 font-body leading-relaxed">
+              <p className="max-w-2xl overflow-hidden break-words text-base text-white/70 font-body leading-relaxed mb-6 md:text-lg [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:5]">
                 <span>{hero.aiSummary
                   ? hero.aiSummary
                   : copy.fallbackSummary}</span>
@@ -894,10 +912,10 @@ export function Home() {
           </TabsContent>
         </Tabs>
 
-        {activeHomeTab === "discover" && !loading && filtered.length > 0 && (
+        {activeHomeTab === "discover" && !loading && totalItems > 0 && (
           <div className="mt-12 flex flex-col items-center gap-3">
             <p className="text-center text-white/45 text-sm">
-              {copy.totalItems(filtered.length)}
+              {copy.totalItems(totalItems)}
             </p>
             <div className="flex items-center gap-2 text-xs text-white/70">
               <label htmlFor="home-page-size">{copy.pageSize}</label>
@@ -936,7 +954,7 @@ export function Home() {
                   );
                 }
                 const pageStart = (token - 1) * pageSize + 1;
-                const pageEnd = Math.min(token * pageSize, filtered.length);
+                const pageEnd = Math.min(token * pageSize, totalItems);
                 const active = token === safeCurrentPage;
                 return (
                   <button

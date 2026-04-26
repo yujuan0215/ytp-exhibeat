@@ -240,6 +240,68 @@ const MAP_COPY = {
       signInPromptDescription: "After signing in, you can save exhibitions to your favorites and revisit them anytime.",
     },
   },
+  fr: {
+    toast: {
+      addedToFavorites: "Ajouté aux favoris",
+      removedFromFavorites: "Retiré des favoris",
+    },
+    errors: {
+      loadExhibitions: "Impossible de charger les expositions",
+      mapsAuthFailure:
+        "Échec d'authentification Google Maps (gm_authFailure). Vérifiez la clé API, les restrictions de domaine et la facturation.",
+      mapsInitFailed: "Échec d'initialisation de Google Maps",
+      mapsInitUnknown: "Erreur inconnue lors de l'initialisation de Google Maps",
+      staysUnavailable: "Les hébergements sont temporairement indisponibles",
+    },
+    defaults: {
+      ticketPrice: "NT$450",
+      selectedSummary:
+        "Cette exposition mêle narration spatiale et rythme visuel. Vérifiez d'abord la carte et les dates, puis planifiez votre visite.",
+      legalStayClass: "Hébergement légal",
+      phonePending: "Téléphone indisponible",
+      stayDescription: "Sélectionnez un marqueur d'hébergement sur la carte pour voir rapidement les détails et l'emplacement.",
+      imageSourceFallback: "Site source",
+      starRatingMissing: "Non fourni",
+      contactPending: "Indisponible",
+      freePrice: "GRATUIT",
+    },
+    mapPopup: {
+      visitEventPage: "Voir la page de l'événement",
+      openInGoogleMaps: "Ouvrir dans Google Maps",
+    },
+    page: {
+      missingApiKey:
+        "La clé `VITE_GOOGLE_MAPS_API_KEY` est manquante. Ajoutez-la dans `frontend/.env.local` pour activer la carte.",
+      loadingData: "Chargement des données d'exposition…",
+      searchPlaceholder: "Rechercher des expositions ou lieux (#tags)",
+      clearSearch: "Effacer la recherche",
+      hideStays: "Masquer les hébergements",
+      showStays: "Afficher les hébergements",
+      noMatchingTags: "Aucun tag correspondant",
+      noSearchResults: "Aucune exposition ne correspond à votre recherche",
+      exploreMore: "Explorer plus d'expositions",
+      backToChat: "Retour au chat",
+      backToList: "Retour à la liste",
+      legalStayHeading: "Hébergement légal",
+      stayDetail: "Voir le détail de l'hébergement",
+      ratingLabel: "Classement : ",
+      starUnit: " étoile",
+      stayTypeLabel: "Type d'hébergement",
+      contactPhoneLabel: "Téléphone",
+      imageSourceLabel: "Source de l'image : ",
+      openLocationInGoogleMaps: "Ouvrir l'emplacement dans Google Maps",
+      eventHeading: "Exposition",
+      eventDetail: "Voir le détail de l'événement",
+      ticketPriceLabel: "Prix du billet",
+      favoriteAdd: "Ajouter aux favoris",
+      favoriteRemove: "Retirer des favoris",
+      favoriteNeedSignIn: "Connectez-vous pour utiliser les favoris",
+      favoriteButtonAria: "Basculer le favori",
+      signInPromptTitle: "Connectez-vous avant d'ajouter aux favoris",
+      signInPromptDescription:
+        "Après connexion, vous pourrez enregistrer des expositions dans vos favoris et les retrouver à tout moment.",
+    },
+  },
 } as const;
 
 const CITY_COORDS: Record<string, LatLng> = {
@@ -555,7 +617,8 @@ export function Map() {
   }, [prefillEvent]);
 
   useEffect(() => {
-    getHomeRecommendations({ limit: 5000, offset: 0 })
+    setLoading(true);
+    getHomeRecommendations({ limit: 5000, offset: 0, locale })
       .then((exhibitionsData) => {
         setExhibitions(() => {
           if (prefillEvent?.id && !exhibitionsData.some((item) => item.id === prefillEvent.id)) {
@@ -571,7 +634,7 @@ export function Map() {
         setError(copy.errors.loadExhibitions);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [copy.errors.loadExhibitions, locale, prefillEvent]);
 
   useEffect(() => {
     if (!prefillEvent?.id) return;

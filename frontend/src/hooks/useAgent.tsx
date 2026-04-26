@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { sendMessageToAgent } from "../lib/api";
 import type { AgentRecommendationItem } from "../lib/api";
 import type { AgentItineraryStop } from "../lib/api";
+import { useLanguage } from "../lib/language";
 import { AGENT_PREFILL_STORAGE_KEY, type AgentPrefillEnvelope } from "../lib/tripLists";
 
 export type AgentUserMessage = {
@@ -58,6 +59,7 @@ function readChatHistory(): Message[] | null {
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {
+  const { locale } = useLanguage();
   const [messages, setMessages] = useState<Message[]>(() => {
     const cached = readChatHistory();
     if (cached && cached.length > 0) return cached;
@@ -74,7 +76,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => [...prev, { role: "user", text }]);
 
     try {
-      const result = await sendMessageToAgent(text);
+      const result = await sendMessageToAgent(text, { locale });
       if (result.kind === "recommendation_carousel") {
         setMessages((prev) => [
           ...prev,
@@ -108,7 +110,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   const sendPrefillMessage = useCallback(
     async (text: string, label: string) => {
@@ -116,7 +118,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setMessages((prev) => [...prev, { role: "user", text }]);
       try {
-        const result = await sendMessageToAgent(text);
+        const result = await sendMessageToAgent(text, { locale });
         if (result.kind === "recommendation_carousel") {
           setMessages((prev) => [
             ...prev,
@@ -153,7 +155,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     },
-    [],
+    [locale],
   );
 
   const parsePrefill = (raw: string): { text: string; nonce: string; label: string } | null => {
