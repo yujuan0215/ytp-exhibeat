@@ -508,7 +508,10 @@ export function Home() {
 
         <div className="relative z-10 h-full max-w-7xl mx-auto px-8 flex flex-col justify-end pb-16">
           <div className="flex items-center gap-3 mb-4">
-            <span className="px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider">
+            <span
+              className="bubble-pop px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider"
+              style={{ ["--bubble-color" as string]: "#00d6ff" }}
+            >
               AI 靈魂推薦
             </span>
             <span className="text-white/65 text-sm font-medium">台北・今日熱門</span>
