@@ -36,7 +36,8 @@ export function AgentChat() {
       {/* Floating Button Widget */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 p-4 rounded-full bg-[#df8eff]/90 backdrop-blur-sm text-[#2f0f42] shadow-lg shadow-[#df8eff]/30 hover:scale-110 hover:shadow-[#df8eff]/50 transition-all z-50 duration-300 ${isOpen ? 'opacity-0 pointer-events-none scale-75' : 'opacity-100'}`}
+        className={`bubble-pop fixed bottom-6 right-6 p-4 rounded-full bg-[#df8eff]/90 backdrop-blur-sm text-[#2f0f42] shadow-lg shadow-[#df8eff]/30 hover:scale-110 hover:shadow-[#df8eff]/50 transition-all z-50 duration-300 ${isOpen ? 'opacity-0 pointer-events-none scale-75' : 'opacity-100'}`}
+        style={{ ["--bubble-color" as string]: "#df8eff" }}
       >
         <MessageCircle size={28} />
       </button>

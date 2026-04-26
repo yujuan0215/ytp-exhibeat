@@ -12,6 +12,14 @@ import { ActionToast } from "@/components/ActionToast";
 import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
 import { getLocaleCopy, useLanguage } from "@/lib/language";
 
+const CARD_SUMMARY_LIMIT = 30;
+
+function truncateSummary(text: string, limit: number = CARD_SUMMARY_LIMIT): string {
+  const clean = String(text ?? "").trim();
+  if (!clean) return "";
+  return clean.length > limit ? `${clean.slice(0, limit).trimEnd()}...` : clean;
+}
+
 export function ExhibitionCard({
   exhibition,
   isCollectionVariant = false,
@@ -184,7 +192,7 @@ export function ExhibitionCard({
             <div className="rounded-md bg-surface-container-low border-l-2 border-primary/60 px-3 py-2.5">
               <p className="text-xs leading-relaxed line-clamp-2">
                 <span className="font-bold text-purple-400 mr-2">{copy.aiSummary}</span>
-                <span className="text-muted-foreground">{exhibition.aiSummary ?? ""}</span>
+                <span className="text-muted-foreground">{truncateSummary(exhibition.aiSummary ?? "")}</span>
               </p>
             </div>
           </div>

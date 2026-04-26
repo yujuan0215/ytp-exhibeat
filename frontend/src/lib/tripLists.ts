@@ -10,6 +10,7 @@ const STORAGE_KEY = "exhibeat_trip_lists";
 const LEGACY_RECOMMENDATION_LISTS_KEY = "exhibeat_recommendation_lists";
 const CHANGE_EVENT = "trip-lists-changed";
 const AGENT_PREFILL_KEY = "exhibeat_agent_prefill";
+const AGENT_PREFILL_EVENT = "agent-prefill-queued";
 const DEFAULT_TRIP_LIST_ID = "default_favorites_list";
 const DEFAULT_TRIP_LIST_NAME = "我的最愛";
 
@@ -332,8 +333,10 @@ export function queueAgentPrefillFromList(list: TripList): void {
     text,
   };
   sessionStorage.setItem(AGENT_PREFILL_KEY, JSON.stringify(envelope));
+  window.dispatchEvent(new Event(AGENT_PREFILL_EVENT));
 }
 
 export const TRIP_LISTS_CHANGE_EVENT = CHANGE_EVENT;
 export const AGENT_PREFILL_STORAGE_KEY = AGENT_PREFILL_KEY;
+export const AGENT_PREFILL_QUEUED_EVENT = AGENT_PREFILL_EVENT;
 export const DEFAULT_TRIP_LIST_ID_KEY = DEFAULT_TRIP_LIST_ID;

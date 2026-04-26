@@ -55,6 +55,39 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     verify_password,
 )
 
+def _gemini_api_key_is_placeholder(value: str) -> bool:
+    raw = (value or "").strip()
+    if not raw:
+        return True
+    lowered = raw.lower()
+    return lowered in {
+        "your_api_key_here",
+        "<paste-your-google-ai-studio-api-key-here>",
+        "changeme",
+    }
+
+
+def _agent_credentials_ready() -> tuple[bool, str]:
+    """Return (ready, human_message). Used to short-circuit /api/run when misconfigured."""
+    use_vertex = str(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0")).strip() in {"1", "true", "True"}
+    if use_vertex:
+        project = str(os.environ.get("GOOGLE_CLOUD_PROJECT", "")).strip()
+        location = str(os.environ.get("GOOGLE_CLOUD_LOCATION", "")).strip()
+        if not project or project in {"your_project_id", "<your-google-cloud-project-id>"}:
+            return False, "Vertex AI is enabled but GOOGLE_CLOUD_PROJECT is not set."
+        if not location:
+            return False, "Vertex AI is enabled but GOOGLE_CLOUD_LOCATION is not set."
+        return True, ""
+
+    api_key = str(os.environ.get("GOOGLE_API_KEY", "")).strip()
+    if _gemini_api_key_is_placeholder(api_key):
+        return (
+            False,
+            "Gemini API key is missing/invalid. Set GOOGLE_API_KEY in backend/adk_agent/gemini_agent/.env (Google AI Studio API key).",
+        )
+    return True, ""
+
+
 def discover_exhibitions_path() -> Path:
     configured = os.environ.get("EXHIBEAT_EXHIBITIONS_PATH", "").strip()
     if configured:
@@ -256,34 +289,23 @@ def _translate_event_field(event_id: str, field: str, locale: str, fallback_text
 def list_available_tags() -> list[str]:
     tags: set[str] = set()
     for item in load_exhibitions_dataset():
-        raw_tags = item.get("tag", [])
-        if isinstance(raw_tags, str):
-            raw_tags = [raw_tags]
-        if not isinstance(raw_tags, list):
-            continue
-        for raw in raw_tags:
-            value = str(raw).strip()
-            if not value:
+        for raw in _extract_event_tags(item):
+            mapped = _normalize_event_tag(str(raw))
+            if not mapped:
                 continue
-            tags.add(value if value.startswith("#") else f"#{value}")
+            tags.add(mapped)
     return sorted(tags)
 
 
 def list_available_tag_stats() -> list[dict[str, int | str]]:
     counts: dict[str, int] = {}
     for item in load_exhibitions_dataset():
-        raw_tags = item.get("tag", [])
-        if isinstance(raw_tags, str):
-            raw_tags = [raw_tags]
-        if not isinstance(raw_tags, list):
-            continue
         deduped_in_event: set[str] = set()
-        for raw in raw_tags:
-            value = str(raw).strip()
-            if not value:
+        for raw in _extract_event_tags(item):
+            mapped = _normalize_event_tag(str(raw))
+            if not mapped:
                 continue
-            normalized = value if value.startswith("#") else f"#{value}"
-            deduped_in_event.add(normalized)
+            deduped_in_event.add(mapped)
         for tag in deduped_in_event:
             counts[tag] = counts.get(tag, 0) + 1
     return [
@@ -312,6 +334,11 @@ def _user_preference_tags(user: User | None) -> list[str]:
     if not user:
         return []
     raw = getattr(user, "preference_tags", None)
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
     if not isinstance(raw, list):
         return []
     tags = [str(tag).strip() for tag in raw if str(tag).strip()]
@@ -351,6 +378,90 @@ def _recommendation_args_for_preferences(
         epochs=30,
         threads=2,
     )
+
+
+def _recommendation_args_for_home_feed(top_k: int) -> argparse.Namespace:
+    return argparse.Namespace(
+        exhibitions=str(EXHIBITIONS_PATH),
+        top_k=top_k,
+        date="",
+        backend="fallback",
+        blend_alpha=0.65,
+        persona="",
+        cities="",
+        tags="",
+        venue_focus="",
+        free_only=False,
+        popular=True,
+        persona_name="熱門探索",
+        seed=42,
+        components=16,
+        epochs=30,
+        threads=2,
+    )
+
+
+def _home_diversity_venue_key(exhibition: dict) -> str:
+    location = str(exhibition.get("location") or "").strip()
+    venue = location.split(" • ", 1)[0].strip()
+    if "臺北表演藝術中心" in venue or "台北表演藝術中心" in venue:
+        return "臺北表演藝術中心"
+    if "國立臺北藝術大學" in venue or "北藝大" in venue:
+        return "國立臺北藝術大學"
+    return venue or "unknown"
+
+
+def _home_diversity_city_key(exhibition: dict) -> str:
+    location = str(exhibition.get("location") or "").strip()
+    if " • " in location:
+        return location.rsplit(" • ", 1)[-1].strip() or "unknown"
+    return "unknown"
+
+
+def _home_diversity_tag_key(exhibition: dict) -> str:
+    tags = exhibition.get("tags") or []
+    if isinstance(tags, list) and tags:
+        return str(tags[0]).strip() or "unknown"
+    return "unknown"
+
+
+def diversify_home_feed(ranked_exhibitions: list[dict]) -> list[dict]:
+    remaining = list(enumerate(ranked_exhibitions))
+    diversified: list[dict] = []
+    venue_counts: dict[str, int] = {}
+    city_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+
+    while remaining:
+        best_position = 0
+        best_adjusted_score = float("-inf")
+        for position, (rank, exhibition) in enumerate(remaining):
+            raw_score = exhibition.get("_meta", {}).get("score", 0) if isinstance(exhibition.get("_meta"), dict) else 0
+            try:
+                score = float(raw_score)
+            except (TypeError, ValueError):
+                score = 0.0
+            venue_key = _home_diversity_venue_key(exhibition)
+            city_key = _home_diversity_city_key(exhibition)
+            tag_key = _home_diversity_tag_key(exhibition)
+            adjusted_score = (
+                score
+                - venue_counts.get(venue_key, 0) * 0.85
+                - city_counts.get(city_key, 0) * 0.08
+                - tag_counts.get(tag_key, 0) * 0.05
+                - rank * 0.000001
+            )
+            if adjusted_score > best_adjusted_score:
+                best_adjusted_score = adjusted_score
+                best_position = position
+
+        _, selected = remaining.pop(best_position)
+        diversified.append(selected)
+        venue_counts[_home_diversity_venue_key(selected)] = venue_counts.get(_home_diversity_venue_key(selected), 0) + 1
+        city_counts[_home_diversity_city_key(selected)] = city_counts.get(_home_diversity_city_key(selected), 0) + 1
+        tag_counts[_home_diversity_tag_key(selected)] = tag_counts.get(_home_diversity_tag_key(selected), 0) + 1
+
+    return diversified
 
 
 def filter_legal_stays(
@@ -942,7 +1053,12 @@ def map_event_to_frontend_exhibition(rec: dict, locale: str = "zh-TW") -> dict:
 
     source_tags = rec.get("source_tags", [])
     if isinstance(source_tags, list):
-        normalized_source_tags = [str(tag).strip() for tag in source_tags if str(tag).strip()]
+        normalized_source_tags = []
+        for tag in source_tags:
+            mapped = _normalize_event_tag(str(tag))
+            if mapped:
+                normalized_source_tags.append(mapped)
+        normalized_source_tags = list(dict.fromkeys(normalized_source_tags))
     else:
         normalized_source_tags = []
     display_tags = normalized_source_tags if normalized_source_tags else rec.get("reasons", ["推薦活動"])[:2]
@@ -983,27 +1099,113 @@ def _format_raw_event_date(event: dict) -> str:
     return start or end or "日期待確認"
 
 
+def _normalize_event_tag(raw_value: str, *, source_key: str = "") -> str | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+    key = str(source_key or "").strip()
+    normalized = value if value.startswith("#") else f"#{value}"
+    normalized = normalized.replace(" ", "")
+    normalized = _re.sub(r"^#(?:臺|台)北市", "#", normalized)
+
+    # Ignore placeholder-style tags that do not represent user-facing categories.
+    if any(token in normalized for token in ("無折扣", "未提供", "無資料", "未知", "待確認")):
+        return None
+
+    key_map: dict[str, dict[str, str | None]] = {
+        "價位": {
+            "#低": "#低價位",
+            "#中": "#中價位",
+            "#高": "#高價位",
+            "#免費": "#免費",
+        },
+        "時間": {
+            "#早": "#早上",
+            "#中": "#中午",
+            "#晚": "#晚上",
+        },
+        "折扣": {
+            "#折扣中": "#打折中",
+            "#打折中": "#打折中",
+        },
+        "室內室外": {
+            "#室內": "#室內",
+            "#室外": "#室外",
+            "#室內外": "#室內外",
+        },
+    }
+    if key in key_map:
+        mapped = key_map[key].get(normalized)
+        if mapped:
+            return mapped
+        if normalized.endswith("區"):
+            return normalized
+        return None
+
+    generic_map: dict[str, str | None] = {
+        "#低": "#低價位",
+        "#中": "#中價位",
+        "#高": "#高價位",
+        "#早": "#早上",
+        "#晚": "#晚上",
+        "#折扣中": "#打折中",
+        "#打折中": "#打折中",
+        "#室內": "#室內",
+        "#室外": "#室外",
+        "#室內外": "#室內外",
+        "#免費": "#免費",
+        "#未提供": None,
+    }
+    mapped = generic_map.get(normalized, normalized)
+    return mapped
+
+
+def _extract_taipei_district_tag(event: dict) -> str | None:
+    show = _extract_show_info(event)
+    text_parts = [
+        str(show.get("location", "")),
+        str(show.get("locationName", "")),
+        str(event.get("title", "")),
+    ]
+    text = " ".join(text_parts)
+    match = _re.search(r"(?:臺|台)北市\s*([^\s,，。]{1,6}區)", text)
+    if not match:
+        return None
+    district = match.group(1).strip()
+    if not district or district in {"台北市", "臺北市"}:
+        return None
+    return f"#{district}"
+
+
 def _extract_event_tags(event: dict) -> list[str]:
     tags: list[str] = []
     raw_tags = event.get("tag", [])
+    if not raw_tags:
+        raw_tags = event.get("tags", [])
     if isinstance(raw_tags, list):
         tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
     elif isinstance(raw_tags, str) and raw_tags.strip():
         tags = [raw_tags.strip()]
 
-    if tags:
-        return tags
+    normalized: list[str] = []
+    for tag in tags:
+        mapped = _normalize_event_tag(tag)
+        if mapped:
+            normalized.append(mapped)
 
     derived = event.get("derivedTags", {})
-    if not isinstance(derived, dict):
-        return []
-    fallback: list[str] = []
-    for value in derived.values():
-        normalized = str(value).strip()
-        if not normalized or normalized.startswith("無"):
-            continue
-        fallback.append(normalized if normalized.startswith("#") else f"#{normalized}")
-    return list(dict.fromkeys(fallback))
+    if isinstance(derived, dict):
+        for raw_key, raw_value in derived.items():
+            mapped = _normalize_event_tag(str(raw_value), source_key=str(raw_key))
+            if mapped:
+                normalized.append(mapped)
+
+    district_tag = _extract_taipei_district_tag(event)
+    if district_tag:
+        normalized.append(district_tag)
+
+    # Deduplicate while preserving display order.
+    return list(dict.fromkeys(normalized))
 
 
 def map_raw_event_to_frontend_exhibition(event: dict, locale: str = "zh-TW") -> dict:
@@ -1308,6 +1510,7 @@ async def register(payload: RegisterRequest, db=Depends(get_db)):
         email=normalized_email,
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
+        preference_tags=json.dumps(payload.preference_tags, ensure_ascii=False),
     )
     db.add(user)
     db.commit()
@@ -2238,6 +2441,12 @@ async def proxy_adk(
         # ADK /run is occasionally flaky with transient 5xx. Retry once so the
         # chat UI doesn't fail on recoverable backend hiccups.
         if path == "run" and request.method == "POST":
+            ready, message = _agent_credentials_ready()
+            if not ready:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=message,
+                )
             raw_body_bytes = await request.body()
             request_locale = _extract_run_request_locale(raw_body_bytes)
             body_bytes = _inject_reply_language_hint(raw_body_bytes)
@@ -2367,16 +2576,9 @@ async def proxy_adk(
             if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")
         }
 
-        async def relay_stream():
-            try:
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-            except httpx.ReadError as exc:
-                logger.warning("Upstream read error while proxying /api/%s: %s", path, exc)
-            finally:
-                await response.aclose()
-
-        return StreamingResponse(relay_stream(), status_code=response.status_code, headers=headers)
+        content = await response.aread()
+        await response.aclose()
+        return Response(content=content, status_code=response.status_code, headers=headers)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

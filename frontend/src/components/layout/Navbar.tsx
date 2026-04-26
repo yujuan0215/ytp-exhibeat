@@ -102,11 +102,14 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [menuOpen, settingsOpen, mobileMenuOpen]);
 
-  const linkClass = (path: string) =>
-    `text-sm font-medium transition-colors hover:text-foreground/90 ${
-      location.pathname === path ? "text-primary border-b-2 border-primary pb-1" : "text-foreground/60"
-    }`;
   const isInstaPicksActive = location.pathname === "/" && new URLSearchParams(location.search).get("tab") === "insta-picks";
+  const isHomeActive = location.pathname === "/" && !isInstaPicksActive;
+  const linkClass = (path: string) => {
+    const isActive = path === "/" ? isHomeActive : location.pathname === path;
+    return `text-sm font-medium transition-colors hover:text-foreground/90 ${
+      isActive ? "text-primary border-b-2 border-primary pb-1" : "text-foreground/60"
+    }`;
+  };
   const instaPicksLinkClass = `text-sm font-medium transition-colors hover:text-foreground/90 ${
     isInstaPicksActive ? "text-primary border-b-2 border-primary pb-1" : "text-foreground/60"
   }`;

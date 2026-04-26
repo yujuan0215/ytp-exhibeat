@@ -7,10 +7,12 @@ uvicorn
 httpx
 numpy
 sqlalchemy
+psycopg[binary]
 passlib[bcrypt]
-bcrypt<5
-python-jose[cryptography]
-google-generativeai
+bcrypt<4.1
+python-jose[cryptography]>=3.3.0
+ecdsa>=0.17.0
+google-generativeai==0.8.6
 deep-translator
 # Optional: uncomment if you want to route Gemini calls through LiteLLM.
 # On Windows, enable Long Path support first (pip warning above).

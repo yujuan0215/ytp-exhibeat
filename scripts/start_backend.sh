@@ -29,7 +29,14 @@ fi
 
 # shellcheck disable=SC1091
 source "$VENV_DIR/bin/activate"
-export GOOGLE_APPLICATION_CREDENTIALS="$REPO_ROOT/adc.json"
+
+# If a service account key is provided as adc.json, prefer it.
+# Otherwise, fall back to gcloud ADC (application-default) on the machine.
+if [ -f "$REPO_ROOT/adc.json" ]; then
+  export GOOGLE_APPLICATION_CREDENTIALS="$REPO_ROOT/adc.json"
+else
+  unset GOOGLE_APPLICATION_CREDENTIALS || true
+fi
 
 cd "$ADK_DIR"
 

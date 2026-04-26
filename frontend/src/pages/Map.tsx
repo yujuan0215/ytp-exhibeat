@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
+import { ExternalNavigationModal } from "@/components/ExternalNavigationModal";
 import { MapPin, Clock3, Navigation, ArrowLeft, ExternalLink, Search, Settings2, X } from "lucide-react";
 import type { LegalStay } from "@/lib/api";
 import { AddToTripListMenu } from "@/components/collection/AddToTripListMenu";
@@ -32,6 +33,13 @@ const MIN_EVENT_ZOOM = 10;
 const STAY_PAGE_SIZE = 250;
 const MAX_VISIBLE_STAY_MARKERS = 80;
 const MAX_VISIBLE_EVENT_MARKERS = 220;
+const MAP_SUMMARY_LIMIT = 30;
+
+function truncateSummary(text: string, limit: number = MAP_SUMMARY_LIMIT): string {
+  const clean = String(text ?? "").trim();
+  if (!clean) return "";
+  return clean.length > limit ? `${clean.slice(0, limit).trimEnd()}...` : clean;
+}
 
 const DARK_MAP_STYLES = [
   {
@@ -565,6 +573,9 @@ export function Map() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [externalModalOpen, setExternalModalOpen] = useState(false);
+  const [pendingExternalUrl, setPendingExternalUrl] = useState<string | null>(null);
+  const [pendingExternalLabel, setPendingExternalLabel] = useState("");
   const [mapInitError, setMapInitError] = useState<string | null>(null);
   const [mapReadyVersion, setMapReadyVersion] = useState(0);
   const [eventPoints, setEventPoints] = useState<Array<{ item: Exhibition; coord: LatLng }>>([]);
@@ -691,7 +702,15 @@ export function Map() {
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
   const queryReturnTo = searchParams.get("returnTo");
+  const returnButtonLabel =
+    queryReturnTo && queryReturnTo.startsWith("/accommodations") ? "返回搜尋" : "返回聊天";
   const showExpandedPanel = isSearchPanelExpanded || Boolean(selectedItem) || Boolean(selectedStay);
+
+  const requestExternalNavigation = (url: string, label: string) => {
+    setPendingExternalUrl(url);
+    setPendingExternalLabel(label);
+    setExternalModalOpen(true);
+  };
 
   function isTaipeiStay(stay: LegalStay): boolean {
     const city = stay.address.city.trim().toLowerCase().replace("台", "臺");
@@ -1689,16 +1708,26 @@ export function Map() {
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">{copy.page.legalStayHeading}</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || copy.defaults.stayDescription}</p>
-                  {selectedStay.urls.website ? (
-                    <a
-                      href={selectedStay.urls.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`mt-4 inline-flex items-center gap-2 bg-[#00d6ff] px-4 py-2 text-sm font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
-                    >
-                      <ExternalLink className="h-4 w-4" /> {copy.page.stayDetail}
-                    </a>
-                  ) : null}
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {selectedStay.urls.website ? (
+                      <button
+                        type="button"
+                        onClick={() => requestExternalNavigation(selectedStay.urls.website, copy.page.stayDetail)}
+                        className={`inline-flex items-center gap-2 bg-[#00d6ff] px-4 py-2 text-sm font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
+                      >
+                        <ExternalLink className="h-4 w-4" /> {copy.page.stayDetail}
+                      </button>
+                    ) : null}
+                    {selectedStay.mediaDetailUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => requestExternalNavigation(selectedStay.mediaDetailUrl, "觀光署資料頁")}
+                        className={`inline-flex items-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                      >
+                        <ExternalLink className="h-4 w-4" /> 觀光署資料頁
+                      </button>
+                    ) : null}
+                  </div>
                   {selectedStay.primaryImageUrl ? (
                     <p className="mt-2 text-[11px] text-white/45">
                       {`${copy.page.imageSourceLabel}${selectedStay.imageSourcePolicy?.attribution || copy.defaults.imageSourceFallback}`}
@@ -1725,14 +1754,18 @@ export function Map() {
                 </p>
               </div>
 
-              <a
-                href={selectedStay.urls.map[0] || buildStayGoogleMapsUrl(selectedStay)}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() =>
+                  requestExternalNavigation(
+                    selectedStay.urls.map[0] || buildStayGoogleMapsUrl(selectedStay),
+                    "Google Maps",
+                  )
+                }
                 className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
               >
                 <MapPin className="h-4 w-4" /> {copy.page.openLocationInGoogleMaps}
-              </a>
+              </button>
             </div>
           ) : selectedItem ? (
             <div className="min-h-0 flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
@@ -1795,14 +1828,13 @@ export function Map() {
                 </p>
               </div>
 
-              <a
-                href={buildGoogleMapsUrl(selectedItem)}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => requestExternalNavigation(buildGoogleMapsUrl(selectedItem), "Google Maps")}
                 className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
               >
                 <MapPin className="h-4 w-4" /> {copy.page.openLocationInGoogleMaps}
-              </a>
+              </button>
             </div>
           ) : null}
         </aside>
@@ -1814,6 +1846,30 @@ export function Map() {
         title={copy.page.signInPromptTitle}
         description={copy.page.signInPromptDescription}
         onClose={() => setShowSignInPrompt(false)}
+      />
+      <ExternalNavigationModal
+        open={externalModalOpen}
+        title="即將前往外部網站"
+        description={
+          pendingExternalLabel
+            ? `你即將離開 ExhiBeat，前往${pendingExternalLabel}。是否繼續？`
+            : "你即將離開 ExhiBeat 並前往外部網站，是否繼續？"
+        }
+        confirmLabel="繼續前往"
+        cancelLabel="留在本站"
+        onConfirm={() => {
+          if (pendingExternalUrl) {
+            window.open(pendingExternalUrl, "_blank", "noopener,noreferrer");
+          }
+          setExternalModalOpen(false);
+          setPendingExternalUrl(null);
+          setPendingExternalLabel("");
+        }}
+        onCancel={() => {
+          setExternalModalOpen(false);
+          setPendingExternalUrl(null);
+          setPendingExternalLabel("");
+        }}
       />
       <ActionToast open={showToast} message={toastMessage} />
     </section>

@@ -75,8 +75,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "room_exhibition",
     accountName: "room_exhibition",
-    accountPhoto:
-      "https://scontent-tpe1-1.cdninstagram.com/v/t51.2885-19/412757992_1042052320398635_7916946111700928068_n.jpg?stp=cp0_dst-jpg_s110x80_tt6&_nc_cat=111&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy42MDkuQzMifQ%3D%3D&_nc_ohc=yp4Yih_P_WIQ7kNvwH62Pj2&_nc_oc=AdpZJaKOqVSpEOkXOd0x9EGzkIbk-jEwU9K4yW_kFGgeP1eXCHKcAqR32lXuzb1clKSNYfPpe4hUqB2T6obBL2sd&_nc_zt=24&_nc_ht=scontent-tpe1-1.cdninstagram.com&_nc_ss=7b6a8&oh=00_Af3EJdPibqx2ZHtIg77vDa6YCV22wbJkp6KNjUSo-eEZFw&oe=69F29D74",
+    accountPhoto: "/social-avatars/room_exhibition.jpg",
     accountLink: "https://www.instagram.com/room_exhibition/",
     embedPostUrls: [
       "https://www.instagram.com/p/DXZQcowFF8d/",
@@ -86,7 +85,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "taipeitravel",
     accountName: "taipeitravel",
-    accountPhoto: "https://unavatar.io/instagram/taipeitravel",
+    accountPhoto: "/social-avatars/taipeitravel.jpg",
     accountLink: "https://www.instagram.com/taipeitravel/?hl=zh-tw",
     embedPostUrls: [
       "https://www.instagram.com/p/DXf0pHfCaD6/",
@@ -97,7 +96,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "ryan_tobehonest",
     accountName: "ryan_tobehonest",
-    accountPhoto: "https://unavatar.io/instagram/ryan_tobehonest",
+    accountPhoto: "/social-avatars/ryan_tobehonest.jpg",
     accountLink: "https://www.instagram.com/ryan_tobehonest/",
     embedPostUrls: [
       "https://www.instagram.com/reel/DS_vRQ_gV78/",
@@ -107,7 +106,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "duringmyjourney",
     accountName: "duringmyjourney",
-    accountPhoto: "https://unavatar.io/instagram/duringmyjourney",
+    accountPhoto: "/social-avatars/duringmyjourney.jpg",
     accountLink: "https://www.instagram.com/duringmyjourney/",
     embedPostUrls: ["https://www.instagram.com/p/DXg2jp9CRN0/"],
   },
@@ -624,7 +623,10 @@ export function Home() {
 
         <div className="relative z-10 h-full max-w-7xl mx-auto px-8 flex flex-col justify-end pb-16">
           <div className="flex items-center gap-3 mb-4">
-            <span className="px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider">
+            <span
+              className="bubble-pop px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider"
+              style={{ ["--bubble-color" as string]: "#00d6ff" }}
+            >
               {copy.aiSoulPick}
             </span>
             <span className="text-white/65 text-sm font-medium">{copy.todayHot}</span>
