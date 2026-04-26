@@ -13,6 +13,13 @@ const ENABLE_IG_WIDGET = import.meta.env.VITE_ENABLE_IG_WIDGET === "true";
 const IG_WIDGET_SCRIPT_SRC = "https://cdn.commoninja.com/sdk/latest/commonninja.js";
 const IG_WIDGET_PID = "76c8d05c-85f6-4953-bb5b-f7e5cfd50c99";
 const CUSTOM_TAG_STORAGE_KEY = "exhibeat_custom_tags_by_exhibition_v1";
+const LIST_SUMMARY_LIMIT = 30;
+
+function truncateSummary(text: string, limit: number = LIST_SUMMARY_LIMIT): string {
+  const clean = String(text ?? "").trim();
+  if (!clean) return "";
+  return clean.length > limit ? `${clean.slice(0, limit).trimEnd()}...` : clean;
+}
 
 function normalizeHashtag(value: string): string {
   const stripped = String(value ?? "").trim().replace(/^#+/, "").replace(/\s+/g, "");
@@ -470,9 +477,10 @@ export function Home() {
                 <span>{hero.title}</span>
               </h1>
               <p className="max-w-2xl text-lg text-white/70 mb-8 font-body leading-relaxed">
-                <span>{hero.aiSummary
-                  ? hero.aiSummary
-                  : "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。"}</span>
+                <span>{truncateSummary(
+                  hero.aiSummary ||
+                    "結合 AI 運算與沉浸式光影，這場展覽將重新定義你對這座城市的認知。系統根據你的喜好分析：極高機率會讓你流連忘返。",
+                )}</span>
               </p>
               <div className="flex items-center gap-6 mt-1 mb-8">
                 <span className="flex items-center gap-1.5">
