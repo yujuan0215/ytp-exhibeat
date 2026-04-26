@@ -340,7 +340,7 @@ export function Accommodations() {
             onChange={(e) => handleSearchChange(e.target.value)}
             type="search"
             placeholder="搜尋飯店名稱或地點（例：大安、中山、Hotel）"
-            className={`h-11 w-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isV1 ? "rounded-md" : "rounded-full"}`}
+            className="h-11 w-full rounded-full border border-white/10 bg-[#1f1f26]/80 pl-9 pr-4 text-sm text-white shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
 

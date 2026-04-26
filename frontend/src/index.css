@@ -254,25 +254,6 @@
   }
 }
 
-/* Global corner reduction */
-@layer base {
-  .rounded-full {
-    border-radius: 0.5rem !important;
-  }
-  .rounded-3xl {
-    border-radius: 0.875rem !important;
-  }
-  .rounded-2xl {
-    border-radius: 0.75rem !important;
-  }
-  .rounded-xl {
-    border-radius: 0.625rem !important;
-  }
-  .rounded-lg {
-    border-radius: 0.5rem !important;
-  }
-}
-
 /* Global scrollbar styling: understated and readable */
 @layer base {
   * {
