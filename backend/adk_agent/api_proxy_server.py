@@ -231,34 +231,23 @@ def _translate_event_field(event_id: str, field: str, locale: str, fallback_text
 def list_available_tags() -> list[str]:
     tags: set[str] = set()
     for item in load_exhibitions_dataset():
-        raw_tags = item.get("tag", [])
-        if isinstance(raw_tags, str):
-            raw_tags = [raw_tags]
-        if not isinstance(raw_tags, list):
-            continue
-        for raw in raw_tags:
-            value = str(raw).strip()
-            if not value:
+        for raw in _extract_event_tags(item):
+            mapped = _normalize_event_tag(str(raw))
+            if not mapped:
                 continue
-            tags.add(value if value.startswith("#") else f"#{value}")
+            tags.add(mapped)
     return sorted(tags)
 
 
 def list_available_tag_stats() -> list[dict[str, int | str]]:
     counts: dict[str, int] = {}
     for item in load_exhibitions_dataset():
-        raw_tags = item.get("tag", [])
-        if isinstance(raw_tags, str):
-            raw_tags = [raw_tags]
-        if not isinstance(raw_tags, list):
-            continue
         deduped_in_event: set[str] = set()
-        for raw in raw_tags:
-            value = str(raw).strip()
-            if not value:
+        for raw in _extract_event_tags(item):
+            mapped = _normalize_event_tag(str(raw))
+            if not mapped:
                 continue
-            normalized = value if value.startswith("#") else f"#{value}"
-            deduped_in_event.add(normalized)
+            deduped_in_event.add(mapped)
         for tag in deduped_in_event:
             counts[tag] = counts.get(tag, 0) + 1
     return [
@@ -787,7 +776,12 @@ def map_event_to_frontend_exhibition(rec: dict, locale: str = "zh-TW") -> dict:
 
     source_tags = rec.get("source_tags", [])
     if isinstance(source_tags, list):
-        normalized_source_tags = [str(tag).strip() for tag in source_tags if str(tag).strip()]
+        normalized_source_tags = []
+        for tag in source_tags:
+            mapped = _normalize_event_tag(str(tag))
+            if mapped:
+                normalized_source_tags.append(mapped)
+        normalized_source_tags = list(dict.fromkeys(normalized_source_tags))
     else:
         normalized_source_tags = []
     display_tags = normalized_source_tags if normalized_source_tags else rec.get("reasons", ["推薦活動"])[:2]
@@ -828,27 +822,113 @@ def _format_raw_event_date(event: dict) -> str:
     return start or end or "日期待確認"
 
 
+def _normalize_event_tag(raw_value: str, *, source_key: str = "") -> str | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+    key = str(source_key or "").strip()
+    normalized = value if value.startswith("#") else f"#{value}"
+    normalized = normalized.replace(" ", "")
+    normalized = _re.sub(r"^#(?:臺|台)北市", "#", normalized)
+
+    # Ignore placeholder-style tags that do not represent user-facing categories.
+    if any(token in normalized for token in ("無折扣", "未提供", "無資料", "未知", "待確認")):
+        return None
+
+    key_map: dict[str, dict[str, str | None]] = {
+        "價位": {
+            "#低": "#低價位",
+            "#中": "#中價位",
+            "#高": "#高價位",
+            "#免費": "#免費",
+        },
+        "時間": {
+            "#早": "#早上",
+            "#中": "#中午",
+            "#晚": "#晚上",
+        },
+        "折扣": {
+            "#折扣中": "#打折中",
+            "#打折中": "#打折中",
+        },
+        "室內室外": {
+            "#室內": "#室內",
+            "#室外": "#室外",
+            "#室內外": "#室內外",
+        },
+    }
+    if key in key_map:
+        mapped = key_map[key].get(normalized)
+        if mapped:
+            return mapped
+        if normalized.endswith("區"):
+            return normalized
+        return None
+
+    generic_map: dict[str, str | None] = {
+        "#低": "#低價位",
+        "#中": "#中價位",
+        "#高": "#高價位",
+        "#早": "#早上",
+        "#晚": "#晚上",
+        "#折扣中": "#打折中",
+        "#打折中": "#打折中",
+        "#室內": "#室內",
+        "#室外": "#室外",
+        "#室內外": "#室內外",
+        "#免費": "#免費",
+        "#未提供": None,
+    }
+    mapped = generic_map.get(normalized, normalized)
+    return mapped
+
+
+def _extract_taipei_district_tag(event: dict) -> str | None:
+    show = _extract_show_info(event)
+    text_parts = [
+        str(show.get("location", "")),
+        str(show.get("locationName", "")),
+        str(event.get("title", "")),
+    ]
+    text = " ".join(text_parts)
+    match = _re.search(r"(?:臺|台)北市\s*([^\s,，。]{1,6}區)", text)
+    if not match:
+        return None
+    district = match.group(1).strip()
+    if not district or district in {"台北市", "臺北市"}:
+        return None
+    return f"#{district}"
+
+
 def _extract_event_tags(event: dict) -> list[str]:
     tags: list[str] = []
     raw_tags = event.get("tag", [])
+    if not raw_tags:
+        raw_tags = event.get("tags", [])
     if isinstance(raw_tags, list):
         tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
     elif isinstance(raw_tags, str) and raw_tags.strip():
         tags = [raw_tags.strip()]
 
-    if tags:
-        return tags
+    normalized: list[str] = []
+    for tag in tags:
+        mapped = _normalize_event_tag(tag)
+        if mapped:
+            normalized.append(mapped)
 
     derived = event.get("derivedTags", {})
-    if not isinstance(derived, dict):
-        return []
-    fallback: list[str] = []
-    for value in derived.values():
-        normalized = str(value).strip()
-        if not normalized or normalized.startswith("無"):
-            continue
-        fallback.append(normalized if normalized.startswith("#") else f"#{normalized}")
-    return list(dict.fromkeys(fallback))
+    if isinstance(derived, dict):
+        for raw_key, raw_value in derived.items():
+            mapped = _normalize_event_tag(str(raw_value), source_key=str(raw_key))
+            if mapped:
+                normalized.append(mapped)
+
+    district_tag = _extract_taipei_district_tag(event)
+    if district_tag:
+        normalized.append(district_tag)
+
+    # Deduplicate while preserving display order.
+    return list(dict.fromkeys(normalized))
 
 
 def map_raw_event_to_frontend_exhibition(event: dict, locale: str = "zh-TW") -> dict:
