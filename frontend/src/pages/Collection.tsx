@@ -12,17 +12,25 @@ import {
   deleteTripList,
   DEFAULT_TRIP_LIST_ID_KEY,
   getTripLists,
-  queueAgentPrefillFromList,
+  queueAgentPrefillFromPlannedList,
   renameTripList,
   TRIP_LISTS_CHANGE_EVENT,
+  type PreSendPlannerDraft,
   type TripList,
 } from "@/lib/tripLists";
 import { TripListMosaicHeader } from "@/components/collection/TripListMosaicHeader";
 import { TripListRail } from "@/components/collection/TripListRail";
 import { TripListActionsMenu } from "@/components/collection/TripListActionsMenu";
 import { StayListCard } from "@/components/collection/StayListCard";
+import { SendToAgentPlannerModal } from "@/components/collection/SendToAgentPlannerModal";
 import { ActionToast } from "@/components/ActionToast";
+import { ItineraryCards } from "@/components/agent/ItineraryCards";
 import { useLanguage } from "@/lib/language";
+import {
+  getSavedItineraries,
+  SAVED_ITINERARIES_CHANGE_EVENT,
+  type SavedItinerary,
+} from "@/lib/itineraries";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
@@ -34,6 +42,7 @@ export function Collection() {
   const { locale } = useLanguage();
   const [tripLists, setTripLists] = useState<TripList[]>(() => getTripLists());
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [selectedItineraryId, setSelectedItineraryId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -42,13 +51,24 @@ export function Collection() {
   const [hasMoreRecs, setHasMoreRecs] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [showPlannerModal, setShowPlannerModal] = useState(false);
+  const [savedItineraries, setSavedItineraries] = useState<SavedItinerary[]>(() => getSavedItineraries());
 
   const selectedList = selectedListId ? tripLists.find((l) => l.id === selectedListId) ?? null : null;
+  const selectedItinerary = selectedItineraryId
+    ? savedItineraries.find((itinerary) => itinerary.id === selectedItineraryId) ?? null
+    : null;
 
   useEffect(() => {
     const sync = () => setTripLists(getTripLists());
     window.addEventListener(TRIP_LISTS_CHANGE_EVENT, sync);
     return () => window.removeEventListener(TRIP_LISTS_CHANGE_EVENT, sync);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setSavedItineraries(getSavedItineraries());
+    window.addEventListener(SAVED_ITINERARIES_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(SAVED_ITINERARIES_CHANGE_EVENT, sync);
   }, []);
 
   useEffect(() => {
@@ -100,9 +120,14 @@ export function Collection() {
 
   const handleSendListToAgent = () => {
     if (!selectedList) return;
-    // Current flow: Collection -> sessionStorage prefill -> Agent page auto-sends.
-    queueAgentPrefillFromList(selectedList);
-    setToastMessage("已將清單帶入助理對話");
+    setShowPlannerModal(true);
+  };
+
+  const handleConfirmPlannedSend = (draft: PreSendPlannerDraft) => {
+    if (!selectedList) return;
+    queueAgentPrefillFromPlannedList(selectedList, draft);
+    setShowPlannerModal(false);
+    setToastMessage("已套用設定並傳送到助理");
     setShowToast(true);
     window.setTimeout(() => navigate("/agent"), 180);
   };
@@ -124,6 +149,16 @@ export function Collection() {
     deleteTripList(listId);
     setTripLists(getTripLists());
     if (selectedListId === listId) setSelectedListId(null);
+  };
+
+  const handleOpenTripList = (listId: string | null) => {
+    setSelectedItineraryId(null);
+    setSelectedListId(listId);
+  };
+
+  const handleOpenSavedItinerary = (itineraryId: string) => {
+    setSelectedListId(null);
+    setSelectedItineraryId(itineraryId);
   };
 
   const recommendationsAside = (
@@ -255,9 +290,35 @@ export function Collection() {
     </div>
   );
 
+  const itineraryDetailMain = selectedItinerary && (
+    <div className="min-w-0 flex-1">
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setSelectedItineraryId(null)}
+          className={`mb-3 inline-flex items-center gap-2 border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10 ${isV1 ? "rounded-md" : "rounded-full"}`}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          返回收藏總覽
+        </button>
+        <h2 className="text-3xl font-extrabold text-white">{selectedItinerary.name || selectedItinerary.title || "我的行程"}</h2>
+        <p className="mt-1 text-sm text-white/55">
+          {selectedItinerary.date || "日期待確認"} · {selectedItinerary.stops.length} 站
+        </p>
+      </div>
+      <ItineraryCards
+        title={selectedItinerary.name || selectedItinerary.title}
+        introText={selectedItinerary.introText}
+        date={selectedItinerary.date}
+        stops={selectedItinerary.stops}
+        showSaveAction={false}
+      />
+    </div>
+  );
+
   return (
     <div className="flex w-full flex-col gap-10 px-8 py-10">
-      {!selectedListId ? (
+      {!selectedListId && !selectedItineraryId ? (
         <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
           <div>
             <h2 className="text-secondary mb-2 text-sm font-bold tracking-widest uppercase">Personal Gallery</h2>
@@ -312,7 +373,7 @@ export function Collection() {
               <TripListRail
                 lists={tripLists}
                 selectedListId={selectedListId}
-                onSelect={setSelectedListId}
+                onSelect={handleOpenTripList}
                 onCreateList={handleCreateTripList}
                 onRenameList={handleRenameList}
                 onDeleteList={handleDeleteList}
@@ -321,6 +382,8 @@ export function Collection() {
             </div>
           </aside>
         </div>
+      ) : selectedItineraryId ? (
+        itineraryDetailMain
       ) : (
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-14">
           <section className="w-full">
@@ -338,7 +401,7 @@ export function Collection() {
                       onDelete={handleDeleteList}
                     />
                   </div>
-                  <button type="button" onClick={() => setSelectedListId(list.id)} className="w-full text-left">
+                  <button type="button" onClick={() => handleOpenTripList(list.id)} className="w-full text-left">
                     <TripListMosaicHeader list={list} className="mb-3 aspect-[4/3] max-h-36" />
                     <p className="line-clamp-1 text-sm font-bold text-white">{list.name}</p>
                     <p className="mt-0.5 text-xs text-white/55">
@@ -350,12 +413,54 @@ export function Collection() {
               ))}
             </div>
           </section>
+          <section className="w-full">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">行程</h3>
+              <p className="text-xs text-white/55">由 AI 對話輸出儲存（獨立於自建清單）</p>
+            </div>
+            {savedItineraries.length === 0 ? (
+              <div className={`border border-white/10 bg-surface-container-low px-4 py-8 text-sm text-white/55 ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
+                尚未儲存任何行程。可在 AI 行程卡右上「儲存到行程」加入。
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {savedItineraries.map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => handleOpenSavedItinerary(it.id)}
+                    className={`border border-white/10 bg-surface-container-low p-4 ${isV1 ? "rounded-md" : "rounded-2xl"}`}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200/80">itinerary</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-bold text-white">{it.name || it.title || "我的行程"}</p>
+                    <p className="mt-1 text-xs text-white/60">
+                      {it.date || "日期待確認"} · {it.stops.length} 站
+                    </p>
+                    {it.introText ? <p className="mt-2 line-clamp-2 text-xs text-white/55">{it.introText}</p> : null}
+                    <div className="mt-3 space-y-1">
+                      {it.stops.slice(0, 3).map((stop, idx) => (
+                        <p key={`${it.id}_${idx}`} className="line-clamp-1 text-xs text-white/70">
+                          {idx + 1}. {stop.title}
+                        </p>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
           <div className="flex flex-col gap-8">
             {recommendationsAside}
           </div>
         </div>
       )}
       <ActionToast open={showToast} message={toastMessage} />
+      <SendToAgentPlannerModal
+        open={showPlannerModal}
+        list={selectedList}
+        onClose={() => setShowPlannerModal(false)}
+        onConfirm={handleConfirmPlannedSend}
+      />
     </div>
   );
 }
