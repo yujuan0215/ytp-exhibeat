@@ -123,6 +123,10 @@
   * {
     @apply border-border;
   }
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
@@ -247,25 +251,6 @@
   }
   :root[data-theme="v2"] .via-black\/55 {
     --tw-gradient-stops: var(--tw-gradient-from), rgb(12 27 48 / 0.55) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
-  }
-}
-
-/* Global corner reduction */
-@layer base {
-  .rounded-full {
-    border-radius: 0.5rem !important;
-  }
-  .rounded-3xl {
-    border-radius: 0.875rem !important;
-  }
-  .rounded-2xl {
-    border-radius: 0.75rem !important;
-  }
-  .rounded-xl {
-    border-radius: 0.625rem !important;
-  }
-  .rounded-lg {
-    border-radius: 0.5rem !important;
   }
 }
 
