@@ -636,13 +636,11 @@ export function Home() {
             </div>
           ) : hero ? (
             <>
-              <h1 className="max-w-4xl overflow-hidden break-words text-4xl font-headline font-extrabold tracking-tighter leading-[1.03] text-white mb-5 md:text-7xl [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
-                <span>{hero.title}</span>
+              <h1 className="line-clamp-3 max-w-4xl text-5xl font-headline font-extrabold tracking-tighter leading-[1.03] text-white mb-5 md:text-7xl">
+                {hero.title}
               </h1>
-              <p className="max-w-2xl overflow-hidden break-words text-base text-white/70 font-body leading-relaxed mb-6 md:text-lg [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:5]">
-                <span>{hero.aiSummary
-                  ? hero.aiSummary
-                  : copy.fallbackSummary}</span>
+              <p className="line-clamp-5 max-w-2xl text-base text-white/70 font-body leading-relaxed mb-6 md:text-lg">
+                {hero.aiSummary ? hero.aiSummary : copy.fallbackSummary}
               </p>
               <div className="flex items-center gap-6 mt-1 mb-8">
                 <span className="flex items-center gap-1.5">
