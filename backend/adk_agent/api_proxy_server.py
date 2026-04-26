@@ -1435,45 +1435,84 @@ def _fallback_accommodation_cards(text: str, limit: int = 6) -> list[dict]:
 
 def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     collected: list[dict] = []
+    seen_event_ids: set[str] = set()
+
+    def append_event(raw: dict) -> None:
+        event_id = str(raw.get("uid") or raw.get("id") or "").strip()
+        title = str(raw.get("title") or "").strip()
+        if not event_id or not title or event_id in seen_event_ids:
+            return
+        start = str(raw.get("start_date") or "").strip()
+        end = str(raw.get("end_date") or "").strip()
+        date_str = str(raw.get("dateStr") or "").strip() or (
+            f"{start} -> {end}" if start and end else (start or end or "日期待確認")
+        )
+        venue = str(raw.get("venue_name") or "").strip()
+        address = str(raw.get("address") or "").strip()
+        city = str(raw.get("city") or "").strip()
+        location = str(raw.get("location") or "").strip()
+        location_text = (
+            location
+            or " • ".join([part for part in [venue, city] if part])
+            or " • ".join([part for part in [venue, address] if part])
+            or "地點待確認"
+        )
+        image_url = str(raw.get("imageUrl") or raw.get("image_url") or "").strip()
+        reasons = raw.get("recommendation_reasons") or raw.get("reasons") or []
+        reason_text = ""
+        if isinstance(reasons, list):
+            reason_text = "、".join(str(r).strip() for r in reasons if str(r).strip())
+        elif isinstance(reasons, str):
+            reason_text = reasons.strip()
+
+        collected.append(
+            {
+                "id": event_id,
+                "title": title,
+                "dateStr": date_str,
+                "location": location_text,
+                "imageUrl": image_url,
+                "reason": reason_text,
+                "itemType": "event",
+            }
+        )
+        seen_event_ids.add(event_id)
 
     def walk(node: object) -> None:
+        if isinstance(node, str):
+            candidate = node.strip()
+            if candidate.startswith("{") or candidate.startswith("["):
+                try:
+                    walk(json.loads(candidate))
+                except Exception:
+                    pass
+            return
         if isinstance(node, dict):
+            # ADK frequently nests tool outputs under functionResponse.response.
+            if "functionResponse" in node:
+                walk(node.get("functionResponse"))
+            if "response" in node:
+                walk(node.get("response"))
+            if "output" in node:
+                walk(node.get("output"))
+            if "result" in node:
+                walk(node.get("result"))
+
             events = node.get("events")
             if isinstance(events, list):
                 for raw in events:
                     if not isinstance(raw, dict):
                         continue
-                    event_id = str(raw.get("uid") or raw.get("id") or "").strip()
-                    title = str(raw.get("title") or "").strip()
-                    if not event_id or not title:
-                        continue
-                    start = str(raw.get("start_date") or "").strip()
-                    end = str(raw.get("end_date") or "").strip()
-                    date_str = str(raw.get("dateStr") or "").strip() or (
-                        f"{start} -> {end}" if start and end else (start or end or "日期待確認")
-                    )
-                    venue = str(raw.get("venue_name") or "").strip()
-                    address = str(raw.get("address") or "").strip()
-                    location = str(raw.get("location") or "").strip()
-                    location_text = location or " • ".join([part for part in [venue, address] if part]) or "地點待確認"
-                    image_url = str(raw.get("imageUrl") or raw.get("image_url") or "").strip()
-                    reasons = raw.get("recommendation_reasons") or raw.get("reasons") or []
-                    reason_text = ""
-                    if isinstance(reasons, list):
-                        reason_text = "、".join(str(r).strip() for r in reasons if str(r).strip())
-                    elif isinstance(reasons, str):
-                        reason_text = reasons.strip()
-                    collected.append(
-                        {
-                            "id": event_id,
-                            "title": title,
-                            "dateStr": date_str,
-                            "location": location_text,
-                            "imageUrl": image_url,
-                            "reason": reason_text,
-                            "itemType": "event",
-                        }
-                    )
+                    append_event(raw)
+
+            # Some responses return one event-like object at a time.
+            if (
+                ("uid" in node or "id" in node)
+                and "title" in node
+                and ("start_date" in node or "end_date" in node or "venue_name" in node or "address" in node)
+            ):
+                append_event(node)
+
             hotels = node.get("hotels")
             if isinstance(hotels, list):
                 for raw in hotels:
@@ -1520,6 +1559,91 @@ def _extract_recommendation_events_from_obj(obj: object) -> list[dict]:
     return collected
 
 
+def _extract_latest_assistant_text_from_payload(payload: object) -> str:
+    latest_text = ""
+
+    def walk(node: object) -> None:
+        nonlocal latest_text
+        if isinstance(node, dict):
+            maybe_text = node.get("text")
+            if isinstance(maybe_text, str) and maybe_text.strip():
+                latest_text = maybe_text.strip()
+            parts = node.get("parts")
+            if isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, dict):
+                        text = part.get("text")
+                        if isinstance(text, str) and text.strip():
+                            latest_text = text.strip()
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(payload)
+    return latest_text
+
+
+def _extract_recommendation_events_from_text(text: str) -> list[dict]:
+    raw = str(text or "").strip()
+    if not raw:
+        return []
+
+    blocks = [block.strip() for block in _re.split(r"\n\s*\n", raw) if block.strip()]
+    results: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for block in blocks:
+        if not any(token in block for token in ("時間", "地點", "票價", "購票", "日期")):
+            continue
+
+        title_match = _re.search(r"\*\*(.+?)\*\*", block)
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            first_line = block.splitlines()[0].strip(" -*•\t")
+            title = _re.sub(r"^[0-9]+[.)]\s*", "", first_line).strip()
+
+        if not title or len(title) < 2:
+            continue
+
+        time_match = _re.search(r"(?:時間|日期|檔期)[：:]\s*([^\n]+)", block)
+        location_match = _re.search(r"(?:地點|場館|地點資訊)[：:]\s*([^\n]+)", block)
+        price_match = _re.search(r"(?:票價|價格|費用)[：:]\s*([^\n]+)", block)
+        ticket_match = _re.search(r"\((https?://[^\s)]+)\)", block)
+        if not ticket_match:
+            ticket_match = _re.search(r"(https?://[^\s)]+)", block)
+
+        date_str = time_match.group(1).strip() if time_match else "日期待確認"
+        location_text = location_match.group(1).strip() if location_match else "地點待確認"
+
+        reason_parts: list[str] = []
+        if price_match:
+            reason_parts.append(f"票價：{price_match.group(1).strip()}")
+        if ticket_match:
+            reason_parts.append("含購票連結")
+        reason_text = "、".join(reason_parts)
+
+        event_id = hashlib.md5(f"{title}|{date_str}|{location_text}".encode("utf-8")).hexdigest()[:16]
+        if event_id in seen_ids:
+            continue
+        seen_ids.add(event_id)
+        results.append(
+            {
+                "id": f"text_{event_id}",
+                "title": title,
+                "dateStr": date_str,
+                "location": location_text,
+                "imageUrl": "",
+                "reason": reason_text,
+                "itemType": "event",
+            }
+        )
+
+    return results
+
+
 def _inject_recommendation_carousel_payload(
     run_response_bytes: bytes,
     latest_user_text: str = "",
@@ -1554,6 +1678,11 @@ def _inject_recommendation_carousel_payload(
         merged.append(event)
         if len(merged) >= 12:
             break
+
+    if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
+        assistant_text = _extract_latest_assistant_text_from_payload(payload)
+        if assistant_text:
+            merged = _extract_recommendation_events_from_text(assistant_text)[:6]
 
     if not merged and _is_recommendation_intent(latest_user_text) and not _is_itinerary_intent(latest_user_text):
         merged = (
