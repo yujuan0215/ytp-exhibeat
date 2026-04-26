@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re as _re
+import sqlite3
 import sys
 import uuid
 from pathlib import Path
@@ -35,13 +36,10 @@ logger = logging.getLogger("api_proxy")
 
 from backend.app.recommender.exhibeat_lightfm_demo import run_demo  # noqa: E402
 from backend.adk_agent.auth_service import (  # noqa: E402
-    PREFERENCE_OPTIONS,
     Favorite,
     FavoriteCreateRequest,
     FavoriteResponse,
     LoginRequest,
-    PreferenceOption,
-    PreferenceUpdateRequest,
     RegisterRequest,
     TokenResponse,
     User,
@@ -54,7 +52,6 @@ from backend.adk_agent.auth_service import (  # noqa: E402
     get_db,
     hash_password,
     normalize_email,
-    sanitize_preference_tags,
     verify_password,
 )
 
@@ -66,6 +63,10 @@ def discover_exhibitions_path() -> Path:
             candidate = PROJECT_ROOT / candidate
         return candidate
 
+    all_candidate = PROJECT_ROOT / "data" / "all_exhibitions.json"
+    if all_candidate.exists():
+        return all_candidate
+
     merged_candidate = PROJECT_ROOT / "data" / "exhibitions_merged.json"
     if merged_candidate.exists():
         return merged_candidate
@@ -75,6 +76,7 @@ def discover_exhibitions_path() -> Path:
 
 EXHIBITIONS_PATH = discover_exhibitions_path()
 LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
+AI_SUMMARY_DB_PATH = PROJECT_ROOT / "data" / "ai_summaries.sqlite3"
 logger.info(f"Project Root: {PROJECT_ROOT}")
 logger.info(f"Exhibitions Path: {EXHIBITIONS_PATH}")
 
@@ -179,62 +181,6 @@ def get_optional_current_user(
     return user
 
 
-def _user_preference_tags(user: User | None) -> list[str]:
-    if not user:
-        return []
-    try:
-        tags = json.loads(user.preference_tags or "[]")
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(tags, list):
-        return []
-    return [str(tag).strip() for tag in tags if str(tag).strip()]
-
-
-def _recommendation_args_for_preferences(
-    *,
-    tags: list[str],
-    top_k: int,
-    cities: str = "",
-    persona_name: str = "你的偏好",
-) -> argparse.Namespace:
-    wants_free = "free" in tags
-    scoring_tags = [tag for tag in tags if tag != "free"]
-    venue_focus_by_tag = {
-        "art": ("art_museum", "cultural_center"),
-        "history": ("museum", "cultural_center"),
-        "culture": ("museum", "cultural_center"),
-        "indigenous": ("museum", "cultural_center"),
-        "science": ("museum",),
-        "family": ("museum", "cultural_center"),
-    }
-    venue_focus = tuple(
-        dict.fromkeys(
-            venue
-            for tag in scoring_tags
-            for venue in venue_focus_by_tag.get(tag, ())
-        )
-    )
-    return argparse.Namespace(
-        exhibitions=str(EXHIBITIONS_PATH),
-        top_k=top_k,
-        date="",
-        backend="fallback",
-        blend_alpha=0.65,
-        persona="",
-        cities=cities,
-        tags=",".join(scoring_tags),
-        venue_focus=",".join(venue_focus),
-        free_only=wants_free,
-        popular=False,
-        persona_name=persona_name,
-        seed=42,
-        components=16,
-        epochs=30,
-        threads=2,
-    )
-
-
 def filter_legal_stays(
     *,
     q: str = "",
@@ -331,14 +277,12 @@ PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=600&auto=format&fit=crop&q=80",
 ]
 
-# ─── AI Summarisation with Gemini (cached) ───────────────────────────────────
-_summary_cache: dict[str, str] = {}
-# Set to True after the first Gemini failure so we stop paying the timeout cost
-# on every subsequent request. The process can be restarted to re-enable.
-_gemini_disabled: bool = False
-# Default to fast naive summary so recommendation APIs stay responsive.
-# Set EXHIBEAT_ENABLE_GEMINI_SUMMARY=1 to enable model-generated summaries.
-_enable_gemini_summary: bool = os.environ.get("EXHIBEAT_ENABLE_GEMINI_SUMMARY", "0") == "1"
+# ─── AI Summarisation with Gemini (persistent cache) ─────────────────────────
+_summary_table_ready: bool = False
+_summary_cache_loaded: bool = False
+_summary_cache_db_mtime: float = -1.0
+_summary_exact_cache: dict[tuple[str, str], str] = {}
+_summary_latest_cache: dict[str, str] = {}
 
 def _is_meaningful_description(text: str) -> bool:
     if not text or len(text) < 15:
@@ -349,70 +293,207 @@ def _is_meaningful_description(text: str) -> bool:
     ascii_count = sum(1 for c in non_space if ord(c) < 128)
     return ascii_count / len(non_space) <= 0.6
 
+
+def _strip_summary_html(text: str) -> str:
+    plain = _re.sub(r"<[^>]+>", " ", str(text or ""))
+    return " ".join(plain.split()).strip()
+
+
+def _normalize_full_description(text: str, max_chars: int = 4000) -> str:
+    clean = _strip_summary_html(text)
+    if len(clean) > max_chars:
+        return clean[:max_chars].rstrip() + "…"
+    return clean
+
+
 def _naive_summary(description: str) -> str:
-    clean = " ".join(description.split())
+    clean = _strip_summary_html(description)
     fallback = clean[:50].rstrip() + ("…" if len(clean) > 50 else "")
     return fallback if _is_meaningful_description(fallback) else ""
 
-def _gemini_summarize(uid: str, title: str, description: str) -> str:
-    global _gemini_disabled
-    if uid in _summary_cache:
-        return _summary_cache[uid]
-    if not _is_meaningful_description(description):
-        _summary_cache[uid] = ""
-        return ""
-    if not _enable_gemini_summary:
-        result = _naive_summary(description)
-        _summary_cache[uid] = result
-        return result
-    if _gemini_disabled:
-        result = _naive_summary(description)
-        _summary_cache[uid] = result
-        return result
-    try:
-        from dotenv import load_dotenv
-        env_path = Path(__file__).parent / "gemini_agent" / ".env"
-        load_dotenv(env_path, override=False)
 
-        use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0") == "1"
-        prompt = (
-            f"請根據以下展覽資訊，用繁體中文寫一句不超過50個字的摘要，"
-            f"只輸出摘要本身，不加任何其他文字或標點。\n"
-            f"展覽名稱：{title}\n"
-            f"展覽說明：{description[:300]}"
-        )
+def _summary_source_hash(title: str, description: str) -> str:
+    source = f"{title.strip()}|{_strip_summary_html(description)}"
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
-        if use_vertex:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
-            vertexai.init(
-                project=os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
-                location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+
+def _ensure_summary_table() -> None:
+    global _summary_table_ready
+    if _summary_table_ready:
+        return
+    AI_SUMMARY_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(AI_SUMMARY_DB_PATH) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_summaries (
+              uid TEXT PRIMARY KEY,
+              source_hash TEXT NOT NULL,
+              summary TEXT NOT NULL,
+              model TEXT NOT NULL,
+              updated_at TEXT NOT NULL
             )
-            model = GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"))
-            response = model.generate_content(prompt)
-            summary = response.text.strip()
-        else:
-            import google.generativeai as genai
-            genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
-            model = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"))
-            response = model.generate_content(prompt)
-            summary = response.text.strip()
-
-        if len(summary) > 50:
-            summary = summary[:50].rstrip() + "…"
-        _summary_cache[uid] = summary
-        return summary
-
-    except Exception as exc:
-        logger.warning(
-            f"Gemini summarisation failed for {uid}: {exc}. "
-            "Disabling AI summariser for this process; subsequent items will use naive truncation."
+            """
         )
-        _gemini_disabled = True
-        result = _naive_summary(description)
-        _summary_cache[uid] = result
-        return result
+    _summary_table_ready = True
+
+
+def _load_summary_cache_if_needed() -> None:
+    global _summary_cache_loaded, _summary_cache_db_mtime, _summary_exact_cache, _summary_latest_cache
+    _ensure_summary_table()
+    db_mtime = AI_SUMMARY_DB_PATH.stat().st_mtime if AI_SUMMARY_DB_PATH.exists() else -1.0
+    if _summary_cache_loaded and _summary_cache_db_mtime == db_mtime:
+        return
+    exact: dict[tuple[str, str], str] = {}
+    latest: dict[str, str] = {}
+    with sqlite3.connect(AI_SUMMARY_DB_PATH) as conn:
+        rows = conn.execute("SELECT uid, source_hash, summary FROM ai_summaries").fetchall()
+    for uid, source_hash, summary in rows:
+        uid_s = str(uid or "").strip()
+        source_hash_s = str(source_hash or "").strip()
+        summary_s = str(summary or "").strip()
+        if not uid_s:
+            continue
+        if source_hash_s:
+            exact[(uid_s, source_hash_s)] = summary_s
+        latest[uid_s] = summary_s
+    _summary_exact_cache = exact
+    _summary_latest_cache = latest
+    _summary_cache_db_mtime = db_mtime
+    _summary_cache_loaded = True
+
+
+def _load_summary_from_db(uid: str, source_hash: str) -> str | None:
+    _load_summary_cache_if_needed()
+    return _summary_exact_cache.get((uid, source_hash))
+
+
+def _load_latest_summary(uid: str) -> str | None:
+    _load_summary_cache_if_needed()
+    return _summary_latest_cache.get(uid)
+
+
+def _save_summary_to_db(uid: str, source_hash: str, summary: str, model_name: str) -> None:
+    _ensure_summary_table()
+    with sqlite3.connect(AI_SUMMARY_DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO ai_summaries (uid, source_hash, summary, model, updated_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(uid) DO UPDATE SET
+              source_hash = excluded.source_hash,
+              summary = excluded.summary,
+              model = excluded.model,
+              updated_at = excluded.updated_at
+            """,
+            (uid, source_hash, summary, model_name),
+        )
+    _summary_exact_cache[(uid, source_hash)] = summary
+    _summary_latest_cache[uid] = summary
+    if AI_SUMMARY_DB_PATH.exists():
+        # Keep mtime in sync so we don't need an immediate full reload.
+        global _summary_cache_db_mtime, _summary_cache_loaded
+        _summary_cache_db_mtime = AI_SUMMARY_DB_PATH.stat().st_mtime
+        _summary_cache_loaded = True
+
+
+def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
+    clean_description = _strip_summary_html(description)
+    if not _is_meaningful_description(clean_description):
+        return "", "none"
+
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / "gemini_agent" / ".env"
+    load_dotenv(env_path, override=False)
+
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001")
+    use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0") == "1"
+    prompt = (
+        "請根據以下展覽資訊，用繁體中文寫一句不超過50個字的摘要，"
+        "需具體描述內容重點，避免空泛形容。\n"
+        f"展覽名稱：{title}\n"
+        f"展覽說明：{clean_description[:500]}"
+    )
+
+    if use_vertex:
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+        vertexai.init(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+        model = GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        summary = (response.text or "").strip()
+    else:
+        api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError("GOOGLE_API_KEY is required for Gemini summarization")
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            summary = (response.text or "").strip()
+        except Exception:
+            from google import genai as genai_client
+            client = genai_client.Client(api_key=api_key)
+            response = client.models.generate_content(model=model_name, contents=prompt)
+            summary = (getattr(response, "text", "") or "").strip()
+
+    summary = " ".join(summary.split())
+    if len(summary) > 50:
+        summary = summary[:50].rstrip() + "…"
+    return summary, model_name
+
+
+def _gemini_summarize(uid: str, title: str, description: str) -> str:
+    source_hash = _summary_source_hash(title, description)
+    cached = _load_summary_from_db(uid, source_hash)
+    if cached is not None:
+        return cached
+    try:
+        summary, model_name = _generate_gemini_summary(title, description)
+        _save_summary_to_db(uid, source_hash, summary, model_name)
+        return summary
+    except Exception as exc:
+        logger.warning("Gemini summarisation failed for %s: %s", uid, exc)
+        latest = _load_latest_summary(uid)
+        if latest is not None:
+            return latest
+        return _naive_summary(description)
+
+
+def _normalize_existing_summary(summary: str) -> str:
+    clean = _strip_summary_html(summary)
+    if not clean:
+        return ""
+    if len(clean) > 50:
+        clean = clean[:50].rstrip() + "…"
+    return clean if _is_meaningful_description(clean) else ""
+
+
+def _resolve_summary_for_response(
+    *,
+    uid: str,
+    title: str,
+    description: str,
+    existing_summary: str = "",
+) -> str:
+    """
+    Online path: only read precomputed summaries from DB cache.
+    Never call Gemini in request flow to avoid long latency.
+    """
+    source_hash = _summary_source_hash(title, description)
+    cached = _load_summary_from_db(uid, source_hash)
+    if cached is not None:
+        return cached
+    latest = _load_latest_summary(uid)
+    if latest is not None:
+        return latest
+    normalized_existing = _normalize_existing_summary(existing_summary)
+    if normalized_existing:
+        return normalized_existing
+    return _naive_summary(description)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 def _pick_image(uid: str, raw_url: str) -> str:
@@ -517,7 +598,22 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
     uid   = rec["uid"]
     title = rec["title"]
     image_url  = _pick_image(uid, rec.get("image_url", ""))
-    ai_summary = _gemini_summarize(uid, title, rec.get("description", ""))
+    description = str(rec.get("description", "") or "")
+    full_description = _normalize_full_description(
+        str(rec.get("description_full") or rec.get("descriptionFilterHtml") or description)
+    )
+    existing_summary = str(
+        rec.get("ai_summary")
+        or rec.get("aiSummary")
+        or rec.get("summary")
+        or ""
+    )
+    ai_summary = full_description or _resolve_summary_for_response(
+        uid=uid,
+        title=title,
+        description=description,
+        existing_summary=existing_summary,
+    )
     normalized_location_name = rec.get("location_name", "")
     normalized_city = rec.get("city", "")
     # Data fix: these two TIFA programs are performed at 國家戲劇院.
@@ -553,6 +649,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         "dateStr":    date_range,
         "location":   f"{normalized_location_name} • {normalized_city}",
         "aiSummary":  ai_summary,
+        "fullDescription": full_description,
         "tags":       display_tags,
         "imageUrl":   image_url,
         "isFavorite": False,
@@ -581,6 +678,29 @@ def _format_raw_event_date(event: dict) -> str:
     return start or end or "日期待確認"
 
 
+def _extract_event_tags(event: dict) -> list[str]:
+    tags: list[str] = []
+    raw_tags = event.get("tag", [])
+    if isinstance(raw_tags, list):
+        tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
+    elif isinstance(raw_tags, str) and raw_tags.strip():
+        tags = [raw_tags.strip()]
+
+    if tags:
+        return tags
+
+    derived = event.get("derivedTags", {})
+    if not isinstance(derived, dict):
+        return []
+    fallback: list[str] = []
+    for value in derived.values():
+        normalized = str(value).strip()
+        if not normalized or normalized.startswith("無"):
+            continue
+        fallback.append(normalized if normalized.startswith("#") else f"#{normalized}")
+    return list(dict.fromkeys(fallback))
+
+
 def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     uid = str(event.get("UID", "")).strip()
     title = str(event.get("title", "")).strip() or "未命名展演"
@@ -589,27 +709,39 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     location = location_name or "地點待確認"
     date_range = _format_raw_event_date(event)
     description = str(event.get("descriptionFilterHtml", "")).strip()
+    full_description = _normalize_full_description(
+        str(event.get("description") or event.get("descriptionFilterHtml") or "")
+    )
     price_raw = str(show.get("price", "")).strip() or str(event.get("price", "")).strip()
-    normalized_tags = []
-    raw_tags = event.get("tag", [])
-    if isinstance(raw_tags, list):
-        normalized_tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
-    elif isinstance(raw_tags, str) and raw_tags.strip():
-        normalized_tags = [raw_tags.strip()]
+    normalized_tags = _extract_event_tags(event)
 
     image_url = _pick_image(uid or title, str(event.get("imageUrl", "")).strip())
     all_images = [image_url] if image_url else []
     is_free = any(k in price_raw.lower() for k in ["free", "免費", "免票", "免收費"])
-    ai_summary = _naive_summary(description)
+    summary_uid = uid or hashlib.md5(title.encode("utf-8")).hexdigest()
+    existing_summary = str(
+        event.get("aiSummary")
+        or event.get("ai_summary")
+        or event.get("summary")
+        or event.get("description")
+        or ""
+    )
+    ai_summary = full_description or _resolve_summary_for_response(
+        uid=summary_uid,
+        title=title,
+        description=description,
+        existing_summary=existing_summary,
+    )
     end_date = str(event.get("endDate", "")).strip()
 
     return {
-        "id": uid or hashlib.md5(title.encode("utf-8")).hexdigest(),
+        "id": summary_uid,
         "title": title,
         "price": _format_price(price_raw, is_free),
         "dateStr": date_range,
         "location": location,
         "aiSummary": ai_summary,
+        "fullDescription": full_description,
         "tags": normalized_tags,
         "imageUrl": image_url,
         "isFavorite": False,
@@ -657,45 +789,12 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
     return [map_event_to_frontend_exhibition(r) for r in recs]
 
 
-def get_recommendations_for_user(user: User | None, top_k: int = 6, cities: str = "") -> list[dict]:
-    tags = _user_preference_tags(user)
-    if not tags:
-        return []
-    payload = run_demo(
-        _recommendation_args_for_preferences(
-            tags=tags,
-            top_k=top_k,
-            cities=cities,
-            persona_name=user.display_name if user else "你的偏好",
-        )
-    )
-    results = payload.get("results", [])
-    if not results:
-        return []
-    recs = results[0].get("recommendations", [])
-    return [map_event_to_frontend_exhibition(r) for r in recs]
-
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
     limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
-    current_user: User | None = Depends(get_optional_current_user),
 ):
-    if _user_preference_tags(current_user):
-        max_items = min(len(load_exhibitions_dataset()), 5000)
-        personalized = get_recommendations_for_user(current_user, top_k=max(offset + limit, max_items))
-        if not personalized:
-            personalized = get_recommendations_for_persona("taipei_after_work", top_k=max(offset + limit, max_items))
-        return {
-            "exhibitions": personalized[offset : offset + limit],
-            "offset": offset,
-            "limit": limit,
-            "total": len(personalized),
-            "hasMore": offset + limit < len(personalized),
-            "personalized": True,
-        }
-
     all_events = load_exhibitions_dataset()
     exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
     return {
@@ -719,10 +818,8 @@ async def get_available_tag_stats():
 
 
 @app.get("/api/recommendations/collection/more")
-async def get_more_collection_recommendations(
-    current_user: User | None = Depends(get_optional_current_user),
-):
-    sidebar = get_recommendations_for_user(current_user, 9) or get_recommendations_for_persona("free_city_explorer", 9)
+async def get_more_collection_recommendations():
+    sidebar = get_recommendations_for_persona("free_city_explorer", 9)
     return {"recommendations": [
         {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
          "location": s["location"], "imageUrl": s["imageUrl"]}
@@ -730,11 +827,9 @@ async def get_more_collection_recommendations(
     ]}
 
 @app.get("/api/recommendations/collection")
-async def get_collection_recommendations(
-    current_user: User | None = Depends(get_optional_current_user),
-):
-    exhibitions = get_recommendations_for_user(current_user, 4) or get_recommendations_for_persona("history_nerd", 4)
-    sidebar = get_recommendations_for_user(current_user, 3) or get_recommendations_for_persona("free_city_explorer", 3)
+async def get_collection_recommendations():
+    exhibitions = get_recommendations_for_persona("history_nerd", 4)
+    sidebar = get_recommendations_for_persona("free_city_explorer", 3)
     return {
         "collectionExhibitions": exhibitions,
         "recommendations": [
@@ -834,11 +929,6 @@ async def list_legal_stays_geojson(
     }
 
 
-@app.get("/api/auth/preference-options", response_model=list[PreferenceOption])
-async def preference_options():
-    return [PreferenceOption(**opt) for opt in PREFERENCE_OPTIONS]
-
-
 @app.post("/api/auth/register", response_model=TokenResponse)
 async def register(payload: RegisterRequest, db=Depends(get_db)):
     normalized_email = normalize_email(payload.email)
@@ -849,13 +939,11 @@ async def register(payload: RegisterRequest, db=Depends(get_db)):
             detail="Email already registered",
         )
 
-    sanitized_tags = sanitize_preference_tags(payload.preference_tags)
     user = User(
         id=str(uuid.uuid4()),
         email=normalized_email,
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
-        preference_tags=json.dumps(sanitized_tags),
     )
     db.add(user)
     db.commit()
@@ -890,21 +978,6 @@ async def login(payload: LoginRequest, db=Depends(get_db)):
 @app.get("/api/auth/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)):
     return UserResponse.from_orm_user(current_user)
-
-
-@app.patch("/api/auth/me/preferences", response_model=UserResponse)
-async def update_my_preferences(
-    payload: PreferenceUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
-):
-    sanitized_tags = sanitize_preference_tags(payload.preference_tags)
-    current_user.preference_tags = json.dumps(sanitized_tags)
-    db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
-    return UserResponse.from_orm_user(current_user)
-
 
 # ─── Favorites (requires auth) ───────────────────────────────────────────────
 def _favorite_to_response(fav: Favorite) -> FavoriteResponse:
@@ -1228,9 +1301,9 @@ def _is_taipei_location_text(text: str) -> bool:
     return "台北" in normalized or "taipei" in normalized
 
 
-def _fallback_recommendation_events(limit: int = 6, current_user: User | None = None) -> list[dict]:
+def _fallback_recommendation_events(limit: int = 6) -> list[dict]:
     try:
-        recs = get_recommendations_for_user(current_user, top_k=limit) or get_recommendations_for_persona("taipei_after_work", top_k=limit)
+        recs = get_recommendations_for_persona("taipei_after_work", top_k=limit)
     except Exception:
         return []
     events: list[dict] = []
@@ -1298,7 +1371,7 @@ def _fallback_event_cards_for_text(text: str, limit: int = 6, current_user: User
         cards.extend(town_matches)
 
     if len(cards) < limit:
-        for event in _fallback_recommendation_events(limit=limit * 2, current_user=current_user):
+        for event in _fallback_recommendation_events(limit=limit * 2):
             event_id = str(event.get("id") or "").strip()
             if not event_id or event_id in seen_ids:
                 continue
@@ -1486,7 +1559,7 @@ def _inject_recommendation_carousel_payload(
         merged = (
             _fallback_accommodation_cards(text=latest_user_text, limit=6)
             if wants_accommodation
-            else _fallback_recommendation_events(limit=6, current_user=current_user)
+            else _fallback_recommendation_events(limit=6)
         )
 
     if not merged:

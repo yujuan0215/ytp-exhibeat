@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -43,23 +42,6 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = int(os.environ.get("AUTH_JWT_EXPIRE_MINUTES", "60"))
 
 
-PREFERENCE_OPTIONS: list[dict[str, str]] = [
-    {"id": "art",          "label": "當代藝術",      "emoji": "🎨"},
-    {"id": "photogenic",   "label": "攝影／視覺",    "emoji": "📷"},
-    {"id": "digital",      "label": "數位／互動",    "emoji": "🕹️"},
-    {"id": "history",      "label": "歷史人文",      "emoji": "🏛️"},
-    {"id": "culture",      "label": "文化展演",      "emoji": "🪔"},
-    {"id": "indigenous",   "label": "原民文化",      "emoji": "🪶"},
-    {"id": "music",        "label": "音樂現場",      "emoji": "🎵"},
-    {"id": "performance",  "label": "表演藝術",      "emoji": "🎭"},
-    {"id": "family",       "label": "親子友善",      "emoji": "👨‍👩‍👧"},
-    {"id": "free",         "label": "限時免費",      "emoji": "🎟️"},
-    {"id": "night",        "label": "夜間光影",      "emoji": "🌃"},
-    {"id": "outdoor",      "label": "戶外體驗",      "emoji": "🌿"},
-]
-VALID_PREFERENCE_IDS = {p["id"] for p in PREFERENCE_OPTIONS}
-
-
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
@@ -77,7 +59,6 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    preference_tags: Mapped[str] = mapped_column(Text, default="[]")
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     google_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -101,7 +82,6 @@ class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=128)
-    preference_tags: list[str] = Field(default_factory=list)
 
     @field_validator("display_name")
     @classmethod
@@ -119,16 +99,6 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-class PreferenceUpdateRequest(BaseModel):
-    preference_tags: list[str]
-
-
-class PreferenceOption(BaseModel):
-    id: str
-    label: str
-    emoji: str
-
-
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,26 +106,17 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     is_active: bool
-    preference_tags: list[str] = Field(default_factory=list)
     google_sub: str | None = None
     google_email: str | None = None
     created_at: datetime
 
     @classmethod
     def from_orm_user(cls, user: "User") -> "UserResponse":
-        tags: list[str] = []
-        try:
-            tags = json.loads(user.preference_tags or "[]")
-            if not isinstance(tags, list):
-                tags = []
-        except json.JSONDecodeError:
-            tags = []
         return cls(
             id=user.id,
             email=user.email,
             display_name=user.display_name,
             is_active=user.is_active,
-            preference_tags=[str(t) for t in tags],
             google_sub=user.google_sub,
             google_email=user.google_email,
             created_at=user.created_at,
@@ -201,19 +162,6 @@ def normalize_email(email: str) -> str:
 
 def normalize_display_name(display_name: str) -> str:
     return display_name.strip()
-
-
-def sanitize_preference_tags(tags: list[str]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for raw in tags or []:
-        if not isinstance(raw, str):
-            continue
-        tag = raw.strip()
-        if tag and tag in VALID_PREFERENCE_IDS and tag not in seen:
-            seen.add(tag)
-            result.append(tag)
-    return result
 
 
 def hash_password(password: str) -> str:
