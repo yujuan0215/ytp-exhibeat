@@ -8,12 +8,6 @@ type ItineraryCardsProps = {
   stops: AgentItineraryStop[];
 };
 
-function stopTypeLabel(kind: AgentItineraryStop["kind"]): string {
-  if (kind === "event") return "展演站點";
-  if (kind === "hotel" || kind === "stay") return "住宿站點";
-  return "行程站點";
-}
-
 const FALLBACK_STOP_IMAGE =
   "https://images.unsplash.com/photo-1549490349-8643362247b5?w=1200&auto=format&fit=crop&q=80";
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Generator
@@ -64,6 +65,7 @@ class User(Base):
     preference_tags: Mapped[str] = mapped_column(Text, default="[]")
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     google_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    preference_tags: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -85,6 +87,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=128)
+    preference_tags: list[str] = Field(default_factory=list)
 
     @field_validator("display_name")
     @classmethod
@@ -111,10 +114,18 @@ class UserResponse(BaseModel):
     is_active: bool
     google_sub: str | None = None
     google_email: str | None = None
+    preference_tags: list[str] = Field(default_factory=list)
     created_at: datetime
 
     @classmethod
     def from_orm_user(cls, user: "User") -> "UserResponse":
+        preference_tags: list[str] = []
+        try:
+            raw_tags = json.loads(user.preference_tags or "[]")
+            if isinstance(raw_tags, list):
+                preference_tags = [str(tag).strip() for tag in raw_tags if str(tag).strip()]
+        except (TypeError, json.JSONDecodeError):
+            preference_tags = []
         return cls(
             id=user.id,
             email=user.email,
@@ -122,6 +133,7 @@ class UserResponse(BaseModel):
             is_active=user.is_active,
             google_sub=user.google_sub,
             google_email=user.google_email,
+            preference_tags=preference_tags,
             created_at=user.created_at,
         )
 

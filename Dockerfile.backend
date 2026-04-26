@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # 複製後端程式碼與資料
 COPY backend /app/backend
+COPY data /app/data
 COPY exhibitions.json /app/exhibitions.json
 
 ENV PYTHONUNBUFFERED=1 \
@@ -28,5 +29,6 @@ WORKDIR /app/backend/adk_agent
 
 EXPOSE 8000 8001
 
-# 用一行 bash 同時啟動 adk web 與 uvicorn（容器被停掉時兩者會一起退出）
-CMD ["bash", "-c", "adk web --host 0.0.0.0 --port 8001 --allow_origins '*' & uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000"]
+# 先啟動 ADK Web，確認本機 8001 可連後再啟動公開的 FastAPI proxy。
+# 這能避免 Cloud Run 已 ready、但 /api/run 還連不到 ADK 的競態。
+CMD ["bash", "-c", "set -e; echo 'Starting ADK web on 8001'; adk web --host 0.0.0.0 --port 8001 --allow_origins '*' 2>&1 & ADK_PID=$!; for i in $(seq 1 60); do if ! kill -0 \"$ADK_PID\" 2>/dev/null; then echo 'ADK web exited during startup'; wait \"$ADK_PID\"; exit 1; fi; if curl -fsS http://127.0.0.1:8001/docs >/dev/null; then echo 'ADK web is ready'; break; fi; sleep 1; if [ \"$i\" = '60' ]; then echo 'Timed out waiting for ADK web'; exit 1; fi; done; exec uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000"]
