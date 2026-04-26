@@ -26,6 +26,8 @@ export type AgentItineraryStop = {
   id: string;
   title: string;
   kind: "event" | "hotel" | "stay" | "other";
+  dayLabel?: string;
+  dayDate?: string;
   imageUrl?: string;
   timeRange?: string;
   estimatedStayMinutes?: number;
@@ -93,10 +95,21 @@ function normalizeItineraryStop(raw: unknown, index: number): AgentItineraryStop
       ? Math.max(0, Math.round(obj.estimated_travel_minutes))
       : undefined;
 
+  const dayLabel =
+    (typeof obj.day_label === "string" && obj.day_label.trim()) ||
+    (typeof obj.day === "string" && obj.day.trim()) ||
+    undefined;
+  const dayDate =
+    (typeof obj.day_date === "string" && obj.day_date.trim()) ||
+    (typeof obj.dayDate === "string" && obj.dayDate.trim()) ||
+    undefined;
+
   return {
     id: String(obj.uid ?? obj.id ?? `${index}`),
     title,
     kind,
+    dayLabel,
+    dayDate,
     imageUrl:
       (typeof obj.imageUrl === "string" && obj.imageUrl.trim()) ||
       (typeof obj.image_url === "string" && obj.image_url.trim()) ||
@@ -120,6 +133,19 @@ function normalizeItineraryStop(raw: unknown, index: number): AgentItineraryStop
     estimatedTravelMinutes,
     travelSummary: typeof obj.travel_summary === "string" && obj.travel_summary.trim() ? obj.travel_summary.trim() : undefined,
   };
+}
+
+function parseDayMarkers(raw: string): Array<{ index: number; dayLabel: string; dayDate?: string }> {
+  const markers: Array<{ index: number; dayLabel: string; dayDate?: string }> = [];
+  const regex = /(^|\n)\s*(Day\s*\d+)\s*(?:[:：]\s*|\（|\()?\s*(\d{4}-\d{2}-\d{2})?\s*(?:\)|）)?\s*$/gim;
+  for (const match of raw.matchAll(regex)) {
+    markers.push({
+      index: match.index ?? 0,
+      dayLabel: match[2]?.trim() || "Day 1",
+      dayDate: match[3]?.trim() || undefined,
+    });
+  }
+  return markers;
 }
 
 function extractItineraryPayload(candidate: unknown): AgentMessagePayload | null {
@@ -158,6 +184,10 @@ function extractItineraryPayload(candidate: unknown): AgentMessagePayload | null
 function extractItineraryFromText(replyText: string): AgentMessagePayload | null {
   const raw = (replyText || "").trim();
   if (!raw) return null;
+  const hasImpossibleSignal =
+    /(無法|不可|不能|難以|impossible|infeasible).{0,18}(成行|排|規劃|itinerary|schedule)/i.test(raw) ||
+    /(條件|限制).{0,18}(過於|太|太嚴格|不足|衝突)/i.test(raw);
+  if (hasImpossibleSignal) return null;
   const hasItinerarySignal =
     /行程|規劃|规划|itinerary|timeline|交通|時間安排|注意事項/i.test(raw) &&
     /(^|\n)\s*\d+\.\s*/m.test(raw);
@@ -165,8 +195,21 @@ function extractItineraryFromText(replyText: string): AgentMessagePayload | null
 
   const stopStarts = [...raw.matchAll(/(^|\n)\s*(\d+)\.\s*/gm)];
   if (stopStarts.length === 0) return null;
+  const dayMarkers = parseDayMarkers(raw);
+  const inferredDate = dayMarkers.find((marker) => Boolean(marker.dayDate))?.dayDate;
+
+  const parseMinutesFromText = (text?: string): number | undefined => {
+    if (!text) return undefined;
+    const minuteMatch = text.match(/(\d{1,3})\s*(?:分(?:鐘)?|mins?|minutes?)/i);
+    if (!minuteMatch) return undefined;
+    const value = Number(minuteMatch[1]);
+    if (!Number.isFinite(value) || value <= 0) return undefined;
+    return value;
+  };
 
   const stops: AgentItineraryStop[] = [];
+  const isStopHeading = (heading: string): boolean =>
+    /\[(展演|旅宿|住宿|event|stay|hotel)\]/i.test(heading);
   for (let i = 0; i < stopStarts.length; i += 1) {
     const start = stopStarts[i].index ?? 0;
     const end = i + 1 < stopStarts.length ? stopStarts[i + 1].index ?? raw.length : raw.length;
@@ -175,6 +218,7 @@ function extractItineraryFromText(replyText: string): AgentMessagePayload | null
     if (lines.length === 0) continue;
 
     const heading = lines[0].replace(/^\d+\.\s*/, "").trim();
+    if (!isStopHeading(heading)) continue;
     const title = heading.replace(/^\[[^\]]+\]\s*/, "").trim();
     if (!title) continue;
     const kind: AgentItineraryStop["kind"] = /\[旅宿\]|\[住宿\]|hotel|stay/i.test(heading) ? "stay" : "event";
@@ -189,14 +233,17 @@ function extractItineraryFromText(replyText: string): AgentMessagePayload | null
     };
     const timeRange = getField([/時間(?:範圍|區間)?[：:]\s*([^\n]+)/i, /time(?:\s*range)?[：:]\s*([^\n]+)/i]) ?? (heading.match(/(\d{1,2}:\d{2}\s*[-~–—]\s*\d{1,2}:\d{2})/)?.[1]);
     const estimatedStayText = getField([/(?:預計)?停留(?:時間)?[：:]\s*([^\n]+)/i]);
-    const estimatedStayMinutes = estimatedStayText ? Number((estimatedStayText.match(/(\d+)/)?.[1] ?? "")) || undefined : undefined;
+    const estimatedStayMinutes = parseMinutesFromText(estimatedStayText);
     const estimatedTravelText = getField([/(?:預計)?交通(?:時間)?[：:]\s*([^\n]+)/i, /travel(?:\s*time)?[：:]\s*([^\n]+)/i]);
-    const estimatedTravelMinutes = estimatedTravelText ? Number((estimatedTravelText.match(/(\d+)/)?.[1] ?? "")) || undefined : undefined;
+    const estimatedTravelMinutes = parseMinutesFromText(estimatedTravelText);
+    const dayMarker = [...dayMarkers].reverse().find((marker) => marker.index <= start);
 
     stops.push({
       id: `text-stop-${i + 1}`,
       title,
       kind,
+      dayLabel: dayMarker?.dayLabel,
+      dayDate: dayMarker?.dayDate,
       timeRange,
       estimatedStayMinutes,
       highlight: getField([/(?:推薦)?亮點[：:]\s*([^\n]+)/i, /注意事項[：:]\s*([^\n]+)/i, /note[s]?[：:]\s*([^\n]+)/i]),
@@ -215,7 +262,7 @@ function extractItineraryFromText(replyText: string): AgentMessagePayload | null
   return {
     kind: "itinerary_cards",
     title: "AI 行程規劃",
-    introText: "以下為從文字回覆自動整理的行程卡片",
+    date: inferredDate,
     stops,
   };
 }

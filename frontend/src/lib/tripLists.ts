@@ -26,6 +26,28 @@ export type TripList = {
   items: TripListItem[];
 };
 
+export type PreSendTransportMode = "walk" | "mrt" | "bus" | "taxi" | "mixed";
+export type PreSendPace = "relaxed" | "balanced" | "packed";
+
+export type PreSendPlannedItem = {
+  kind: "event" | "stay";
+  title: string;
+  location: string;
+  dateStr?: string;
+  latitude?: number;
+  longitude?: number;
+  day: number;
+  order: number;
+};
+
+export type PreSendPlannerDraft = {
+  transportModes: PreSendTransportMode[];
+  pace: PreSendPace;
+  dayCount: number;
+  dayDates: string[];
+  items: PreSendPlannedItem[];
+};
+
 export type AgentPrefillEnvelope = {
   source: "trip_list";
   nonce: string;
@@ -324,6 +346,80 @@ export function buildListSummaryForAgent(list: TripList): string {
 
 export function queueAgentPrefillFromList(list: TripList): void {
   const text = buildListSummaryForAgent(list);
+  const envelope: AgentPrefillEnvelope = {
+    source: "trip_list",
+    nonce: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    listId: list.id,
+    listName: list.name,
+    text,
+  };
+  sessionStorage.setItem(AGENT_PREFILL_KEY, JSON.stringify(envelope));
+  window.dispatchEvent(new Event(AGENT_PREFILL_EVENT));
+}
+
+export function buildPlannedListSummaryForAgent(list: TripList, draft: PreSendPlannerDraft): string {
+  const sorted = [...draft.items]
+    .sort((a, b) => a.day - b.day || a.order - b.order)
+    .filter((item) => item.day >= 1 && item.day <= Math.max(1, draft.dayCount));
+
+  const lines: string[] = [
+    `請根據我預先整理的「${list.name}」清單規劃更完整的分天行程，並優先考慮以下偏好：`,
+    "",
+    "【重要前提】以下清單項目皆為使用者已確認且可用的資料，請直接用於排程。",
+    "- 不要回覆「未收錄／未查得／未搜尋到」這類否定句。",
+    "- 不要主動做旅宿合法性查核或否定判斷（除非使用者明確要求你查核）。",
+    "- 任務目標是：在既有清單上完成排序、分天、交通與時間建議。",
+    "",
+    `- 交通模式偏好：${draft.transportModes.join("、") || "未指定"}`,
+    `- 行程節奏：${draft.pace}`,
+    `- 規劃天數：${Math.max(1, draft.dayCount)} 天`,
+    "",
+    "【我已手動排好的初步順序】",
+  ];
+
+  for (let day = 1; day <= Math.max(1, draft.dayCount); day += 1) {
+    const dayDate = draft.dayDates[day - 1] || "";
+    lines.push("", `Day ${day}${dayDate ? `（${dayDate}）` : ""}`);
+    const dayItems = sorted.filter((item) => item.day === day);
+    if (dayItems.length === 0) {
+      lines.push("-（目前無項目）");
+      continue;
+    }
+    dayItems.forEach((item, index) => {
+      lines.push(`${index + 1}. [${item.kind === "event" ? "展演" : "旅宿"}] ${item.title}`);
+      lines.push(`   地點：${item.location}`);
+      if (item.dateStr) lines.push(`   檔期：${item.dateStr}`);
+      if (typeof item.latitude === "number" && typeof item.longitude === "number") {
+        lines.push(`   座標：${item.latitude}, ${item.longitude}`);
+      }
+    });
+  }
+
+  lines.push(
+    "",
+    "請嚴格遵守以下輸出規範（讓前端可正確轉為 itinerary cards）：",
+    "1) 可成行時：只輸出行程內容，不要先寫前言。",
+    "2) 每一站必須使用「編號條列」格式，且第一行為：`N. [展演] 標題` 或 `N. [旅宿] 標題`。",
+    "3) 每一站後續盡量補齊以下欄位（缺少可省略，但欄位名稱請一致）：",
+    "   - 時間：HH:MM - HH:MM",
+    "   - 地點：...",
+    "   - 日期：YYYY-MM-DD",
+    "   - 預計停留：xx 分鐘",
+    "   - 交通：交通方式 · xx 分鐘 · 交通摘要",
+    "   - 導航：https://...",
+    "   - 地圖：https://...",
+    "   - 注意事項：...",
+    "4) 請依 Day 1 / Day 2 ... 分段輸出。",
+    "5) 若不可成行：不要輸出任何編號行程條列，不要用 itinerary card 格式；改用純文字清楚說明「為什麼不可成行」與「最少需要放寬哪些條件」。",
+    "6) 請不要使用 Markdown 樣式（例如 **粗體**、## 標題）；改用純文字與符號（如 ｜、→、・）即可。",
+  );
+
+  return lines.join("\n").trim();
+}
+
+export function queueAgentPrefillFromPlannedList(list: TripList, draft: PreSendPlannerDraft): void {
+  const text = buildPlannedListSummaryForAgent(list, draft);
   const envelope: AgentPrefillEnvelope = {
     source: "trip_list",
     nonce: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

@@ -33,14 +33,6 @@ const MIN_EVENT_ZOOM = 10;
 const STAY_PAGE_SIZE = 250;
 const MAX_VISIBLE_STAY_MARKERS = 80;
 const MAX_VISIBLE_EVENT_MARKERS = 220;
-const MAP_SUMMARY_LIMIT = 30;
-
-function truncateSummary(text: string, limit: number = MAP_SUMMARY_LIMIT): string {
-  const clean = String(text ?? "").trim();
-  if (!clean) return "";
-  return clean.length > limit ? `${clean.slice(0, limit).trimEnd()}...` : clean;
-}
-
 const DARK_MAP_STYLES = [
   {
     featureType: "landscape",
@@ -702,8 +694,6 @@ export function Map() {
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
   const queryReturnTo = searchParams.get("returnTo");
-  const returnButtonLabel =
-    queryReturnTo && queryReturnTo.startsWith("/accommodations") ? "返回搜尋" : "返回聊天";
   const showExpandedPanel = isSearchPanelExpanded || Boolean(selectedItem) || Boolean(selectedStay);
 
   const requestExternalNavigation = (url: string, label: string) => {
