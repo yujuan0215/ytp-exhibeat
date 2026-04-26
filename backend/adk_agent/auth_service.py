@@ -59,6 +59,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Legacy DB compatibility: existing users table may still require this column.
+    # Keep it internal-only; frontend/API no longer uses preference tags.
+    preference_tags: Mapped[str] = mapped_column(Text, default="[]")
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     google_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
