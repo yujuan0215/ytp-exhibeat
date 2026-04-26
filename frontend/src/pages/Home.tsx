@@ -277,8 +277,15 @@ export function Home() {
       sort: "排序",
       instagramTitle: "Instagram 靈感帳號",
       instagramTips: "先選上方帳號，再看下方完整貼文區；目前三個帳號先共用同一個 widget 測試排版。",
+      socialPicksTitle: "社群精選",
+      socialPicksSubtitle: "從熱門社群藝文帳號獲取旅遊靈感",
+      goToInstagram: "前往 IG",
+      socialPickEmptyHint: "點擊上方帳號頭像後，這裡才會顯示該帳號的 Instagram 貼文",
       loadingRecommendations: "載入推薦活動中…",
       noMatchedResult: "此篩選條件暫無符合展演",
+      totalItems: (count: number) => `共 ${count} 筆`,
+      pageSizeItems: (count: number) => `${count} 筆`,
+      pageButtonTitle: (page: number, start: number, end: number) => `第 ${page} 頁（${start}-${end} 筆）`,
       pageSize: "每頁顯示",
       previousPage: "上一頁",
       nextPage: "下一頁",
@@ -304,8 +311,15 @@ export function Home() {
       sort: "Sort",
       instagramTitle: "Instagram Picks",
       instagramTips: "Select an account above, then view the full post widget below. The first three currently share one widget for layout testing.",
+      socialPicksTitle: "Social Picks",
+      socialPicksSubtitle: "Get travel inspiration from popular art and culture social accounts.",
+      goToInstagram: "Go to IG",
+      socialPickEmptyHint: "Click an account avatar above to load that account's Instagram posts here.",
       loadingRecommendations: "Loading recommended activities…",
       noMatchedResult: "No exhibitions match these filters",
+      totalItems: (count: number) => `${count} items total`,
+      pageSizeItems: (count: number) => `${count} items`,
+      pageButtonTitle: (page: number, start: number, end: number) => `Page ${page} (${start}-${end})`,
       pageSize: "Per page",
       previousPage: "Previous",
       nextPage: "Next",
@@ -331,8 +345,15 @@ export function Home() {
       sort: "Trier",
       instagramTitle: "Comptes Instagram",
       instagramTips: "Choisissez un compte puis consultez le flux ci-dessous.",
+      socialPicksTitle: "Sélection sociale",
+      socialPicksSubtitle: "Trouvez de l'inspiration voyage via des comptes culturels populaires.",
+      goToInstagram: "Aller sur IG",
+      socialPickEmptyHint: "Cliquez sur un avatar ci-dessus pour afficher les publications Instagram du compte.",
       loadingRecommendations: "Chargement des recommandations…",
       noMatchedResult: "Aucun résultat correspondant",
+      totalItems: (count: number) => `${count} éléments au total`,
+      pageSizeItems: (count: number) => `${count} éléments`,
+      pageButtonTitle: (page: number, start: number, end: number) => `Page ${page} (${start}-${end})`,
       pageSize: "Éléments par page",
       previousPage: "Page précédente",
       nextPage: "Page suivante",
@@ -597,10 +618,10 @@ export function Home() {
             </div>
           ) : hero ? (
             <>
-              <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tighter mb-6 leading-[1.03] text-white max-w-4xl">
+              <h1 className="line-clamp-3 text-4xl md:text-7xl font-headline font-extrabold tracking-tighter mb-5 leading-[1.03] text-white max-w-4xl">
                 <span>{hero.title}</span>
               </h1>
-              <p className="max-w-2xl text-lg text-white/70 mb-8 font-body leading-relaxed">
+              <p className="line-clamp-6 max-w-2xl text-base md:text-lg text-white/70 mb-6 font-body leading-relaxed">
                 <span>{hero.aiSummary
                   ? hero.aiSummary
                   : copy.fallbackSummary}</span>
@@ -789,9 +810,9 @@ export function Home() {
           <TabsContent value="insta-picks" className="mt-0">
             <section className="py-2">
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white">社群精選</h2>
+                <h2 className="text-2xl font-bold text-white">{copy.socialPicksTitle}</h2>
               </div>
-              <p className="mb-4 text-sm text-white/70">從熱門社群藝文帳號獲取旅遊靈感</p>
+              <p className="mb-4 text-sm text-white/70">{copy.socialPicksSubtitle}</p>
 
               <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
                   {INSTA_PICK_ACCOUNTS.map((account) => {
@@ -851,7 +872,7 @@ export function Home() {
                       rel="noreferrer"
                       className="text-xs font-semibold text-cyan-200 transition-colors hover:text-cyan-100"
                     >
-                      前往 IG
+                      {copy.goToInstagram}
                     </a>
                   </div>
                   {activeInstaPickAccount.embedPostUrls.map((postUrl) => (
@@ -866,7 +887,7 @@ export function Home() {
                 </div>
               ) : (
                 <div className="p-8 text-center text-sm text-white/60">
-                  點擊上方帳號頭像後，這裡才會顯示該帳號的 Instagram 貼文
+                  {copy.socialPickEmptyHint}
                 </div>
               )}
             </section>
@@ -876,7 +897,7 @@ export function Home() {
         {activeHomeTab === "discover" && !loading && filtered.length > 0 && (
           <div className="mt-12 flex flex-col items-center gap-3">
             <p className="text-center text-white/45 text-sm">
-              共 {filtered.length} 筆
+              {copy.totalItems(filtered.length)}
             </p>
             <div className="flex items-center gap-2 text-xs text-white/70">
               <label htmlFor="home-page-size">{copy.pageSize}</label>
@@ -892,7 +913,7 @@ export function Home() {
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
-                    {size} 筆
+                    {copy.pageSizeItems(size)}
                   </option>
                 ))}
               </select>
@@ -927,7 +948,7 @@ export function Home() {
                         ? "bg-[#00d6ff] text-[#042028]"
                         : "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
                     }`}
-                    title={`第 ${token} 頁（${pageStart}-${pageEnd} 筆）`}
+                    title={copy.pageButtonTitle(token, pageStart, pageEnd)}
                   >
                     {token}
                   </button>

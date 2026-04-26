@@ -29,8 +29,7 @@ export function Navbar() {
       openMenu: "開啟選單",
       navigationMenu: "導覽選單",
       language: "語言",
-      chinese: "中文",
-      english: "English",
+      socialPicks: "社群精選",
     },
     en: {
       home: "Home",
@@ -50,9 +49,7 @@ export function Navbar() {
       openMenu: "Open menu",
       navigationMenu: "Navigation Menu",
       language: "Language",
-      chinese: "中文",
-      english: "Anglais",
-      french: "Français",
+      socialPicks: "Social Picks",
     },
     fr: {
       home: "Accueil",
@@ -72,11 +69,14 @@ export function Navbar() {
       openMenu: "Ouvrir le menu",
       navigationMenu: "Menu de navigation",
       language: "Langue",
-      chinese: "中文",
-      english: "English",
-      french: "Français",
+      socialPicks: "Sélection sociale",
     },
   });
+  const languageOptions = [
+    { value: "zh-TW", label: "中文" },
+    { value: "en", label: "English" },
+    { value: "fr", label: "Français" },
+  ] as const;
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -138,7 +138,7 @@ export function Navbar() {
           <Link to="/accommodations" className={linkClass("/accommodations")}>{copy.accommodations}</Link>
           <Link to="/map" className={linkClass("/map")}>{copy.map}</Link>
           <Link to="/agent" className={linkClass("/agent")}>{copy.aiAssistant}</Link>
-          <Link to="/?tab=insta-picks" className={instaPicksLinkClass}>社群精選</Link>
+          <Link to="/?tab=insta-picks" className={instaPicksLinkClass}>{copy.socialPicks}</Link>
         </div>
       </div>
 
@@ -188,9 +188,11 @@ export function Navbar() {
                     }}
                     className="w-full rounded-lg border border-white/15 bg-[#14111f] px-2 py-1.5 text-sm text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    <option value="zh-TW">{copy.chinese}</option>
-                    <option value="en">{copy.english}</option>
-                    <option value="fr">{copy.french}</option>
+                    {languageOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -276,7 +278,7 @@ export function Navbar() {
                 <Link to="/accommodations" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">{copy.accommodations}</Link>
                 <Link to="/map" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">{copy.map}</Link>
                 <Link to="/agent" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">{copy.aiAssistant}</Link>
-                <Link to="/?tab=insta-picks" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">社群精選</Link>
+                <Link to="/?tab=insta-picks" className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5 rounded-lg">{copy.socialPicks}</Link>
                 <div className="my-2 border-t border-white/10" />
                 {!user ? (
                   <>
