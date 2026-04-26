@@ -446,8 +446,8 @@ PLACEHOLDER_IMAGES = [
 _summary_table_ready: bool = False
 _summary_cache_loaded: bool = False
 _summary_cache_db_mtime: float = -1.0
-_summary_exact_cache: dict[tuple[str, str], str] = {}
-_summary_latest_cache: dict[str, str] = {}
+_summary_exact_cache: dict[tuple[str, str, str], str] = {}
+_summary_latest_cache: dict[tuple[str, str], str] = {}
 
 def _is_meaningful_description(text: str) -> bool:
     if not text or len(text) < 15:
@@ -491,14 +491,42 @@ def _ensure_summary_table() -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_summaries (
-              uid TEXT PRIMARY KEY,
+              uid TEXT NOT NULL,
+              locale TEXT NOT NULL DEFAULT 'zh-TW',
               source_hash TEXT NOT NULL,
               summary TEXT NOT NULL,
               model TEXT NOT NULL,
-              updated_at TEXT NOT NULL
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY (uid, locale)
             )
             """
         )
+        # Lightweight migration path for older DB snapshots without locale column.
+        table_info = conn.execute("PRAGMA table_info(ai_summaries)").fetchall()
+        col_names = {str(row[1]) for row in table_info if len(row) > 1}
+        if "locale" not in col_names:
+            conn.execute("ALTER TABLE ai_summaries RENAME TO ai_summaries_old")
+            conn.execute(
+                """
+                CREATE TABLE ai_summaries (
+                  uid TEXT NOT NULL,
+                  locale TEXT NOT NULL DEFAULT 'zh-TW',
+                  source_hash TEXT NOT NULL,
+                  summary TEXT NOT NULL,
+                  model TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  PRIMARY KEY (uid, locale)
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO ai_summaries (uid, locale, source_hash, summary, model, updated_at)
+                SELECT uid, 'zh-TW', source_hash, summary, model, updated_at
+                FROM ai_summaries_old
+                """
+            )
+            conn.execute("DROP TABLE ai_summaries_old")
     _summary_table_ready = True
 
 
@@ -508,52 +536,76 @@ def _load_summary_cache_if_needed() -> None:
     db_mtime = AI_SUMMARY_DB_PATH.stat().st_mtime if AI_SUMMARY_DB_PATH.exists() else -1.0
     if _summary_cache_loaded and _summary_cache_db_mtime == db_mtime:
         return
-    exact: dict[tuple[str, str], str] = {}
-    latest: dict[str, str] = {}
+    exact: dict[tuple[str, str, str], str] = {}
+    latest: dict[tuple[str, str], str] = {}
     with sqlite3.connect(AI_SUMMARY_DB_PATH) as conn:
-        rows = conn.execute("SELECT uid, source_hash, summary FROM ai_summaries").fetchall()
-    for uid, source_hash, summary in rows:
+        rows = conn.execute("SELECT uid, locale, source_hash, summary FROM ai_summaries").fetchall()
+    for uid, locale, source_hash, summary in rows:
         uid_s = str(uid or "").strip()
+        locale_s = _normalize_locale(str(locale or "zh-TW"))
         source_hash_s = str(source_hash or "").strip()
         summary_s = str(summary or "").strip()
         if not uid_s:
             continue
         if source_hash_s:
-            exact[(uid_s, source_hash_s)] = summary_s
-        latest[uid_s] = summary_s
+            exact[(uid_s, locale_s, source_hash_s)] = summary_s
+        latest[(uid_s, locale_s)] = summary_s
     _summary_exact_cache = exact
     _summary_latest_cache = latest
     _summary_cache_db_mtime = db_mtime
     _summary_cache_loaded = True
 
 
-def _load_summary_from_db(uid: str, source_hash: str) -> str | None:
+def _load_summary_from_db(uid: str, locale: str, source_hash: str) -> str | None:
     _load_summary_cache_if_needed()
-    return _summary_exact_cache.get((uid, source_hash))
+    return _summary_exact_cache.get((uid, _normalize_locale(locale), source_hash))
 
 
-def _load_latest_summary(uid: str) -> str | None:
+def _load_latest_summary(uid: str, locale: str) -> str | None:
     _load_summary_cache_if_needed()
-    return _summary_latest_cache.get(uid)
+    return _summary_latest_cache.get((uid, _normalize_locale(locale)))
 
 
-def _save_summary_to_db(uid: str, source_hash: str, summary: str, model_name: str) -> None:
+def _summary_generation_environment() -> dict[str, object]:
+    use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0") == "1"
+    return {
+        "use_vertex": use_vertex,
+        "google_api_key_set": bool(os.environ.get("GOOGLE_API_KEY", "").strip()),
+        "google_cloud_project_set": bool(os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()),
+        "google_cloud_location": os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        "gemini_model": os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"),
+    }
+
+
+def _assert_summary_generation_ready() -> dict[str, object]:
+    env = _summary_generation_environment()
+    if bool(env["use_vertex"]):
+        if not bool(env["google_cloud_project_set"]):
+            raise RuntimeError("GOOGLE_CLOUD_PROJECT is required when GOOGLE_GENAI_USE_VERTEXAI=1")
+    else:
+        if not bool(env["google_api_key_set"]):
+            raise RuntimeError("GOOGLE_API_KEY is required for Gemini summarization")
+    return env
+
+
+def _save_summary_to_db(uid: str, locale: str, source_hash: str, summary: str, model_name: str) -> None:
     _ensure_summary_table()
+    normalized_locale = _normalize_locale(locale)
     with sqlite3.connect(AI_SUMMARY_DB_PATH) as conn:
         conn.execute(
             """
-            INSERT INTO ai_summaries (uid, source_hash, summary, model, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'))
-            ON CONFLICT(uid) DO UPDATE SET
+            INSERT INTO ai_summaries (uid, locale, source_hash, summary, model, updated_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(uid, locale) DO UPDATE SET
               source_hash = excluded.source_hash,
               summary = excluded.summary,
               model = excluded.model,
               updated_at = excluded.updated_at
             """,
-            (uid, source_hash, summary, model_name),
+            (uid, normalized_locale, source_hash, summary, model_name),
         )
-    _summary_exact_cache[(uid, source_hash)] = summary
-    _summary_latest_cache[uid] = summary
+    _summary_exact_cache[(uid, normalized_locale, source_hash)] = summary
+    _summary_latest_cache[(uid, normalized_locale)] = summary
     if AI_SUMMARY_DB_PATH.exists():
         # Keep mtime in sync so we don't need an immediate full reload.
         global _summary_cache_db_mtime, _summary_cache_loaded
@@ -561,7 +613,7 @@ def _save_summary_to_db(uid: str, source_hash: str, summary: str, model_name: st
         _summary_cache_loaded = True
 
 
-def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
+def _generate_gemini_summary(title: str, description: str, locale: str = "zh-TW") -> tuple[str, str]:
     clean_description = _strip_summary_html(description)
     if not _is_meaningful_description(clean_description):
         return "", "none"
@@ -570,16 +622,27 @@ def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
     env_path = Path(__file__).parent / "gemini_agent" / ".env"
     load_dotenv(env_path, override=False)
 
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001")
-    use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "0") == "1"
-    prompt = (
-        "你是一位展演內容編輯。請根據 description 內容，"
-        "以繁體中文撰寫約 200 字的摘要，要求清晰、具體、吸引人，"
-        "可讀性高，避免空泛與重複。"
-        "只輸出摘要內容本身，不要加標題、條列或多餘說明。\n"
-        f"展覽名稱：{title}\n"
-        f"description：{clean_description[:4000]}"
-    )
+    env = _assert_summary_generation_ready()
+    model_name = str(env["gemini_model"])
+    use_vertex = bool(env["use_vertex"])
+    normalized_locale = _normalize_locale(locale)
+    if normalized_locale == "en":
+        prompt = (
+            "You are an exhibition content editor. Based on the description, "
+            "write a concise and engaging English summary in about 80-140 words. "
+            "Be clear and specific, avoid generic filler, and output only the summary text.\n"
+            f"Title: {title}\n"
+            f"Description: {clean_description[:4000]}"
+        )
+    else:
+        prompt = (
+            "你是一位展演內容編輯。請根據 description 內容，"
+            "以繁體中文撰寫約 200 字的摘要，要求清晰、具體、吸引人，"
+            "可讀性高，避免空泛與重複。"
+            "只輸出摘要內容本身，不要加標題、條列或多餘說明。\n"
+            f"展覽名稱：{title}\n"
+            f"description：{clean_description[:4000]}"
+        )
 
     if use_vertex:
         import vertexai
@@ -593,8 +656,6 @@ def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
         summary = (response.text or "").strip()
     else:
         api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if not api_key:
-            raise RuntimeError("GOOGLE_API_KEY is required for Gemini summarization")
         try:
             import google.generativeai as genai
             genai.configure(api_key=api_key)
@@ -611,18 +672,19 @@ def _generate_gemini_summary(title: str, description: str) -> tuple[str, str]:
     return summary, model_name
 
 
-def _gemini_summarize(uid: str, title: str, description: str) -> str:
+def _gemini_summarize(uid: str, title: str, description: str, locale: str = "zh-TW") -> str:
+    normalized_locale = _normalize_locale(locale)
     source_hash = _summary_source_hash(title, description)
-    cached = _load_summary_from_db(uid, source_hash)
+    cached = _load_summary_from_db(uid, normalized_locale, source_hash)
     if cached is not None:
         return cached
     try:
-        summary, model_name = _generate_gemini_summary(title, description)
-        _save_summary_to_db(uid, source_hash, summary, model_name)
+        summary, model_name = _generate_gemini_summary(title, description, normalized_locale)
+        _save_summary_to_db(uid, normalized_locale, source_hash, summary, model_name)
         return summary
     except Exception as exc:
-        logger.warning("Gemini summarisation failed for %s: %s", uid, exc)
-        latest = _load_latest_summary(uid)
+        logger.warning("Gemini summarisation failed for %s (%s): %s", uid, normalized_locale, exc)
+        latest = _load_latest_summary(uid, normalized_locale)
         if latest is not None:
             return latest
         return _naive_summary(description)
@@ -651,7 +713,7 @@ def _resolve_summary_for_response(
     """
     normalized_locale = _normalize_locale(locale)
     source_hash = _summary_source_hash(title, description)
-    cached = _load_summary_from_db(uid, source_hash)
+    cached = _load_summary_from_db(uid, normalized_locale, source_hash)
     normalized_existing = _normalize_existing_summary(existing_summary)
     if normalized_locale != "zh-TW" and normalized_existing:
         # Prefer localized dataset/translation summary for non-zh locales.
@@ -660,7 +722,7 @@ def _resolve_summary_for_response(
         if normalized_locale == "zh-TW":
             return cached
         return _translate_event_field(uid, "aiSummary", normalized_locale, cached)
-    latest = _load_latest_summary(uid)
+    latest = _load_latest_summary(uid, normalized_locale)
     if latest is not None:
         if normalized_locale == "zh-TW":
             return latest

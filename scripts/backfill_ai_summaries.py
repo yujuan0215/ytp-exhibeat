@@ -25,10 +25,10 @@ def _event_uid_and_content(event: dict) -> tuple[str, str, str]:
     return uid, title, description
 
 
-def _force_regenerate(uid: str, title: str, description: str) -> str:
+def _force_regenerate(uid: str, title: str, description: str, locale: str) -> str:
     source_hash = proxy._summary_source_hash(title, description)  # noqa: SLF001
-    summary, model_name = proxy._generate_gemini_summary(title, description)  # noqa: SLF001
-    proxy._save_summary_to_db(uid, source_hash, summary, model_name)  # noqa: SLF001
+    summary, model_name = proxy._generate_gemini_summary(title, description, locale)  # noqa: SLF001
+    proxy._save_summary_to_db(uid, locale, source_hash, summary, model_name)  # noqa: SLF001
     return summary
 
 
@@ -37,10 +37,16 @@ def _looks_truncated(summary: str) -> bool:
     return text.endswith("…") or text.endswith("...")
 
 
-def run(limit: int | None, force: bool, only_truncated: bool) -> None:
+def run(limit: int | None, force: bool, only_truncated: bool, locale: str) -> None:
     events = proxy.load_exhibitions_dataset()
+    normalized_locale = proxy._normalize_locale(locale)  # noqa: SLF001
+    env = proxy._summary_generation_environment()  # noqa: SLF001
     total = len(events) if limit is None else min(limit, len(events))
-    print(f"Loaded {len(events)} events, processing {total} summaries...")
+    print(
+        f"Loaded {len(events)} events, processing {total} summaries..."
+        f" locale={normalized_locale}"
+    )
+    print(f"Summary generation env: {env}")
 
     processed = 0
     regenerated = 0
@@ -51,17 +57,17 @@ def run(limit: int | None, force: bool, only_truncated: bool) -> None:
         uid, title, description = _event_uid_and_content(event)
         try:
             if force:
-                _force_regenerate(uid, title, description)
+                _force_regenerate(uid, title, description, normalized_locale)
                 regenerated += 1
             elif only_truncated:
-                existing = proxy._load_latest_summary(uid) or ""  # noqa: SLF001
+                existing = proxy._load_latest_summary(uid, normalized_locale) or ""  # noqa: SLF001
                 if _looks_truncated(existing):
-                    _force_regenerate(uid, title, description)
+                    _force_regenerate(uid, title, description, normalized_locale)
                     regenerated += 1
                 else:
-                    proxy._gemini_summarize(uid, title, description)  # noqa: SLF001
+                    proxy._gemini_summarize(uid, title, description, normalized_locale)  # noqa: SLF001
             else:
-                proxy._gemini_summarize(uid, title, description)  # noqa: SLF001
+                proxy._gemini_summarize(uid, title, description, normalized_locale)  # noqa: SLF001
         except Exception:
             failed += 1
         processed += 1
@@ -87,8 +93,14 @@ def main() -> None:
         action="store_true",
         help="Only force-regenerate rows whose current summary ends with ellipsis.",
     )
+    parser.add_argument(
+        "--locale",
+        type=str,
+        default="zh-TW",
+        help="Summary locale to generate, e.g. zh-TW or en.",
+    )
     args = parser.parse_args()
-    run(args.limit, force=args.force, only_truncated=args.only_truncated)
+    run(args.limit, force=args.force, only_truncated=args.only_truncated, locale=args.locale)
 
 
 if __name__ == "__main__":
