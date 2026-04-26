@@ -42,3 +42,4 @@ third_party/
 # 本機執行產生檔案
 data/exhibeat_auth.db
 sh-thd-*
+backend/adk_agent/adk_server.log

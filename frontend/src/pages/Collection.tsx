@@ -22,7 +22,7 @@ import { TripListRail } from "@/components/collection/TripListRail";
 import { TripListActionsMenu } from "@/components/collection/TripListActionsMenu";
 import { StayListCard } from "@/components/collection/StayListCard";
 import { ActionToast } from "@/components/ActionToast";
-import { useLanguage } from "@/lib/language";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1549490349-8643362247b5?w=300&auto=format&fit=crop&q=60";
 
@@ -32,6 +32,80 @@ export function Collection() {
   const navigate = useNavigate();
   const { user, status } = useAuth();
   const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      createListPrompt: "新行程清單名稱",
+      createListDefaultPrefix: "新行程",
+      sentToAgent: "已將清單帶入助理對話",
+      recommendedForYou: "推薦給您",
+      loadingRecommendations: "載入推薦…",
+      noRecommendations: "目前沒有推薦",
+      loadingMore: "載入中…",
+      exploreMore: "探索更多推薦",
+      allShown: "已顯示全部推薦",
+      backToOverview: "返回清單總覽",
+      itemsUnit: "項",
+      events: "展演",
+      stays: "旅宿",
+      sendToAgent: "傳給助理規劃行程",
+      emptyList: "這份清單還是空的，請從展演卡、旅宿或 AI 推薦加入項目。",
+      myCollection: "我的收藏",
+      newList: "新建清單",
+      checkingAuth: "檢查登入狀態…",
+      signInUnlock: "登入後解鎖收藏與行程清單",
+      goLogin: "前往登入",
+      createAccount: "建立帳號",
+      includeStay: "含旅宿",
+    },
+    en: {
+      createListPrompt: "New trip list name",
+      createListDefaultPrefix: "New Trip",
+      sentToAgent: "List sent to the assistant",
+      recommendedForYou: "Recommended for you",
+      loadingRecommendations: "Loading recommendations…",
+      noRecommendations: "No recommendations yet",
+      loadingMore: "Loading…",
+      exploreMore: "Explore more",
+      allShown: "All recommendations shown",
+      backToOverview: "Back to list overview",
+      itemsUnit: "items",
+      events: "Events",
+      stays: "Stays",
+      sendToAgent: "Send to assistant for planning",
+      emptyList: "This list is empty. Add items from event cards, stays, or AI recommendations.",
+      myCollection: "My Collection",
+      newList: "New List",
+      checkingAuth: "Checking sign-in status…",
+      signInUnlock: "Sign in to unlock saved collections and trip lists",
+      goLogin: "Go to login",
+      createAccount: "Create account",
+      includeStay: "includes stays",
+    },
+    fr: {
+      createListPrompt: "Nom de la nouvelle liste de voyage",
+      createListDefaultPrefix: "Nouveau voyage",
+      sentToAgent: "Envoyé à l'assistant",
+      recommendedForYou: "Recommandé pour vous",
+      loadingRecommendations: "Chargement des recommandations…",
+      noRecommendations: "Aucune recommandation",
+      loadingMore: "Chargement…",
+      exploreMore: "Découvrir plus",
+      allShown: "Tout affiché",
+      backToOverview: "Retour à la vue d'ensemble",
+      itemsUnit: "éléments",
+      events: "Événements",
+      stays: "Hébergements",
+      sendToAgent: "Envoyer à l'assistant",
+      emptyList: "Liste vide",
+      myCollection: "Ma collection",
+      newList: "Nouvelle liste",
+      checkingAuth: "Vérification de l'authentification…",
+      signInUnlock: "Connectez-vous pour déverrouiller",
+      goLogin: "Se connecter",
+      createAccount: "Créer un compte",
+      includeStay: "Inclure l'hébergement",
+    },
+  });
   const [tripLists, setTripLists] = useState<TripList[]>(() => getTripLists());
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
@@ -92,7 +166,7 @@ export function Collection() {
   const eventItems = selectedList?.items.filter((i) => i.kind === "event") ?? [];
   const stayItems = selectedList?.items.filter((i) => i.kind === "stay") ?? [];
   const handleCreateTripList = () => {
-    const name = window.prompt("新行程清單名稱", `新行程 ${new Date().toLocaleDateString("zh-TW")}`);
+    const name = window.prompt(copy.createListPrompt, `${copy.createListDefaultPrefix} ${new Date().toLocaleDateString("zh-TW")}`);
     if (name === null) return;
     createTripList(name);
     setTripLists(getTripLists());
@@ -102,7 +176,7 @@ export function Collection() {
     if (!selectedList) return;
     // Current flow: Collection -> sessionStorage prefill -> Agent page auto-sends.
     queueAgentPrefillFromList(selectedList);
-    setToastMessage("已將清單帶入助理對話");
+    setToastMessage(copy.sentToAgent);
     setShowToast(true);
     window.setTimeout(() => navigate("/agent"), 180);
   };
@@ -129,13 +203,13 @@ export function Collection() {
   const recommendationsAside = (
     <div className={`bg-surface-container-low ${isV1 ? "rounded-md" : "rounded-3xl"} p-6`}>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white">推薦給您</h3>
+        <h3 className="text-xl font-bold text-white">{copy.recommendedForYou}</h3>
         <Sparkles className="w-6 h-6 text-purple-500" />
       </div>
       <div className="space-y-4">
         {loading ? (
           <div className="text-white/50 text-sm text-center py-4 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> 載入推薦…
+            <Loader2 className="w-4 h-4 animate-spin" /> {copy.loadingRecommendations}
           </div>
         ) : visibleRecs.length > 0 ? (
           visibleRecs.map((rec) => (
@@ -164,7 +238,7 @@ export function Collection() {
             </Link>
           ))
         ) : (
-          <div className="text-white/50 text-sm py-4">目前沒有推薦</div>
+          <div className="text-white/50 text-sm py-4">{copy.noRecommendations}</div>
         )}
       </div>
       {hasMoreRecs && (
@@ -176,16 +250,16 @@ export function Collection() {
         >
           {loadingMore ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> 載入中…
+              <Loader2 className="w-4 h-4 animate-spin" /> {copy.loadingMore}
             </>
           ) : (
             <>
-              <ChevronDown className="w-4 h-4" /> 探索更多推薦
+              <ChevronDown className="w-4 h-4" /> {copy.exploreMore}
             </>
           )}
         </Button>
       )}
-      {!hasMoreRecs && <p className="text-center text-white/30 text-xs mt-4">已顯示全部推薦</p>}
+      {!hasMoreRecs && <p className="text-center text-white/30 text-xs mt-4">{copy.allShown}</p>}
     </div>
   );
 
@@ -199,11 +273,11 @@ export function Collection() {
             className={`mb-3 inline-flex items-center gap-2 border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10 ${isV1 ? "rounded-md" : "rounded-full"}`}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            返回清單總覽
+            {copy.backToOverview}
           </button>
           <h2 className="text-3xl font-extrabold text-white">{selectedList.name}</h2>
           <p className="mt-1 text-sm text-white/55">
-            {selectedList.items.length} 項 · 展演 {eventItems.length} · 旅宿 {stayItems.length}
+            {selectedList.items.length} {copy.itemsUnit} · {copy.events} {eventItems.length} · {copy.stays} {stayItems.length}
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -214,20 +288,20 @@ export function Collection() {
             className={`inline-flex items-center gap-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-purple-600 px-4 py-2.5 font-semibold text-white hover:bg-purple-500 disabled:opacity-50`}
           >
             <MessageCircle className="h-4 w-4" />
-            傳給助理規劃行程
+            {copy.sendToAgent}
           </Button>
         </div>
       </div>
 
       {selectedList.items.length === 0 ? (
         <div className={`border border-white/10 py-16 text-center text-white/55 ${isV1 ? "rounded-md" : "rounded-2xl"}`}>
-          這份清單還是空的，請從展演卡、旅宿或 AI 推薦加入項目。
+          {copy.emptyList}
         </div>
       ) : (
         <div className="space-y-10">
           {eventItems.length > 0 && (
             <div>
-              <h3 className="mb-4 text-lg font-bold text-white">展演</h3>
+              <h3 className="mb-4 text-lg font-bold text-white">{copy.events}</h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {eventItems.map((item) => (
                   <ExhibitionCard
@@ -242,7 +316,7 @@ export function Collection() {
           )}
           {stayItems.length > 0 && (
             <div>
-              <h3 className="mb-4 text-lg font-bold text-white">旅宿</h3>
+              <h3 className="mb-4 text-lg font-bold text-white">{copy.stays}</h3>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {stayItems.map((item) => (
                   <StayListCard key={item.payload.id} stay={item.payload} currentListId={selectedList.id} />
@@ -261,7 +335,7 @@ export function Collection() {
         <header className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
           <div>
             <h2 className="text-secondary mb-2 text-sm font-bold tracking-widest uppercase">Personal Gallery</h2>
-            <h1 className="text-4xl font-extrabold text-white">我的收藏</h1>
+            <h1 className="text-4xl font-extrabold text-white">{copy.myCollection}</h1>
           </div>
           {user ? (
             <Button
@@ -269,7 +343,7 @@ export function Collection() {
               onClick={handleCreateTripList}
               className={`${isV1 ? "rounded-md" : "rounded-full"} bg-[#00d6ff] px-5 py-2.5 font-semibold text-[#042028] hover:bg-[#20deff]`}
             >
-              新建清單
+              {copy.newList}
             </Button>
           ) : null}
         </header>
@@ -277,7 +351,7 @@ export function Collection() {
 
       {status === "loading" ? (
         <div className="flex justify-center gap-3 py-20 text-white/50">
-          <Loader2 className="h-5 w-5 animate-spin" /> 檢查登入狀態…
+          <Loader2 className="h-5 w-5 animate-spin" /> {copy.checkingAuth}
         </div>
       ) : !user ? (
         <div
@@ -286,21 +360,21 @@ export function Collection() {
           <div className={`flex h-14 w-14 items-center justify-center ${isV1 ? "rounded-md" : "rounded-full"} bg-primary/10`}>
             <Lock className="h-6 w-6 text-primary" />
           </div>
-          <p className="font-semibold text-white/80">登入後解鎖收藏與行程清單</p>
+          <p className="font-semibold text-white/80">{copy.signInUnlock}</p>
           <div className="flex gap-3">
             <Link
               to="/login"
               state={{ from: "/collection" }}
               className={`px-5 py-2 text-sm font-semibold transition-colors ${isV1 ? "rounded-md bg-primary hover:bg-primary/90" : "rounded-full btn-gradient-safe"}`}
             >
-              前往登入
+              {copy.goLogin}
             </Link>
             <Link
               to="/register"
               state={{ from: "/collection" }}
               className={`px-5 py-2 text-sm font-semibold text-white/80 transition-colors ${isV1 ? "rounded-md" : "rounded-full"} border border-outline-variant/30 bg-surface-container-low hover:bg-surface-container-high hover:text-white`}
             >
-              建立帳號
+              {copy.createAccount}
             </Link>
           </div>
         </div>
@@ -342,8 +416,8 @@ export function Collection() {
                     <TripListMosaicHeader list={list} className="mb-3 aspect-[4/3] max-h-36" />
                     <p className="line-clamp-1 text-sm font-bold text-white">{list.name}</p>
                     <p className="mt-0.5 text-xs text-white/55">
-                      {list.items.length} 項
-                      {list.items.some((i) => i.kind === "stay") ? " · 含旅宿" : ""}
+                      {list.items.length} {copy.itemsUnit}
+                      {list.items.some((i) => i.kind === "stay") ? ` · ${copy.includeStay}` : ""}
                     </p>
                   </button>
                 </div>

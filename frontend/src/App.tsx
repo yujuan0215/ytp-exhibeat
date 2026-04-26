@@ -10,6 +10,7 @@ import { Register } from "./pages/Register";
 import { ExhibitionDetail } from "./pages/ExhibitionDetail";
 import { InfoPage } from "./pages/InfoPage";
 import { useAuth } from "./lib/auth";
+import { getLocaleCopy, useLanguage } from "./lib/language";
 
 function RequireAuth() {
   const { user, status } = useAuth();
@@ -27,6 +28,40 @@ function RequireAuth() {
 }
 
 function App() {
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      aboutTitle: "關於我們",
+      aboutBody: "ExhiBeat 致力於整合展演資訊與智慧推薦，讓你用更直覺的方式探索城市中的藝文活動。",
+      termsTitle: "服務條款",
+      termsBody: "本平台提供展演資訊彙整與推薦功能。使用者應自行判斷活動資訊，實際票務與活動內容以主辦單位公告為準。",
+      privacyTitle: "隱私政策",
+      privacyBody: "我們僅在提供服務所需範圍內處理資料，並採取合理措施保護你的帳號與使用資訊。若有隱私問題，請透過聯絡頁與我們聯繫。",
+      contactTitle: "聯絡我們",
+      contactBody: "如需合作、內容更正或問題回報，請來信 hello@exhibeat.local，我們會盡快回覆。",
+    },
+    en: {
+      aboutTitle: "About",
+      aboutBody: "ExhiBeat helps you discover cultural events with integrated event data and smart recommendations.",
+      termsTitle: "Terms of Service",
+      termsBody: "This platform provides aggregated event information and recommendation features. Please verify details with official organizers for final ticketing and event content.",
+      privacyTitle: "Privacy Policy",
+      privacyBody: "We only process data necessary to provide the service and take reasonable safeguards for your account and usage information.",
+      contactTitle: "Nous contacter",
+      contactBody: "For partnerships, content corrections, or issue reports, email hello@exhibeat.local and we will reply as soon as possible.",
+    },
+    fr: {
+      aboutTitle: "À propos",
+      aboutBody: "ExhiBeat vous aide à découvrir des événements culturels grâce à des données consolidées et des recommandations intelligentes.",
+      termsTitle: "Conditions d'utilisation",
+      termsBody: "Cette plateforme fournit des informations d'événements agrégées et des fonctions de recommandation. Veuillez vérifier les détails auprès des organisateurs officiels.",
+      privacyTitle: "Politique de confidentialité",
+      privacyBody: "Nous traitons uniquement les données nécessaires au service et appliquons des mesures raisonnables de protection de votre compte et de vos données d'usage.",
+      contactTitle: "Contact",
+      contactBody: "Pour les partenariats, corrections de contenu ou signalements, écrivez à hello@exhibeat.local et nous vous répondrons rapidement.",
+    },
+  });
+
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
@@ -44,8 +79,8 @@ function App() {
           path="about"
           element={
             <InfoPage
-              title="關於我們"
-              body="ExhiBeat 致力於整合展演資訊與智慧推薦，讓你用更直覺的方式探索城市中的藝文活動。"
+              title={copy.aboutTitle}
+              body={copy.aboutBody}
             />
           }
         />
@@ -53,8 +88,8 @@ function App() {
           path="terms"
           element={
             <InfoPage
-              title="服務條款"
-              body={"本平台提供展演資訊彙整與推薦功能。使用者應自行判斷活動資訊，實際票務與活動內容以主辦單位公告為準。"}
+              title={copy.termsTitle}
+              body={copy.termsBody}
             />
           }
         />
@@ -62,8 +97,8 @@ function App() {
           path="privacy"
           element={
             <InfoPage
-              title="隱私政策"
-              body={"我們僅在提供服務所需範圍內處理資料，並採取合理措施保護你的帳號與使用資訊。若有隱私問題，請透過聯絡頁與我們聯繫。"}
+              title={copy.privacyTitle}
+              body={copy.privacyBody}
             />
           }
         />
@@ -71,8 +106,8 @@ function App() {
           path="contact"
           element={
             <InfoPage
-              title="聯絡我們"
-              body={"如需合作、內容更正或問題回報，請來信 hello@exhibeat.local，我們會盡快回覆。"}
+              title={copy.contactTitle}
+              body={copy.contactBody}
             />
           }
         />

@@ -3,6 +3,7 @@ import type { Exhibition } from "@/data/mock";
 import { getHomeRecommendations, listLegalStays, listTagStats, type TagStat } from "@/lib/api";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { useAuth } from "@/lib/auth";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 import { useTheme } from "@/lib/theme";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPrompt } from "@/components/SignInPrompt";
@@ -126,6 +127,190 @@ const DARK_MAP_STYLES = [
 type LatLng = { lat: number; lng: number };
 type MarkerSeed = { item: Exhibition; coord: LatLng | null; geocodeQuery: string };
 type MapSelection = { kind: "event" | "stay"; id: string } | null;
+
+const MAP_COPY = {
+  "zh-TW": {
+    toast: {
+      addedToFavorites: "已加入收藏",
+      removedFromFavorites: "已取消收藏",
+    },
+    errors: {
+      loadExhibitions: "載入展覽資料失敗",
+      mapsAuthFailure: "Google Maps 驗證失敗（gm_authFailure）。請檢查 API 金鑰來源限制與計費設定。",
+      mapsInitFailed: "Google Maps 初始化失敗",
+      mapsInitUnknown: "未知的 Google Maps 初始化錯誤",
+      staysUnavailable: "住宿資料暫時無法取得",
+    },
+    defaults: {
+      ticketPrice: "NT$450",
+      selectedSummary:
+        "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。",
+      legalStayClass: "合法旅宿",
+      phonePending: "電話待補",
+      stayDescription: "點選地圖上的旅宿，可快速查看住宿資訊與位置。",
+      imageSourceFallback: "資料來源網站",
+      starRatingMissing: "未提供",
+      contactPending: "待補",
+      freePrice: "FREE",
+    },
+    mapPopup: {
+      visitEventPage: "造訪活動頁面",
+      openInGoogleMaps: "在 Google Maps 開啟",
+    },
+    page: {
+      missingApiKey: "缺少 `VITE_GOOGLE_MAPS_API_KEY`。請在 `frontend/.env.local` 設定後啟用地圖。",
+      loadingData: "載入活動資料中…",
+      searchPlaceholder: "搜尋展覽名稱或地點（#標籤）",
+      clearSearch: "清除搜尋",
+      hideStays: "隱藏住宿",
+      showStays: "顯示住宿",
+      noMatchingTags: "無符合標籤",
+      noSearchResults: "找不到符合關鍵字的展覽",
+      exploreMore: "探索更多展覽",
+      backToChat: "返回聊天",
+      backToList: "返回列表",
+      legalStayHeading: "合法旅宿",
+      stayDetail: "查看旅宿詳情",
+      ratingLabel: "星級評等：",
+      starUnit: " 星",
+      stayTypeLabel: "旅宿類型",
+      contactPhoneLabel: "聯絡電話",
+      imageSourceLabel: "圖片來源：",
+      openLocationInGoogleMaps: "在 Google Maps 開啟位置",
+      eventHeading: "展演活動",
+      eventDetail: "查看活動詳情",
+      ticketPriceLabel: "票價",
+      favoriteAdd: "加入收藏",
+      favoriteRemove: "取消收藏",
+      favoriteNeedSignIn: "請先登入以使用收藏",
+      favoriteButtonAria: "切換收藏狀態",
+      signInPromptTitle: "收藏活動前請先登入",
+      signInPromptDescription: "登入後就能把展覽加入你的收藏清單，隨時回來查看。",
+    },
+  },
+  en: {
+    toast: {
+      addedToFavorites: "Added to favorites",
+      removedFromFavorites: "Removed from favorites",
+    },
+    errors: {
+      loadExhibitions: "Failed to load exhibitions",
+      mapsAuthFailure:
+        "Google Maps authentication failed (gm_authFailure). Check API key referrer restrictions and billing.",
+      mapsInitFailed: "Google Maps failed to initialize",
+      mapsInitUnknown: "Unknown Google Maps initialization error",
+      staysUnavailable: "Accommodations are temporarily unavailable",
+    },
+    defaults: {
+      ticketPrice: "NT$450",
+      selectedSummary:
+        "This exhibition blends spatial storytelling with visual rhythm. Check the map and schedule first, then plan your visit.",
+      legalStayClass: "Licensed stay",
+      phonePending: "Phone unavailable",
+      stayDescription: "Select a stay marker on the map to quickly view lodging details and location.",
+      imageSourceFallback: "Source website",
+      starRatingMissing: "Not provided",
+      contactPending: "Unavailable",
+      freePrice: "FREE",
+    },
+    mapPopup: {
+      visitEventPage: "Visit event page",
+      openInGoogleMaps: "Open in Google Maps",
+    },
+    page: {
+      missingApiKey: "Missing `VITE_GOOGLE_MAPS_API_KEY`. Add it in `frontend/.env.local` to enable the map.",
+      loadingData: "Loading exhibition data…",
+      searchPlaceholder: "Search exhibitions or locations (#tags)",
+      clearSearch: "Clear search",
+      hideStays: "Hide stays",
+      showStays: "Show stays",
+      noMatchingTags: "No matching tags",
+      noSearchResults: "No exhibitions match your search",
+      exploreMore: "Explore more exhibitions",
+      backToChat: "Back to chat",
+      backToList: "Back to list",
+      legalStayHeading: "Licensed stay",
+      stayDetail: "View stay details",
+      ratingLabel: "Star rating: ",
+      starUnit: " star",
+      stayTypeLabel: "Stay type",
+      contactPhoneLabel: "Contact phone",
+      imageSourceLabel: "Image source: ",
+      openLocationInGoogleMaps: "Open location in Google Maps",
+      eventHeading: "Exhibition event",
+      eventDetail: "View event details",
+      ticketPriceLabel: "Ticket price",
+      favoriteAdd: "Add to favorites",
+      favoriteRemove: "Remove from favorites",
+      favoriteNeedSignIn: "Sign in to use favorites",
+      favoriteButtonAria: "Toggle favorite",
+      signInPromptTitle: "Sign in before saving favorites",
+      signInPromptDescription: "After signing in, you can save exhibitions to your favorites and revisit them anytime.",
+    },
+  },
+  fr: {
+    toast: {
+      addedToFavorites: "Ajouté aux favoris",
+      removedFromFavorites: "Retiré des favoris",
+    },
+    errors: {
+      loadExhibitions: "Impossible de charger les expositions",
+      mapsAuthFailure:
+        "Échec d'authentification Google Maps (gm_authFailure). Vérifiez la clé API, les restrictions de domaine et la facturation.",
+      mapsInitFailed: "Échec d'initialisation de Google Maps",
+      mapsInitUnknown: "Erreur inconnue lors de l'initialisation de Google Maps",
+      staysUnavailable: "Les hébergements sont temporairement indisponibles",
+    },
+    defaults: {
+      ticketPrice: "NT$450",
+      selectedSummary:
+        "Cette exposition mêle narration spatiale et rythme visuel. Vérifiez d'abord la carte et les dates, puis planifiez votre visite.",
+      legalStayClass: "Hébergement légal",
+      phonePending: "Téléphone indisponible",
+      stayDescription: "Sélectionnez un marqueur d'hébergement sur la carte pour voir rapidement les détails et l'emplacement.",
+      imageSourceFallback: "Site source",
+      starRatingMissing: "Non fourni",
+      contactPending: "Indisponible",
+      freePrice: "GRATUIT",
+    },
+    mapPopup: {
+      visitEventPage: "Voir la page de l'événement",
+      openInGoogleMaps: "Ouvrir dans Google Maps",
+    },
+    page: {
+      missingApiKey:
+        "La clé `VITE_GOOGLE_MAPS_API_KEY` est manquante. Ajoutez-la dans `frontend/.env.local` pour activer la carte.",
+      loadingData: "Chargement des données d'exposition…",
+      searchPlaceholder: "Rechercher des expositions ou lieux (#tags)",
+      clearSearch: "Effacer la recherche",
+      hideStays: "Masquer les hébergements",
+      showStays: "Afficher les hébergements",
+      noMatchingTags: "Aucun tag correspondant",
+      noSearchResults: "Aucune exposition ne correspond à votre recherche",
+      exploreMore: "Explorer plus d'expositions",
+      backToChat: "Retour au chat",
+      backToList: "Retour à la liste",
+      legalStayHeading: "Hébergement légal",
+      stayDetail: "Voir le détail de l'hébergement",
+      ratingLabel: "Classement : ",
+      starUnit: " étoile",
+      stayTypeLabel: "Type d'hébergement",
+      contactPhoneLabel: "Téléphone",
+      imageSourceLabel: "Source de l'image : ",
+      openLocationInGoogleMaps: "Ouvrir l'emplacement dans Google Maps",
+      eventHeading: "Exposition",
+      eventDetail: "Voir le détail de l'événement",
+      ticketPriceLabel: "Prix du billet",
+      favoriteAdd: "Ajouter aux favoris",
+      favoriteRemove: "Retirer des favoris",
+      favoriteNeedSignIn: "Connectez-vous pour utiliser les favoris",
+      favoriteButtonAria: "Basculer le favori",
+      signInPromptTitle: "Connectez-vous avant d'ajouter aux favoris",
+      signInPromptDescription:
+        "Après connexion, vous pourrez enregistrer des expositions dans vos favoris et les retrouver à tout moment.",
+    },
+  },
+} as const;
 
 const CITY_COORDS: Record<string, LatLng> = {
   "台北市": { lat: 25.033, lng: 121.5654 },
@@ -350,6 +535,8 @@ function replaceActiveHashtag(input: string, nextTag: string): string {
 
 export function Map() {
   const { user } = useAuth();
+  const { locale } = useLanguage();
+  const copy = useMemo(() => getLocaleCopy(locale, MAP_COPY), [locale]);
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -441,7 +628,8 @@ export function Map() {
   }, [prefillEvent]);
 
   useEffect(() => {
-    getHomeRecommendations({ limit: 5000, offset: 0 })
+    setLoading(true);
+    getHomeRecommendations({ limit: 5000, offset: 0, locale })
       .then((exhibitionsData) => {
         setExhibitions(() => {
           if (prefillEvent?.id && !exhibitionsData.some((item) => item.id === prefillEvent.id)) {
@@ -454,10 +642,10 @@ export function Map() {
       .catch((err) => {
         console.error(err);
         setExhibitions([]);
-        setError("Failed to load exhibitions");
+        setError(copy.errors.loadExhibitions);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [copy.errors.loadExhibitions, locale, prefillEvent]);
 
   useEffect(() => {
     if (!prefillEvent?.id) return;
@@ -505,12 +693,12 @@ export function Map() {
   const selectedStayIdState = selectedStay?.id ?? null;
   const selectedTicketPrice = selectedItem
     ? selectedItem.price === "FREE" || selectedItem._meta?.isFree
-      ? "FREE"
-      : String(selectedItem.price ?? "NT$450")
+      ? copy.defaults.freePrice
+      : String(selectedItem.price ?? copy.defaults.ticketPrice)
     : "";
   const selectedSummary =
-    truncateSummary(selectedItem?.aiSummary || "") ||
-    "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
+    selectedItem?.aiSummary ||
+    copy.defaults.selectedSummary;
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
   const queryReturnTo = searchParams.get("returnTo");
@@ -699,7 +887,7 @@ export function Map() {
       else next.delete(exhibition.id);
       return next;
     });
-    setToastMessage(nowFavorited ? "已加入收藏" : "已取消收藏");
+    setToastMessage(nowFavorited ? copy.toast.addedToFavorites : copy.toast.removedFromFavorites);
     setShowToast(true);
   };
 
@@ -712,9 +900,7 @@ export function Map() {
   useEffect(() => {
     const prevHandler = window.gm_authFailure;
     window.gm_authFailure = () => {
-      setMapInitError(
-        "Google Maps authentication failed (gm_authFailure). Check API key referrer restrictions and billing.",
-      );
+      setMapInitError(copy.errors.mapsAuthFailure);
       if (typeof prevHandler === "function") {
         prevHandler();
       }
@@ -946,8 +1132,8 @@ export function Map() {
       })
       .catch((e) => {
         console.error(e);
-        setError("Google Maps failed to initialize");
-        setMapInitError(e instanceof Error ? e.message : "Unknown Google Maps initialization error");
+        setError(copy.errors.mapsInitFailed);
+        setMapInitError(copy.errors.mapsInitFailed);
       });
 
     return () => {
@@ -1025,7 +1211,7 @@ export function Map() {
             <span style="display:block;color:#c4b5fd;">${safeLocation}</span>
             <span style="display:block;color:#cbd5e1;margin-top:2px;">${safeDate}</span>
             <a href="${eventUrl}" style="display:inline-block;margin-top:10px;color:#e9d5ff;text-decoration:none;border:1px solid #7c3aed;background:#581c87;padding:5px 9px;border-radius:999px;font-size:12px;">
-              造訪活動頁面
+              ${copy.mapPopup.visitEventPage}
             </a>
           </div>`;
 
@@ -1038,6 +1224,15 @@ export function Map() {
     });
     eventMarkerKeysRef.current = Array.from(nextEventKeys);
   }, [eventPoints, mapViewport, queryEventId, selection]);
+
+  useEffect(() => {
+    // Reset cached stays when locale changes so hotel fields follow language selection.
+    taipeiStayCacheRef.current = [];
+    taipeiStayOffsetRef.current = 0;
+    taipeiStayHasMoreRef.current = true;
+    setLoadedTaipeiStays([]);
+    setLegalStays([]);
+  }, [locale]);
 
   useEffect(() => {
     if (!showHotels || !mapViewport || mapViewport.zoom < MIN_STAY_ZOOM) {
@@ -1065,10 +1260,11 @@ export function Map() {
     if (!taipeiStayHasMoreRef.current || taipeiStayLoadingRef.current) return;
 
     taipeiStayLoadingRef.current = true;
+    const stayLocale = locale === "zh-TW" ? "zh-TW" : "en";
     listLegalStays({
       city: "Taipei City",
-      locale: "zh-TW",
-      lang: "zh-TW",
+      locale: stayLocale,
+      lang: stayLocale,
       limit: STAY_PAGE_SIZE,
       offset: taipeiStayOffsetRef.current,
     })
@@ -1096,12 +1292,12 @@ export function Map() {
       })
       .catch((err) => {
         console.error(err);
-        setError((prev) => prev ?? "Accommodations are temporarily unavailable");
+        setError((prev) => prev ?? copy.errors.staysUnavailable);
       })
       .finally(() => {
         taipeiStayLoadingRef.current = false;
       });
-  }, [loadedTaipeiStays, mapViewport, selectedStayIdState, showHotels]);
+  }, [loadedTaipeiStays, locale, mapViewport, selectedStayIdState, showHotels]);
 
   useEffect(() => {
     if (showHotels) return;
@@ -1141,8 +1337,8 @@ export function Map() {
       }
       const safeName = escapeHtml(stay.name);
       const safeAddress = escapeHtml(stay.address.full);
-      const safeClass = escapeHtml(stay.classLabels.join(" / ") || "合法旅宿");
-      const safePhone = escapeHtml(stay.phones[0] || "電話待補");
+      const safeClass = escapeHtml(stay.classLabels.join(" / ") || copy.defaults.legalStayClass);
+      const safePhone = escapeHtml(stay.phones[0] || copy.defaults.phonePending);
       const mapUrl =
         stay.urls.map[0] || buildStayGoogleMapsUrl(stay);
 
@@ -1159,7 +1355,7 @@ export function Map() {
             <span style="display:block;color:#cbd5e1;margin-top:2px;">${safeAddress}</span>
             <span style="display:block;color:#94a3b8;margin-top:2px;">${safePhone}</span>
             <a href="${mapUrl}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:10px;color:#cffafe;text-decoration:none;border:1px solid #0891b2;background:#155e75;padding:5px 9px;border-radius:999px;font-size:12px;">
-              在 Google Maps 開啟
+              ${copy.mapPopup.openInGoogleMaps}
             </a>
           </div>`;
 
@@ -1248,7 +1444,7 @@ export function Map() {
     return (
       <section className="px-8 py-10">
         <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-5 text-amber-200">
-          Missing `VITE_GOOGLE_MAPS_API_KEY`. Add it in `frontend/.env.local` to enable the map.
+          {copy.page.missingApiKey}
         </div>
       </section>
     );
@@ -1260,7 +1456,7 @@ export function Map() {
         <div ref={mapRef} className="absolute inset-0 h-full w-full" />
         {loading && (
           <div className="absolute left-5 top-5 rounded-md border border-white/10 bg-[#111827]/85 px-3 py-2 text-xs text-white/80">
-            載入活動資料中…
+            {copy.page.loadingData}
           </div>
         )}
         {error && (
@@ -1312,13 +1508,13 @@ export function Map() {
                   );
                 }
               }}
-              placeholder="搜尋展覽名稱或地點（#標籤）"
+              placeholder={copy.page.searchPlaceholder}
               className="h-12 w-full rounded-full border border-white/10 bg-[#1f1f26]/95 pl-11 pr-12 text-base text-white shadow-xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             {searchQuery ? (
               <button
                 type="button"
-                aria-label="清除搜尋"
+                aria-label={copy.page.clearSearch}
                 onClick={() => {
                   setSearchQuery("");
                   setSearchSuggestionsOpen(false);
@@ -1350,7 +1546,7 @@ export function Map() {
                   </button>
                 ))
               ) : (
-                <div className="px-3 py-2.5 text-sm text-white/45">無符合標籤</div>
+                <div className="px-3 py-2.5 text-sm text-white/45">{copy.page.noMatchingTags}</div>
               )}
             </div>
           )}
@@ -1421,14 +1617,27 @@ export function Map() {
                           <button
                             type="button"
                             onClick={(e) => void handleToggleFavorite(e, item)}
-                            title={user ? (favoriteIds.has(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                            title={
+                              user
+                                ? favoriteIds.has(item.id)
+                                  ? copy.page.favoriteRemove
+                                  : copy.page.favoriteAdd
+                                : copy.page.favoriteNeedSignIn
+                            }
+                            aria-label={copy.page.favoriteButtonAria}
                             className="p-1"
                           >
                             <AnimatedHeart
                               checked={favoriteIds.has(item.id)}
                               size={16}
                               className="text-white"
-                              title={user ? (favoriteIds.has(item.id) ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                              title={
+                                user
+                                  ? favoriteIds.has(item.id)
+                                    ? copy.page.favoriteRemove
+                                    : copy.page.favoriteAdd
+                                  : copy.page.favoriteNeedSignIn
+                              }
                             />
                           </button>
                         </div>
@@ -1444,7 +1653,7 @@ export function Map() {
                 ))}
                 {filteredSidebarItems.length === 0 ? (
                   <div className={`border border-white/10 bg-[#171725] p-4 text-center text-sm text-white/55 ${isV1 ? "rounded-md" : "rounded-xl"}`}>
-                    找不到符合關鍵字的展覽
+                    {copy.page.noSearchResults}
                   </div>
                 ) : null}
               </div>
@@ -1455,7 +1664,7 @@ export function Map() {
                 disabled={!hasMore}
                 className={`mt-5 flex w-full items-center justify-center gap-2 bg-[#df8eff] py-3 font-semibold text-[#2f0f42] hover:bg-[#d680f6] disabled:cursor-not-allowed disabled:opacity-60 ${isV1 ? "rounded-md" : "rounded-full"}`}
               >
-                <Navigation className="h-4 w-4" /> 探索更多展覽
+                <Navigation className="h-4 w-4" /> {copy.page.exploreMore}
               </button>
             </>
           ) : selectedStay ? (
@@ -1466,7 +1675,7 @@ export function Map() {
                   onClick={() => navigate(queryReturnTo)}
                   className={`inline-flex w-fit items-center gap-1.5 border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/25 ${isV1 ? "rounded-md" : "rounded-full"}`}
                 >
-                  {returnButtonLabel}
+                  {copy.page.backToChat}
                 </button>
               ) : null}
               <div className="relative border border-white/10 bg-[#111827]">
@@ -1487,6 +1696,8 @@ export function Map() {
                     setSelection(null);
                   }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                  aria-label={copy.page.backToList}
+                  title={copy.page.backToList}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
@@ -1494,17 +1705,17 @@ export function Map() {
                   <AddToTripListMenu kind="stay" stay={selectedStay} align="end" />
                 </div>
                 <div className="p-5 pt-8">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">合法旅宿</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">{copy.page.legalStayHeading}</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedStay.name}</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || "點選地圖上的旅宿，可快速查看住宿資訊與位置。"}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedStay.description || copy.defaults.stayDescription}</p>
                   <div className="mt-4 flex flex-wrap gap-3">
                     {selectedStay.urls.website ? (
                       <button
                         type="button"
-                        onClick={() => requestExternalNavigation(selectedStay.urls.website, "旅宿官網")}
+                        onClick={() => requestExternalNavigation(selectedStay.urls.website, copy.page.stayDetail)}
                         className={`inline-flex items-center gap-2 bg-[#00d6ff] px-4 py-2 text-sm font-semibold text-[#042028] hover:bg-[#20deff] ${isV1 ? "rounded-md" : "rounded-full"}`}
                       >
-                        <ExternalLink className="h-4 w-4" /> 搜尋官網
+                        <ExternalLink className="h-4 w-4" /> {copy.page.stayDetail}
                       </button>
                     ) : null}
                     {selectedStay.mediaDetailUrl ? (
@@ -1519,7 +1730,7 @@ export function Map() {
                   </div>
                   {selectedStay.primaryImageUrl ? (
                     <p className="mt-2 text-[11px] text-white/45">
-                      圖片來源：{selectedStay.imageSourcePolicy?.attribution || "資料來源網站"}
+                      {`${copy.page.imageSourceLabel}${selectedStay.imageSourcePolicy?.attribution || copy.defaults.imageSourceFallback}`}
                     </p>
                   ) : null}
                 </div>
@@ -1530,15 +1741,16 @@ export function Map() {
                   <MapPin className="h-4 w-4 text-cyan-200" /> {selectedStay.address.full}
                 </p>
                 <p className="flex items-center gap-2 text-sm text-white/75">
-                  <Clock3 className="h-4 w-4 text-cyan-200" /> 星級評等：{selectedStay.starRating ? `${selectedStay.starRating} 星` : "未提供"}
+                  <Clock3 className="h-4 w-4 text-cyan-200" /> {copy.page.ratingLabel}
+                  {selectedStay.starRating ? `${selectedStay.starRating}${copy.page.starUnit}` : copy.defaults.starRatingMissing}
                 </p>
                 <p className="text-sm text-white/85">
-                  <span className="mr-2 text-white/50">旅宿類型</span>
-                  <span className="font-semibold text-[#00d6ff]">{selectedStay.classLabels.join(" / ") || "合法旅宿"}</span>
+                  <span className="mr-2 text-white/50">{copy.page.stayTypeLabel}</span>
+                  <span className="font-semibold text-[#00d6ff]">{selectedStay.classLabels.join(" / ") || copy.defaults.legalStayClass}</span>
                 </p>
                 <p className="text-sm text-white/85">
-                  <span className="mr-2 text-white/50">聯絡電話</span>
-                  <span>{selectedStay.phones.join("、") || "待補"}</span>
+                  <span className="mr-2 text-white/50">{copy.page.contactPhoneLabel}</span>
+                  <span>{selectedStay.phones.join("、") || copy.defaults.contactPending}</span>
                 </p>
               </div>
 
@@ -1552,7 +1764,7 @@ export function Map() {
                 }
                 className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
               >
-                <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
+                <MapPin className="h-4 w-4" /> {copy.page.openLocationInGoogleMaps}
               </button>
             </div>
           ) : selectedItem ? (
@@ -1563,7 +1775,7 @@ export function Map() {
                   onClick={() => navigate(queryReturnTo)}
                   className={`inline-flex w-fit items-center gap-1.5 border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/25 ${isV1 ? "rounded-md" : "rounded-full"}`}
                 >
-                  {returnButtonLabel}
+                  {copy.page.backToChat}
                 </button>
               ) : null}
               <div className="relative border border-white/10 bg-[#111827]">
@@ -1582,6 +1794,8 @@ export function Map() {
                     setSelection(null);
                   }}
                   className={`absolute left-3 top-3 inline-flex items-center gap-1.5 border border-white/20 bg-black/45 px-3 py-1.5 text-xs text-white/90 hover:bg-black/60 ${isV1 ? "rounded-md" : "rounded-full"}`}
+                  aria-label={copy.page.backToList}
+                  title={copy.page.backToList}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
@@ -1589,14 +1803,14 @@ export function Map() {
                   <AddToTripListMenu kind="event" exhibition={selectedItem} align="end" />
                 </div>
                 <div className="p-5 pt-8">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#df8eff]">展演活動</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#df8eff]">{copy.page.eventHeading}</p>
                   <h2 className="text-2xl font-bold leading-tight text-white">{selectedItem.title}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-white/72">{selectedSummary}</p>
                   <a
                     href={buildEventPageUrl(selectedItem)}
                     className={`mt-4 inline-flex items-center gap-2 bg-[#df8eff] px-4 py-2 text-sm font-semibold text-[#2f0f42] hover:bg-[#d680f6] ${isV1 ? "rounded-md" : "rounded-full"}`}
                   >
-                    <ExternalLink className="h-4 w-4" /> 查看活動詳情
+                    <ExternalLink className="h-4 w-4" /> {copy.page.eventDetail}
                   </a>
                 </div>
               </div>
@@ -1609,7 +1823,7 @@ export function Map() {
                   <Clock3 className="h-4 w-4 text-cyan-200" /> {selectedItem.dateStr.replace(" -> ", " — ")}
                 </p>
                 <p className="text-sm text-white/85">
-                  <span className="mr-2 text-white/50">票價</span>
+                  <span className="mr-2 text-white/50">{copy.page.ticketPriceLabel}</span>
                   <span className="font-semibold text-[#df8eff]">{selectedTicketPrice}</span>
                 </p>
               </div>
@@ -1619,7 +1833,7 @@ export function Map() {
                 onClick={() => requestExternalNavigation(buildGoogleMapsUrl(selectedItem), "Google Maps")}
                 className={`inline-flex items-center justify-center gap-2 border border-cyan-300/30 bg-cyan-400/15 px-4 py-2.5 font-semibold text-cyan-100 hover:bg-cyan-400/20 ${isV1 ? "rounded-md" : "rounded-full"}`}
               >
-                <MapPin className="h-4 w-4" /> 在 Google Maps 開啟位置
+                <MapPin className="h-4 w-4" /> {copy.page.openLocationInGoogleMaps}
               </button>
             </div>
           ) : null}
@@ -1629,8 +1843,8 @@ export function Map() {
       <SignInPrompt
         open={showSignInPrompt}
         from={location.pathname + location.search}
-        title="收藏活動前請先登入"
-        description="登入後就能把展覽加入你的收藏清單，隨時回來查看。"
+        title={copy.page.signInPromptTitle}
+        description={copy.page.signInPromptDescription}
         onClose={() => setShowSignInPrompt(false)}
       />
       <ExternalNavigationModal

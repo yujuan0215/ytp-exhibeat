@@ -10,6 +10,7 @@ import { useTheme } from "@/lib/theme";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { ActionToast } from "@/components/ActionToast";
 import { AnimatedHeart } from "@/components/ui/AnimatedHeart";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 const CARD_SUMMARY_LIMIT = 30;
 
@@ -31,6 +32,45 @@ export function ExhibitionCard({
 }) {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      removedFavorite: "已取消收藏",
+      addedFavorite: "已加入收藏",
+      removeFavorite: "取消收藏",
+      addFavorite: "加入收藏",
+      signInForFavorite: "請先登入以使用收藏",
+      aiSummary: "AI 摘要：",
+      viewMap: "查看地圖",
+      viewDetail: "查看詳情",
+      signInPromptTitle: "想收藏這個展覽嗎？",
+      signInPromptDesc: "登入 ExhiBeat 後就能把活動加入收藏，並在收藏頁快速找到它。",
+    },
+    en: {
+      removedFavorite: "Removed from favorites",
+      addedFavorite: "Added to favorites",
+      removeFavorite: "Remove favorite",
+      addFavorite: "Add favorite",
+      signInForFavorite: "Sign in to use favorites",
+      aiSummary: "AI Summary:",
+      viewMap: "View on map",
+      viewDetail: "View details",
+      signInPromptTitle: "Want to save this exhibition?",
+      signInPromptDesc: "Sign in to add this event to favorites and quickly find it later.",
+    },
+    fr: {
+      removedFavorite: "Retiré des favoris",
+      addedFavorite: "Ajouté aux favoris",
+      removeFavorite: "Retirer des favoris",
+      addFavorite: "Ajouter aux favoris",
+      signInForFavorite: "Connectez-vous pour ajouter aux favoris",
+      aiSummary: "Résumé IA",
+      viewMap: "Voir la carte",
+      viewDetail: "Voir les détails",
+      signInPromptTitle: "Connexion requise",
+      signInPromptDesc: "Connectez-vous pour continuer cette action.",
+    },
+  });
   const [favorited, setFavorited] = useState(false);
   const { user } = useAuth();
   const location = useLocation();
@@ -55,7 +95,7 @@ export function ExhibitionCard({
     }
     const newState = await toggleFavorite(exhibition);
     setFavorited(newState);
-    setToastMessage(newState ? "已加入收藏" : "已取消收藏");
+    setToastMessage(newState ? copy.addedFavorite : copy.removedFavorite);
     setShowToast(true);
   };
 
@@ -99,7 +139,7 @@ export function ExhibitionCard({
               e.stopPropagation();
               void handleToggleFavorite(e);
             }}
-            title={user ? (favorited ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+            title={user ? (favorited ? copy.removeFavorite : copy.addFavorite) : copy.signInForFavorite}
             className={`absolute top-4 right-4 z-20 p-2 ${isV1 ? "rounded-md" : "rounded-full"} bg-background/20 backdrop-blur-md hover:bg-background/40 transition-colors`}
           >
             {user ? (
@@ -107,7 +147,7 @@ export function ExhibitionCard({
                 checked={favorited}
                 size={20}
                 className="text-white"
-                title={user ? (favorited ? "取消收藏" : "加入收藏") : "請先登入以使用收藏"}
+                title={user ? (favorited ? copy.removeFavorite : copy.addFavorite) : copy.signInForFavorite}
               />
             ) : (
               <Lock className="w-5 h-5 text-white/70 hover:text-white" />
@@ -151,7 +191,7 @@ export function ExhibitionCard({
           <div className="bg-surface/50 rounded-md p-1.5 mb-4 min-h-[84px]">
             <div className="rounded-md bg-surface-container-low border-l-2 border-primary/60 px-3 py-2.5">
               <p className="text-xs leading-relaxed line-clamp-2">
-                <span className="font-bold text-purple-400 mr-2">AI 摘要：</span>
+                <span className="font-bold text-purple-400 mr-2">{copy.aiSummary}</span>
                 <span className="text-muted-foreground">{truncateSummary(exhibition.aiSummary ?? "")}</span>
               </p>
             </div>
@@ -168,7 +208,7 @@ export function ExhibitionCard({
                   ? "bg-surface-container-highest hover:bg-secondary hover:text-on-secondary"
                   : "bg-white/5 hover:bg-cyan-500 hover:text-[#042028]"
               }`}
-            > 查看地圖
+            > {copy.viewMap}
               <MapPin className="w-4 h-4" />
             </Link>
           ) : null}
@@ -179,15 +219,15 @@ export function ExhibitionCard({
               isV1 ? "bg-surface-container-highest hover:bg-primary hover:text-on-primary" : "bg-white/5 hover:bg-purple-500 hover:text-white"
             }`}
           >
-            查看詳情 <ArrowRight className="w-4 h-4" />
+            {copy.viewDetail} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </CardContent>
       <SignInPrompt
         open={showSignInPrompt}
         from={location.pathname + location.search}
-        title="想收藏這個展覽嗎？"
-        description="登入 ExhiBeat 後就能把活動加入收藏，並在收藏頁快速找到它。"
+        title={copy.signInPromptTitle}
+        description={copy.signInPromptDesc}
         onClose={() => setShowSignInPrompt(false)}
       />
       <ActionToast open={showToast} message={toastMessage} />

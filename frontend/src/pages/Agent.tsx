@@ -4,10 +4,32 @@ import { useTheme } from "@/lib/theme";
 import { useAgent } from "@/hooks/useAgent";
 import { RecommendationCarousel } from "@/components/agent/RecommendationCarousel";
 import { ItineraryCards } from "@/components/agent/ItineraryCards";
+import { getLocaleCopy, useLanguage } from "@/lib/language";
 
 export function Agent() {
   const { theme } = useTheme();
   const isV1 = theme === "v1";
+  const { locale } = useLanguage();
+  const copy = getLocaleCopy(locale, {
+    "zh-TW": {
+      autoSendFailedSuffix: "自動傳送失敗，請重試。",
+      retrySend: "重新傳送",
+      loadingText: "Vibing with the data...",
+      inputPlaceholder: "請輸入你想找的展覽條件...",
+    },
+    en: {
+      autoSendFailedSuffix: "auto-send failed. Please retry.",
+      retrySend: "Retry",
+      loadingText: "Vibing with the data...",
+      inputPlaceholder: "Ask for an exhibition...",
+    },
+    fr: {
+      autoSendFailedSuffix: ". Veuillez réessayer.",
+      retrySend: "Réessayer l'envoi",
+      loadingText: "Chargement…",
+      inputPlaceholder: "Écrivez votre message…",
+    },
+  });
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage, retryFailedPrefill, failedPrefillLabel } = useAgent();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -33,13 +55,13 @@ export function Agent() {
         </div>
         {failedPrefillLabel ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 sm:px-5">
-            <span className="min-w-0 break-words">{failedPrefillLabel} 自動傳送失敗，請重試。</span>
+            <span className="min-w-0 break-words">{failedPrefillLabel} {copy.autoSendFailedSuffix}</span>
             <button
               type="button"
               onClick={() => void retryFailedPrefill()}
               className="rounded-full border border-amber-300/30 px-3 py-1 font-semibold text-amber-50 hover:bg-amber-300/10"
             >
-              重新傳送
+              {copy.retrySend}
             </button>
           </div>
         ) : null}
@@ -67,7 +89,7 @@ export function Agent() {
             <div className="flex items-start">
               <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-bl-sm text-purple-400 flex items-center gap-2 shadow-sm backdrop-blur-sm">
                 <Loader2 size={16} className="animate-spin" />
-                <span className="text-sm">Vibing with the data...</span>
+                <span className="text-sm">{copy.loadingText}</span>
               </div>
             </div>
           )}
@@ -79,7 +101,7 @@ export function Agent() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask for an exhibition..."
+              placeholder={copy.inputPlaceholder}
               className="flex-1 bg-white/5 border border-white/10 text-white text-sm rounded-full pl-4 pr-12 py-3 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all placeholder:text-gray-500 shadow-inner"
               disabled={isLoading}
             />

@@ -41,7 +41,35 @@ fi
 cd "$ADK_DIR"
 
 ADK_PID=""
+UVICORN_PID=""
+free_port_if_occupied() {
+  local port="$1"
+  local pids=""
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "$port"/tcp 2>/dev/null || true)"
+  fi
+  pids="$(echo "$pids" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ')"
+  if [ -n "$pids" ]; then
+    echo "偵測到 port $port 被占用，嘗試釋放: $pids"
+    kill $pids 2>/dev/null || true
+    sleep 1
+    for pid in $pids; do
+      if kill -0 "$pid" 2>/dev/null; then
+        kill -9 "$pid" 2>/dev/null || true
+      fi
+    done
+  fi
+}
+
 cleanup() {
+  if [ -n "$UVICORN_PID" ] && kill -0 "$UVICORN_PID" 2>/dev/null; then
+    echo ""
+    echo "關閉 API Proxy (PID $UVICORN_PID)..."
+    kill "$UVICORN_PID" 2>/dev/null || true
+    wait "$UVICORN_PID" 2>/dev/null || true
+  fi
   if [ -n "$ADK_PID" ] && kill -0 "$ADK_PID" 2>/dev/null; then
     echo ""
     echo "關閉 ADK Agent (PID $ADK_PID)..."
@@ -50,6 +78,9 @@ cleanup() {
   fi
 }
 trap cleanup EXIT INT TERM
+
+free_port_if_occupied 8001
+free_port_if_occupied 8000
 
 echo "啟動 ADK Agent Web UI (port 8001) ..."
 adk web . --host 0.0.0.0 --port 8001 --allow_origins "*" \
@@ -65,4 +96,6 @@ echo "ADK Web UI: http://127.0.0.1:8001"
 echo ""
 
 export ADK_PORT=8001
-exec uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000
+uvicorn api_proxy_server:app --host 0.0.0.0 --port 8000 &
+UVICORN_PID=$!
+wait "$UVICORN_PID"

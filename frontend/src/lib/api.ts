@@ -250,6 +250,16 @@ async function handleJson<T>(response: Response, fallbackMsg: string): Promise<T
   return (await response.json()) as T;
 }
 
+const HOME_RECOMMENDATIONS_CACHE = new Map<string, Promise<Exhibition[]>>();
+const HOME_RECOMMENDATIONS_PAGE_CACHE = new Map<string, Promise<HomeRecommendationsResponse>>();
+
+function cacheKeyForParams(params: Record<string, unknown>, token: string | null) {
+  const normalized = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== "")
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify({ params: normalized, auth: token ?? "anon" });
+}
+
 async function getOrCreateSession() {
   let sessionId = localStorage.getItem('adk_session');
   if (sessionId) return sessionId;
@@ -267,7 +277,7 @@ async function getOrCreateSession() {
   return data.id;
 }
 
-export const sendMessageToAgent = async (message: string) => {
+export const sendMessageToAgent = async (message: string, options: { locale?: string } = {}) => {
   let sessionId = await getOrCreateSession();
 
   let response = await fetch('/api/run', {
@@ -277,6 +287,7 @@ export const sendMessageToAgent = async (message: string) => {
       appName: APP_NAME,
       userId: USER_ID,
       sessionId: sessionId,
+      locale: options.locale,
       newMessage: { role: "user", parts: [{ text: message }] }
     })
   });
@@ -291,6 +302,7 @@ export const sendMessageToAgent = async (message: string) => {
         appName: APP_NAME,
         userId: USER_ID,
         sessionId: sessionId,
+        locale: options.locale,
         newMessage: { role: "user", parts: [{ text: message }] }
       })
     });
@@ -381,16 +393,75 @@ export const getHomeRecommendations = async (params: {
   offset?: number;
   locale?: string;
 } = {}): Promise<Exhibition[]> => {
+  const token = getAuthToken();
+  const cacheKey = cacheKeyForParams(params, token);
+  const cached = HOME_RECOMMENDATIONS_CACHE.get(cacheKey);
+  if (cached) return cached;
+
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined) search.set(key, String(value));
   });
-  const response = await fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`, {
+  const request = fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`, {
     headers: authHeaders(),
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error("Failed to fetch home recommendations");
+      const data = await response.json();
+      return data.exhibitions as Exhibition[];
+    })
+    .catch((error) => {
+      HOME_RECOMMENDATIONS_CACHE.delete(cacheKey);
+      throw error;
+    });
+  HOME_RECOMMENDATIONS_CACHE.set(cacheKey, request);
+  return request;
+};
+
+export type HomeRecommendationsResponse = {
+  exhibitions: Exhibition[];
+  offset: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+  personalized?: boolean;
+};
+
+export const getHomeRecommendationsPage = async (params: {
+  limit?: number;
+  offset?: number;
+  locale?: string;
+} = {}): Promise<HomeRecommendationsResponse> => {
+  const token = getAuthToken();
+  const cacheKey = cacheKeyForParams(params, token);
+  const cached = HOME_RECOMMENDATIONS_PAGE_CACHE.get(cacheKey);
+  if (cached) return cached;
+
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) search.set(key, String(value));
   });
-  if (!response.ok) throw new Error("Failed to fetch home recommendations");
-  const data = await response.json();
-  return data.exhibitions;
+  const request = fetch(`/api/recommendations/home${search.size ? `?${search}` : ""}`, {
+    headers: authHeaders(),
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error("Failed to fetch home recommendations");
+      const data = await response.json();
+      return {
+        exhibitions: Array.isArray(data.exhibitions) ? data.exhibitions : [],
+        offset: Number(data.offset ?? params.offset ?? 0),
+        limit: Number(data.limit ?? params.limit ?? 0),
+        total: Number(data.total ?? 0),
+        hasMore: Boolean(data.hasMore),
+        personalized: Boolean(data.personalized),
+      };
+    })
+    .catch((error) => {
+      HOME_RECOMMENDATIONS_PAGE_CACHE.delete(cacheKey);
+      throw error;
+    });
+  HOME_RECOMMENDATIONS_PAGE_CACHE.set(cacheKey, request);
+  return request;
 };
 
 export const listAvailableTags = async (): Promise<string[]> => {
