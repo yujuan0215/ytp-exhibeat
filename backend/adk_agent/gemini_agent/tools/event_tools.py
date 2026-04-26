@@ -181,7 +181,25 @@ CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parent.parent
 DATA_DIR = REPO_ROOT / ".adk"
 DB_PATH = DATA_DIR / "exhibeat.sqlite3"
-EXHIBITIONS_MERGED_PATH = PROJECT_ROOT / "data" / "exhibitions_merged.json"
+
+
+def _discover_exhibitions_path() -> Path:
+    configured = os.environ.get("EXHIBEAT_EXHIBITIONS_PATH", "").strip()
+    if configured:
+        candidate = Path(configured)
+        if not candidate.is_absolute():
+            candidate = PROJECT_ROOT / candidate
+        return candidate
+    all_candidate = PROJECT_ROOT / "data" / "all_exhibitions.json"
+    if all_candidate.exists():
+        return all_candidate
+    merged_candidate = PROJECT_ROOT / "data" / "exhibitions_merged.json"
+    if merged_candidate.exists():
+        return merged_candidate
+    return PROJECT_ROOT / "exhibitions.json"
+
+
+EXHIBITIONS_MERGED_PATH = _discover_exhibitions_path()
 VECTOR_CHUNKS_PATH = PROJECT_ROOT / "data" / "exhibitions_merged_chunks.json"
 LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
 
