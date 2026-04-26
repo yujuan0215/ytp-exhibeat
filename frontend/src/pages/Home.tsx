@@ -82,8 +82,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "room_exhibition",
     accountName: "room_exhibition",
-    accountPhoto:
-      "https://scontent-tpe1-1.cdninstagram.com/v/t51.2885-19/412757992_1042052320398635_7916946111700928068_n.jpg?stp=cp0_dst-jpg_s110x80_tt6&_nc_cat=111&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy42MDkuQzMifQ%3D%3D&_nc_ohc=yp4Yih_P_WIQ7kNvwH62Pj2&_nc_oc=AdpZJaKOqVSpEOkXOd0x9EGzkIbk-jEwU9K4yW_kFGgeP1eXCHKcAqR32lXuzb1clKSNYfPpe4hUqB2T6obBL2sd&_nc_zt=24&_nc_ht=scontent-tpe1-1.cdninstagram.com&_nc_ss=7b6a8&oh=00_Af3EJdPibqx2ZHtIg77vDa6YCV22wbJkp6KNjUSo-eEZFw&oe=69F29D74",
+    accountPhoto: "/social-avatars/room_exhibition.jpg",
     accountLink: "https://www.instagram.com/room_exhibition/",
     embedPostUrls: [
       "https://www.instagram.com/p/DXZQcowFF8d/",
@@ -93,7 +92,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "taipeitravel",
     accountName: "taipeitravel",
-    accountPhoto: "https://unavatar.io/instagram/taipeitravel",
+    accountPhoto: "/social-avatars/taipeitravel.jpg",
     accountLink: "https://www.instagram.com/taipeitravel/?hl=zh-tw",
     embedPostUrls: [
       "https://www.instagram.com/p/DXf0pHfCaD6/",
@@ -104,7 +103,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "ryan_tobehonest",
     accountName: "ryan_tobehonest",
-    accountPhoto: "https://unavatar.io/instagram/ryan_tobehonest",
+    accountPhoto: "/social-avatars/ryan_tobehonest.jpg",
     accountLink: "https://www.instagram.com/ryan_tobehonest/",
     embedPostUrls: [
       "https://www.instagram.com/reel/DS_vRQ_gV78/",
@@ -114,7 +113,7 @@ const INSTA_PICK_ACCOUNTS: InstaPickAccount[] = [
   {
     handle: "duringmyjourney",
     accountName: "duringmyjourney",
-    accountPhoto: "https://unavatar.io/instagram/duringmyjourney",
+    accountPhoto: "/social-avatars/duringmyjourney.jpg",
     accountLink: "https://www.instagram.com/duringmyjourney/",
     embedPostUrls: ["https://www.instagram.com/p/DXg2jp9CRN0/"],
   },
@@ -702,7 +701,6 @@ export function Home() {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-white">社群精選</h2>
               </div>
-              <p className="mb-4 text-sm text-white/70">從熱門社群藝文帳號獲取旅遊靈感</p>
 
               <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
                   {INSTA_PICK_ACCOUNTS.map((account) => {
