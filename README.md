@@ -120,7 +120,24 @@ bash scripts/start_frontend.sh
 ---
 
 ## 技術架構（簡版）
+```mermaid
+flowchart TD
+  user["User"]
+  frontend["Frontend<br/>React + Vite<br/>Vercel"]
+  backend["Backend API<br/>FastAPI<br/>Cloud Run"]
+  agent["AI Agent<br/>Google ADK + Gemini"]
+  data["Data<br/>Exhibition JSON<br/>Legal Stays<br/>SQLite"]
+  pipeline["Data Pipeline<br/>Crawlers + Merge + Geocode"]
+  external["External APIs<br/>Gemini / Maps / TDX"]
 
+  user --> frontend
+  frontend -->|api requests| backend
+  backend --> data
+  backend --> agent
+  agent --> data
+  agent --> external
+  pipeline --> data
+```
 - `frontend/`：React + Vite
 - `backend/adk_agent/api_proxy_server.py`：FastAPI API Proxy
 - `backend/adk_agent/gemini_agent/`：AI Agent + tool chain
