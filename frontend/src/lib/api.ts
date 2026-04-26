@@ -379,6 +379,7 @@ export const sendMessageToAgent = async (message: string) => {
 export const getHomeRecommendations = async (params: {
   limit?: number;
   offset?: number;
+  locale?: string;
 } = {}): Promise<Exhibition[]> => {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -424,8 +425,10 @@ export const listTagStats = async (): Promise<TagStat[]> => {
     .filter((item: TagStat | null): item is TagStat => Boolean(item));
 };
 
-export const getCollectionRecommendations = async () => {
-  const response = await fetch('/api/recommendations/collection', { headers: authHeaders() });
+export const getCollectionRecommendations = async (params: { locale?: string } = {}) => {
+  const search = new URLSearchParams();
+  if (params.locale) search.set("locale", params.locale);
+  const response = await fetch(`/api/recommendations/collection${search.size ? `?${search}` : ""}`, { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch collection recommendations");
   const data = await response.json();
   return {
@@ -434,8 +437,10 @@ export const getCollectionRecommendations = async () => {
   };
 };
 
-export const getMoreCollectionRecommendations = async () => {
-  const response = await fetch('/api/recommendations/collection/more', { headers: authHeaders() });
+export const getMoreCollectionRecommendations = async (params: { locale?: string } = {}) => {
+  const search = new URLSearchParams();
+  if (params.locale) search.set("locale", params.locale);
+  const response = await fetch(`/api/recommendations/collection/more${search.size ? `?${search}` : ""}`, { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch more recommendations");
   const data = await response.json();
   return data.recommendations as { id: string; title: string; tag: string; location: string; imageUrl: string }[];

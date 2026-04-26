@@ -6,17 +6,20 @@ import App from './App.tsx'
 import { AuthProvider } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
 import { AgentProvider } from './hooks/useAgent'
+import { LanguageProvider } from './lib/language'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <AgentProvider>
-            <App />
-          </AgentProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AgentProvider>
+              <App />
+            </AgentProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>,
 )

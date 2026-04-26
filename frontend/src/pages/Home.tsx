@@ -5,6 +5,7 @@ import { getHomeRecommendations, listTagStats, type TagStat } from "@/lib/api";
 import { ExhibitionCard } from "@/components/ExhibitionCard";
 import { Button } from "@/components/ui/button";
 import { MapPin, Calendar, ChevronDown, Loader2, ChevronUp, Search } from "lucide-react";
+import { useLanguage } from "@/lib/language";
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 36];
@@ -242,6 +243,7 @@ function parseInitialPageSize(searchParams: URLSearchParams): number {
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const { locale } = useLanguage();
   const [allExhibitions, setAllExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => parseInitialPage(searchParams));
@@ -264,13 +266,13 @@ export function Home() {
 
   useEffect(() => {
     setLoading(true);
-    getHomeRecommendations({ limit: 5000, offset: 0 })
+    getHomeRecommendations({ limit: 5000, offset: 0, locale })
       .then(data => {
         setAllExhibitions(data);
         setLoading(false);
       })
       .catch(err => { console.error(err); setLoading(false); });
-  }, []);
+  }, [locale]);
 
   useEffect(() => { setCurrentPage(1); }, [activeSort, rawQuery]);
 
@@ -454,7 +456,7 @@ export function Home() {
 
         <div className="relative z-10 h-full max-w-7xl mx-auto px-8 flex flex-col justify-end pb-16">
           <div className="flex items-center gap-3 mb-4">
-            <span className="px-3 py-1 bg-[#ff6b98]/20 text-[#ff6b98] text-xs font-bold rounded-full border border-[#ff6b98]/30 backdrop-blur-md uppercase tracking-wider">
+            <span className="px-3 py-1 bg-[#00d6ff] text-[#042028] text-xs font-bold rounded-full uppercase tracking-wider">
               AI 靈魂推薦
             </span>
             <span className="text-white/65 text-sm font-medium">台北・今日熱門</span>
