@@ -32,6 +32,13 @@ const MIN_EVENT_ZOOM = 10;
 const STAY_PAGE_SIZE = 250;
 const MAX_VISIBLE_STAY_MARKERS = 80;
 const MAX_VISIBLE_EVENT_MARKERS = 220;
+const MAP_SUMMARY_LIMIT = 30;
+
+function truncateSummary(text: string, limit: number = MAP_SUMMARY_LIMIT): string {
+  const clean = String(text ?? "").trim();
+  if (!clean) return "";
+  return clean.length > limit ? `${clean.slice(0, limit).trimEnd()}...` : clean;
+}
 
 const DARK_MAP_STYLES = [
   {
@@ -502,7 +509,7 @@ export function Map() {
       : String(selectedItem.price ?? "NT$450")
     : "";
   const selectedSummary =
-    selectedItem?.aiSummary ||
+    truncateSummary(selectedItem?.aiSummary || "") ||
     "這檔展演結合空間敘事與視覺節奏，適合先在地圖上掌握位置與檔期後，再安排現場參觀。";
   const queryEventId = searchParams.get("eventId");
   const queryStayId = searchParams.get("stayId");
