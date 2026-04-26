@@ -77,6 +77,8 @@ def discover_exhibitions_path() -> Path:
 EXHIBITIONS_PATH = discover_exhibitions_path()
 LEGAL_STAYS_PATH = PROJECT_ROOT / "data" / "legal_stays" / "legal_stays.json"
 AI_SUMMARY_DB_PATH = PROJECT_ROOT / "data" / "ai_summaries.sqlite3"
+EXHIBITION_TRANSLATIONS_PATH = PROJECT_ROOT / "data" / "exhibition_translations.json"
+EXHIBITION_TRANSLATIONS_DIR = PROJECT_ROOT / "data" / "exhibition_translations"
 logger.info(f"Project Root: {PROJECT_ROOT}")
 logger.info(f"Exhibitions Path: {EXHIBITIONS_PATH}")
 
@@ -90,6 +92,8 @@ ensure_database_ready()
 _legal_stays_cache: dict | None = None
 _exhibitions_cache: list[dict] | None = None
 _exhibitions_cache_mtime: float | None = None
+_exhibition_translation_cache: dict[str, dict[tuple[str, str], str]] = {}
+_exhibition_translation_cache_stamp: tuple[tuple[str, float], ...] | None = None
 
 
 def load_legal_stays_dataset() -> dict:
@@ -124,6 +128,104 @@ def load_exhibitions_dataset() -> list[dict]:
     _exhibitions_cache = [item for item in payload if isinstance(item, dict)]
     _exhibitions_cache_mtime = current_mtime
     return _exhibitions_cache
+
+
+def _normalize_locale(locale: str) -> str:
+    raw = str(locale or "").strip()
+    if not raw:
+        return "zh-TW"
+    lowered = raw.lower()
+    if lowered in {"zh", "zh-tw", "zh-hant", "zh_hant", "zh_tw"}:
+        return "zh-TW"
+    if lowered in {"zh-cn", "zh-hans", "zh_hans", "zh_cn"}:
+        return "zh-CN"
+    if "-" in raw:
+        head, tail = raw.split("-", 1)
+        return f"{head.lower()}-{tail.upper()}" if head.lower() == "zh" else f"{head.lower()}-{tail.lower()}"
+    return lowered
+
+
+def _translation_files_with_stamp() -> tuple[list[Path], tuple[tuple[str, float], ...]]:
+    files: list[Path] = []
+    if EXHIBITION_TRANSLATIONS_DIR.exists():
+        files.extend(sorted(EXHIBITION_TRANSLATIONS_DIR.glob("exhibition_translations.*.json")))
+    if EXHIBITION_TRANSLATIONS_PATH.exists():
+        files.append(EXHIBITION_TRANSLATIONS_PATH)
+    stamp = tuple((str(path), path.stat().st_mtime) for path in files)
+    return files, stamp
+
+
+def _load_split_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    result: dict[str, dict[tuple[str, str], str]] = {}
+    if not EXHIBITION_TRANSLATIONS_DIR.exists():
+        return result
+    for path in sorted(EXHIBITION_TRANSLATIONS_DIR.glob("exhibition_translations.*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        locale = _normalize_locale(str(payload.get("locale", "")))
+        if not locale:
+            continue
+        bucket = result.setdefault(locale, {})
+        entries = payload.get("entries", [])
+        if not isinstance(entries, list):
+            continue
+        for row in entries:
+            if not isinstance(row, dict):
+                continue
+            event_id = str(row.get("event_id", "")).strip()
+            field = str(row.get("field", "")).strip()
+            text = str(row.get("text", "")).strip()
+            if event_id and field and text:
+                bucket[(event_id, field)] = text
+    return result
+
+
+def _load_legacy_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    if not EXHIBITION_TRANSLATIONS_PATH.exists():
+        return {}
+    payload = json.loads(EXHIBITION_TRANSLATIONS_PATH.read_text(encoding="utf-8"))
+    locales = payload.get("locales", [])
+    entries = payload.get("entries", [])
+    if not isinstance(locales, list) or not isinstance(entries, list):
+        return {}
+    result: dict[str, dict[tuple[str, str], str]] = {
+        _normalize_locale(str(locale)): {} for locale in locales
+    }
+    for row in entries:
+        if not isinstance(row, dict):
+            continue
+        event_id = str(row.get("event_id", "")).strip()
+        field = str(row.get("field", "")).strip()
+        translations = row.get("translations", {})
+        if not event_id or not field or not isinstance(translations, dict):
+            continue
+        for raw_locale, data in translations.items():
+            locale = _normalize_locale(str(raw_locale))
+            text = str((data or {}).get("text", "")).strip() if isinstance(data, dict) else ""
+            status = str((data or {}).get("status", "")).strip() if isinstance(data, dict) else ""
+            if text and status == "translated":
+                result.setdefault(locale, {})[(event_id, field)] = text
+    return result
+
+
+def load_exhibition_translation_index() -> dict[str, dict[tuple[str, str], str]]:
+    global _exhibition_translation_cache, _exhibition_translation_cache_stamp
+    files, stamp = _translation_files_with_stamp()
+    if _exhibition_translation_cache_stamp == stamp:
+        return _exhibition_translation_cache
+    if files and EXHIBITION_TRANSLATIONS_DIR.exists():
+        _exhibition_translation_cache = _load_split_translation_index()
+    else:
+        _exhibition_translation_cache = _load_legacy_translation_index()
+    _exhibition_translation_cache_stamp = stamp
+    return _exhibition_translation_cache
+
+
+def _translate_event_field(event_id: str, field: str, locale: str, fallback_text: str) -> str:
+    normalized_locale = _normalize_locale(locale)
+    if normalized_locale == "zh-TW":
+        return fallback_text
+    table = load_exhibition_translation_index().get(normalized_locale, {})
+    return table.get((event_id, field), fallback_text)
 
 
 def list_available_tags() -> list[str]:
@@ -179,6 +281,51 @@ def get_optional_current_user(
     if not user or not user.is_active:
         return None
     return user
+
+
+def _user_preference_tags(user: User | None) -> list[str]:
+    if not user:
+        return []
+    raw = getattr(user, "preference_tags", None)
+    if not isinstance(raw, list):
+        return []
+    tags = [str(tag).strip() for tag in raw if str(tag).strip()]
+    # Deduplicate while preserving order.
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        if tag in seen:
+            continue
+        seen.add(tag)
+        deduped.append(tag)
+    return deduped
+
+
+def _recommendation_args_for_preferences(
+    *,
+    tags: list[str],
+    top_k: int,
+    cities: str = "",
+    persona_name: str = "你的偏好",
+) -> argparse.Namespace:
+    return argparse.Namespace(
+        exhibitions=str(EXHIBITIONS_PATH),
+        top_k=top_k,
+        date="",
+        backend="fallback",
+        blend_alpha=0.65,
+        persona="",
+        cities=cities,
+        tags=",".join(tags),
+        venue_focus="",
+        free_only=False,
+        popular=False,
+        persona_name=persona_name,
+        seed=42,
+        components=16,
+        epochs=30,
+        threads=2,
+    )
 
 
 def filter_legal_stays(
@@ -594,7 +741,7 @@ def _format_price(price_text: str, is_free: bool) -> str:
 
     return clean[:30] + ("…" if len(clean) > 30 else "")
 
-def map_event_to_frontend_exhibition(rec: dict) -> dict:
+def map_event_to_frontend_exhibition(rec: dict, locale: str = "zh-TW") -> dict:
     uid   = rec["uid"]
     title = rec["title"]
     image_url  = _pick_image(uid, rec.get("image_url", ""))
@@ -608,7 +755,7 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
         or rec.get("summary")
         or ""
     )
-    ai_summary = full_description or _resolve_summary_for_response(
+    ai_summary = _resolve_summary_for_response(
         uid=uid,
         title=title,
         description=description,
@@ -623,6 +770,9 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
     }:
         normalized_location_name = "國家戲劇院"
         normalized_city = "台北市"
+
+    translated_title = _translate_event_field(uid, "title", locale, title)
+    translated_location_name = _translate_event_field(uid, "locationName", locale, normalized_location_name)
 
     date_range    = rec.get("date_range", "")
     end_date_str  = date_range.split(" -> ")[-1] if " -> " in date_range else ""
@@ -644,10 +794,10 @@ def map_event_to_frontend_exhibition(rec: dict) -> dict:
 
     return {
         "id":         uid,
-        "title":      title,
+        "title":      translated_title,
         "price":      _format_price(rec.get("price_text", ""), rec.get("is_free", False)),
         "dateStr":    date_range,
-        "location":   f"{normalized_location_name} • {normalized_city}",
+        "location":   f"{translated_location_name} • {normalized_city}",
         "aiSummary":  ai_summary,
         "fullDescription": full_description,
         "tags":       display_tags,
@@ -701,7 +851,7 @@ def _extract_event_tags(event: dict) -> list[str]:
     return list(dict.fromkeys(fallback))
 
 
-def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
+def map_raw_event_to_frontend_exhibition(event: dict, locale: str = "zh-TW") -> dict:
     uid = str(event.get("UID", "")).strip()
     title = str(event.get("title", "")).strip() or "未命名展演"
     show = _extract_show_info(event)
@@ -726,7 +876,7 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
         or event.get("description")
         or ""
     )
-    ai_summary = full_description or _resolve_summary_for_response(
+    ai_summary = _resolve_summary_for_response(
         uid=summary_uid,
         title=title,
         description=description,
@@ -734,12 +884,16 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     )
     end_date = str(event.get("endDate", "")).strip()
 
+    event_id = uid or hashlib.md5(title.encode("utf-8")).hexdigest()
+    translated_title = _translate_event_field(event_id, "title", locale, title)
+    translated_location = _translate_event_field(event_id, "locationName", locale, location)
+
     return {
-        "id": summary_uid,
-        "title": title,
+        "id": event_id,
+        "title": translated_title,
         "price": _format_price(price_raw, is_free),
         "dateStr": date_range,
-        "location": location,
+        "location": translated_location,
         "aiSummary": ai_summary,
         "fullDescription": full_description,
         "tags": normalized_tags,
@@ -755,7 +909,7 @@ def map_raw_event_to_frontend_exhibition(event: dict) -> dict:
     }
 
 # ─── Recommender ─────────────────────────────────────────────────────────────
-def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dict]:
+def get_recommendations_for_persona(persona_id: str, top_k: int = 6, locale: str = "zh-TW") -> list[dict]:
     persona_map = {
         "taipei_after_work":  {"cities": "台北市,新北市",         "tags": "art,photogenic,culture"},
         "history_nerd":        {"cities": "台中市,台南市,高雄市,基隆市",  "tags": "history,culture,indigenous"},
@@ -786,17 +940,56 @@ def get_recommendations_for_persona(persona_id: str, top_k: int = 6) -> list[dic
     if not results:
         return []
     recs = results[0].get("recommendations", [])
-    return [map_event_to_frontend_exhibition(r) for r in recs]
+    return [map_event_to_frontend_exhibition(r, locale=locale) for r in recs]
 
 
+def get_recommendations_for_user(
+    user: User | None, top_k: int = 6, cities: str = "", locale: str = "zh-TW"
+) -> list[dict]:
+    tags = _user_preference_tags(user)
+    if not tags:
+        return []
+    payload = run_demo(
+        _recommendation_args_for_preferences(
+            tags=tags,
+            top_k=top_k,
+            cities=cities,
+            persona_name=user.display_name if user else "你的偏好",
+        )
+    )
+    results = payload.get("results", [])
+    if not results:
+        return []
+    recs = results[0].get("recommendations", [])
+    return [map_event_to_frontend_exhibition(r, locale=locale) for r in recs]
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 @app.get("/api/recommendations/home")
 async def get_home_recommendations(
     limit: int = Query(18, ge=1, le=5000),
     offset: int = Query(0, ge=0),
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
+    normalized_locale = _normalize_locale(locale)
+    if _user_preference_tags(current_user):
+        max_items = min(len(load_exhibitions_dataset()), 5000)
+        personalized = get_recommendations_for_user(
+            current_user, top_k=max(offset + limit, max_items), locale=normalized_locale
+        )
+        if not personalized:
+            personalized = get_recommendations_for_persona(
+                "taipei_after_work", top_k=max(offset + limit, max_items), locale=normalized_locale
+            )
+        return {
+            "exhibitions": personalized[offset : offset + limit],
+            "offset": offset,
+            "limit": limit,
+            "total": len(personalized),
+            "hasMore": offset + limit < len(personalized),
+            "personalized": True,
+        }
     all_events = load_exhibitions_dataset()
-    exhibitions = [map_raw_event_to_frontend_exhibition(event) for event in all_events]
+    exhibitions = [map_raw_event_to_frontend_exhibition(event, locale=normalized_locale) for event in all_events]
     return {
         "exhibitions": exhibitions[offset : offset + limit],
         "offset": offset,
@@ -818,8 +1011,14 @@ async def get_available_tag_stats():
 
 
 @app.get("/api/recommendations/collection/more")
-async def get_more_collection_recommendations():
-    sidebar = get_recommendations_for_persona("free_city_explorer", 9)
+async def get_more_collection_recommendations(
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    normalized_locale = _normalize_locale(locale)
+    sidebar = get_recommendations_for_user(current_user, 9, locale=normalized_locale) or get_recommendations_for_persona(
+        "free_city_explorer", 9, locale=normalized_locale
+    )
     return {"recommendations": [
         {"id": s["id"], "title": s["title"], "tag": s["tags"][0] if s["tags"] else "熱門活動",
          "location": s["location"], "imageUrl": s["imageUrl"]}
@@ -827,9 +1026,17 @@ async def get_more_collection_recommendations():
     ]}
 
 @app.get("/api/recommendations/collection")
-async def get_collection_recommendations():
-    exhibitions = get_recommendations_for_persona("history_nerd", 4)
-    sidebar = get_recommendations_for_persona("free_city_explorer", 3)
+async def get_collection_recommendations(
+    locale: str = Query("zh-TW"),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    normalized_locale = _normalize_locale(locale)
+    exhibitions = get_recommendations_for_user(current_user, 4, locale=normalized_locale) or get_recommendations_for_persona(
+        "history_nerd", 4, locale=normalized_locale
+    )
+    sidebar = get_recommendations_for_user(current_user, 3, locale=normalized_locale) or get_recommendations_for_persona(
+        "free_city_explorer", 3, locale=normalized_locale
+    )
     return {
         "collectionExhibitions": exhibitions,
         "recommendations": [
